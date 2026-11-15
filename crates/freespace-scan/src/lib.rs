@@ -2,7 +2,19 @@
 
 //! FreeSpace scanning engine.
 //!
-//! Implements the NTFS MFT scanner with USN-based incremental updates and the
-//! `jwalk`-based fallback used for non-NTFS volumes.
+//! * [`session`] — method selection, progress, cancellation and session state;
+//! * [`mft_scan`] — NTFS MFT scanner (whole volumes, requires elevation);
+//! * [`walk`] — parallel directory walk for non-NTFS, unprivileged and
+//!   sub-directory scans;
+//! * [`usn`] — incremental updates from the USN change journal.
 
-// Phase 2 adds MFT parsing, USN replay and the fallback directory walk.
+pub mod mft_scan;
+pub mod session;
+pub mod usn;
+pub mod walk;
+
+pub use session::{
+    MethodChoice, NoopObserver, ScanObserver, ScanPhase, ScanProgress, ScanRequest, ScanResult,
+    is_volume_root, scan,
+};
+pub use walk::Exclusions;

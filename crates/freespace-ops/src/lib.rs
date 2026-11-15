@@ -11,12 +11,14 @@
 //! * [`confirm`] — preview, confirmation, scope and system-path guards;
 //! * [`quarantine`] — reversible removal with checksums and restore;
 //! * [`store`] — SQLite schema and persistence for journal, quarantine and the
-//!   hash cache.
+//!   hash cache;
+//! * [`unlock`] — lock inspection, soft/force release and deletion on reboot.
 
 pub mod confirm;
 pub mod operation;
 pub mod quarantine;
 pub mod store;
+pub mod unlock;
 
 pub use confirm::{Preview, PreviewItem, is_protected_path, preview_delete, require_confirmation};
 pub use operation::{
@@ -25,3 +27,4 @@ pub use operation::{
 };
 pub use quarantine::{Quarantine, QuarantineItem, QuarantineStatus};
 pub use store::{HashKey, Store};
+pub use unlock::{UnlockMode, UnlockOutcome, UnlockPlan};

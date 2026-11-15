@@ -4,7 +4,11 @@
 //! numbered migrations tracked by `PRAGMA user_version`, so a partially written
 //! upgrade can be retried safely.
 
-use std::{fmt::Display, fs, path::Path};
+use std::{
+    fmt::Display,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use freespace_core::{Error, Result, Timestamp, Uuid};
 use rusqlite::{Connection, OptionalExtension, Row, params, types::Type};
@@ -16,6 +20,19 @@ use crate::{
 
 /// Current schema version.
 pub const SCHEMA_VERSION: u32 = 1;
+
+/// Returns the default database location: `%LOCALAPPDATA%\FreeSpace\freespace.db`.
+///
+/// # Errors
+/// Returns [`Error::Config`] when neither `LOCALAPPDATA` nor `APPDATA` is set.
+pub fn default_path() -> Result<PathBuf> {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .or_else(|| std::env::var_os("APPDATA"))
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::Config("LOCALAPPDATA and APPDATA are not set".to_owned()))?;
+
+    Ok(base.join("FreeSpace").join("freespace.db"))
+}
 
 const MIGRATION_1: &str = r"
 CREATE TABLE journal (

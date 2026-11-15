@@ -94,6 +94,60 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             commands::drives::run(&settings)
         }
         Command::Config { action } => commands::config::run(cli.config.as_deref(), action),
+        Command::Scan {
+            path,
+            method,
+            incremental,
+            exclusions,
+            snapshot_out,
+        } => {
+            let settings = load_settings(cli)?;
+            let mut outcome = commands::scan::run_scan(
+                commands::scan::ScanArgs {
+                    path,
+                    method,
+                    incremental: *incremental,
+                    exclusions,
+                },
+                settings.units,
+            )?;
+            if snapshot_out.is_some() {
+                outcome
+                    .warnings
+                    .push("snapshot output arrives with user story 8".to_owned());
+            }
+            Ok(outcome)
+        }
+        Command::Tree {
+            path,
+            depth,
+            min_size,
+        } => {
+            let settings = load_settings(cli)?;
+            commands::scan::run_tree(path, *depth, *min_size, settings.units)
+        }
+        Command::Unlock {
+            path,
+            list: _,
+            soft,
+            force,
+        } => {
+            let mode = if *soft {
+                Some(freespace_ops::UnlockMode::Soft)
+            } else if *force {
+                Some(freespace_ops::UnlockMode::Force)
+            } else {
+                None
+            };
+            let store = if mode.is_some() {
+                freespace_ops::store::default_path()
+                    .ok()
+                    .and_then(|path| freespace_ops::Store::open(&path).ok())
+            } else {
+                None
+            };
+            commands::unlock::run(path, mode, cli.yes, store.as_ref())
+        }
         command => Err(Error::Unsupported(format!(
             "`{}` is not implemented yet",
             command.name()
@@ -264,7 +318,7 @@ mod tests {
 
     #[test]
     fn unsupported_commands_return_exit_code_8() {
-        let (code, stdout, stderr) = run_args(&["freespace", "scan", "C:\\", "--json"]);
+        let (code, stdout, stderr) = run_args(&["freespace", "top", "C:\\", "--json"]);
 
         assert_eq!(code, 8);
         assert!(stderr.is_empty());

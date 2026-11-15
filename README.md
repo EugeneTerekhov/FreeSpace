@@ -12,12 +12,16 @@ automates cleanup via CLI.
 
 ## Статус / Status
 
-Фаза 2 (Foundational) завершена: доменная модель, дерево-арена, настройки, слой путей и томов,
-SQLite-хранилище, безопасные операции с карантином, каркасы CLI и GUI, общие тестовые фикстуры и
-бенчмарки. Следующая фаза — US1: сканирование тома и дерево размеров (T026–T036).
-Phase 2 (Foundational) is complete: the domain model, tree arena, settings, path and volume layer,
-SQLite store, safe operations with quarantine, CLI and GUI shells, shared test fixtures and
-benchmarks are in place. Next phase — US1: volume scanning and the size tree (T026–T036).
+Фаза 3 (US1), фаза 4 (US2) и фаза 5 (US3) завершены: сканирование NTFS через MFT и USN-журнал,
+fallback-обход каталогов, дерево размеров с поиском и сортировкой, интерактивная Treemap-карта с
+зумом и легендой, разблокировка файлов через Restart Manager и удаление при перезагрузке, а также
+команды CLI `scan`, `tree` и `unlock` (T026–T047). Следующая фаза — US4: топ файлов и группировка
+по типам (T048–T052).
+Phases 3 (US1), 4 (US2) and 5 (US3) are complete: NTFS scanning through the MFT and the USN journal,
+the directory-walk fallback, the size tree with search and sorting, the interactive treemap with
+zoom and legend, file unlocking through the Restart Manager and deletion on reboot, and the CLI
+commands `scan`, `tree` and `unlock` (T026–T047). Next phase — US4: top files and type grouping
+(T048–T052).
 
 ## Документация / Documentation
 

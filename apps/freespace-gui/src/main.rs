@@ -10,6 +10,8 @@
 extern crate rust_i18n;
 
 mod app;
+mod treemap;
+mod views;
 
 use eframe::egui;
 

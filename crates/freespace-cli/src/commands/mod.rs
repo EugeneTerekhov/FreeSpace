@@ -4,6 +4,8 @@ use serde_json::Value;
 
 pub mod config;
 pub mod drives;
+pub mod scan;
+pub mod unlock;
 
 /// Result of a successful command.
 #[derive(Debug)]

@@ -14,6 +14,7 @@ pub mod error;
 pub mod i18n;
 pub mod logging;
 pub mod model;
+pub mod query;
 pub mod settings;
 pub mod size;
 pub mod time;

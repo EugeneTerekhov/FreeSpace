@@ -8,7 +8,9 @@ rust-version.workspace = true
 [dependencies]
 eframe = { workspace = true }
 freespace-core = { workspace = true }
+freespace-ops = { workspace = true }
 freespace-platform = { workspace = true }
+freespace-scan = { workspace = true }
 rust-i18n = { workspace = true }
 tracing = { workspace = true }
 

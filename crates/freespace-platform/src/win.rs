@@ -23,6 +23,17 @@ use windows::{
     core::PCWSTR,
 };
 
+/// Converts a Windows `FILETIME` value (100 ns since 1601-01-01) to Unix
+/// milliseconds.
+#[must_use]
+pub fn filetime_to_millis(filetime: u64) -> i64 {
+    let value = i64::try_from(filetime).unwrap_or(i64::MAX);
+
+    value
+        .saturating_div(10_000)
+        .saturating_sub(11_644_473_600_000)
+}
+
 /// Converts a string slice into a NUL-terminated UTF-16 buffer.
 #[must_use]
 pub fn to_wide(value: &OsStr) -> Vec<u16> {

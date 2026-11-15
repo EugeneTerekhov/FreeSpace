@@ -76,17 +76,17 @@ verified independently.
 
 **Independent Test**: scan a test volume, verify the totals against the reference, check search/sorting and the marking of inaccessible directories
 
-- [ ] T026 [P] [US1] Test MFT enumeration and totals on a reference volume (admin-gated) in `tests/scan_mft.rs`
-- [ ] T027 [P] [US1] Test the fallback walk and the marking of inaccessible directories in `tests/scan_walk.rs`
-- [ ] T028 [US1] Implement volume opening and `FSCTL_ENUM_USN_DATA` in `crates/freespace-platform/src/mft.rs`
-- [ ] T029 [US1] Implement `USN_RECORD_V2` parsing and tree construction in `crates/freespace-scan/src/mft_scan.rs`
-- [ ] T030 [US1] Implement incremental update via USN (`JournalID`, `NextUSN`) in `crates/freespace-scan/src/usn.rs`
-- [ ] T031 [US1] Implement the fallback walk (`jwalk` + `rayon`) and method detection in `crates/freespace-scan/src/walk.rs`
-- [ ] T032 [US1] Implement streaming delivery of results, progress and exclusion handling in `crates/freespace-scan/src/session.rs`
-- [ ] T033 [US1] Implement search/filters (`globset`) and sorting in `crates/freespace-core/src/query.rs`
-- [ ] T034 [US1] Implement the CLI commands `scan` and `tree` with JSON in `crates/freespace-cli/src/commands/scan.rs`
-- [ ] T035 [US1] Implement the virtualized tree in the GUI in `apps/freespace-gui/src/views/tree.rs`
-- [ ] T036 [US1] Integrate scan progress and cancellation in the GUI in `apps/freespace-gui/src/views/scan.rs`
+- [x] T026 [P] [US1] Test MFT enumeration and totals on a reference volume (admin-gated) in `tests/scan_mft.rs`
+- [x] T027 [P] [US1] Test the fallback walk and the marking of inaccessible directories in `tests/scan_walk.rs`
+- [x] T028 [US1] Implement volume opening and `FSCTL_ENUM_USN_DATA` in `crates/freespace-platform/src/mft.rs`
+- [x] T029 [US1] Implement `USN_RECORD_V2` parsing and tree construction in `crates/freespace-scan/src/mft_scan.rs`
+- [x] T030 [US1] Implement incremental update via USN (`JournalID`, `NextUSN`) in `crates/freespace-scan/src/usn.rs`
+- [x] T031 [US1] Implement the fallback walk (`jwalk` + `rayon`) and method detection in `crates/freespace-scan/src/walk.rs`
+- [x] T032 [US1] Implement streaming delivery of results, progress and exclusion handling in `crates/freespace-scan/src/session.rs`
+- [x] T033 [US1] Implement search/filters (`globset`) and sorting in `crates/freespace-core/src/query.rs`
+- [x] T034 [US1] Implement the CLI commands `scan` and `tree` with JSON in `crates/freespace-cli/src/commands/scan.rs`
+- [x] T035 [US1] Implement the virtualized tree in the GUI in `apps/freespace-gui/src/views/tree.rs`
+- [x] T036 [US1] Integrate scan progress and cancellation in the GUI in `apps/freespace-gui/src/views/scan.rs`
 
 **Checkpoint**: US1 is fully functional and can be demonstrated as the MVP
 
@@ -98,12 +98,12 @@ verified independently.
 
 **Independent Test**: verify area proportionality, zoom, tooltips and legend on a set with known sizes
 
-- [ ] T037 [P] [US2] Test squarified layout and area proportionality in `apps/freespace-gui/src/treemap/layout.rs`
-- [ ] T038 [US2] Implement the squarified treemap algorithm in `apps/freespace-gui/src/treemap/layout.rs`
-- [ ] T039 [US2] Implement rendering with levels of detail and a layout cache in `apps/freespace-gui/src/treemap/view.rs`
-- [ ] T040 [US2] Implement zoom, breadcrumbs and tooltips in `apps/freespace-gui/src/treemap/interaction.rs`
-- [ ] T041 [US2] Implement coloring by file type and the legend in `apps/freespace-gui/src/treemap/colors.rs`
-- [ ] T042 [P] [US2] Benchmark rendering on 1M nodes in `benches/treemap.rs`
+- [x] T037 [P] [US2] Test squarified layout and area proportionality in `apps/freespace-gui/src/treemap/layout.rs`
+- [x] T038 [US2] Implement the squarified treemap algorithm in `apps/freespace-gui/src/treemap/layout.rs`
+- [x] T039 [US2] Implement rendering with levels of detail and a layout cache in `apps/freespace-gui/src/treemap/view.rs`
+- [x] T040 [US2] Implement zoom, breadcrumbs and tooltips in `apps/freespace-gui/src/treemap/interaction.rs`
+- [x] T041 [US2] Implement coloring by file type and the legend in `apps/freespace-gui/src/treemap/colors.rs`
+- [x] T042 [P] [US2] Benchmark rendering on 1M nodes in `benches/treemap.rs`
 
 **Checkpoint**: US2 works on US1 data independently of the other stories
 
@@ -115,11 +115,11 @@ verified independently.
 
 **Independent Test**: hold a file with a test process, find the lock, release it and verify the file is accessible
 
-- [ ] T043 [P] [US3] Test the lock list via Restart Manager in `tests/unlock.rs`
-- [ ] T044 [US3] Implement `RmStartSession`/`RmGetList` in `crates/freespace-platform/src/locks.rs`
-- [ ] T045 [US3] Implement soft/hard release and delete on reboot in `crates/freespace-ops/src/unlock.rs`
-- [ ] T046 [US3] Implement CLI `unlock` (list/soft/force) in `crates/freespace-cli/src/commands/unlock.rs`
-- [ ] T047 [US3] Implement the locks dialog in the GUI in `apps/freespace-gui/src/views/unlock.rs`
+- [x] T043 [P] [US3] Test the lock list via Restart Manager in `tests/unlock.rs`
+- [x] T044 [US3] Implement `RmStartSession`/`RmGetList` in `crates/freespace-platform/src/locks.rs`
+- [x] T045 [US3] Implement soft/hard release and delete on reboot in `crates/freespace-ops/src/unlock.rs`
+- [x] T046 [US3] Implement CLI `unlock` (list/soft/force) in `crates/freespace-cli/src/commands/unlock.rs`
+- [x] T047 [US3] Implement the locks dialog in the GUI in `apps/freespace-gui/src/views/unlock.rs`
 
 ---
 

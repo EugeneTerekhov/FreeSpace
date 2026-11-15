@@ -28,6 +28,8 @@ pub enum OperationKind {
     ArchiveExtract,
     /// Schedule deletion for the next reboot.
     DeleteOnReboot,
+    /// Release a file lock held by another process.
+    Unlock,
 }
 
 impl OperationKind {
@@ -44,6 +46,7 @@ impl OperationKind {
             Self::Restore => "restore",
             Self::ArchiveExtract => "archive-extract",
             Self::DeleteOnReboot => "delete-on-reboot",
+            Self::Unlock => "unlock",
         }
     }
 }

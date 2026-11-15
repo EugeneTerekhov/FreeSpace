@@ -22,6 +22,11 @@ use freespace_core::{
     size::Units,
 };
 
+use crate::{
+    treemap::TreemapView,
+    views::{ScanState, TreeView, UnlockState},
+};
+
 /// Top-level screens.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Page {
@@ -249,6 +254,11 @@ pub struct FreeSpaceApp {
     tasks: TaskService,
     latest_progress: Option<ProgressUpdate>,
     last_error: Option<String>,
+    scan: ScanState,
+    scan_result: Option<Arc<freespace_scan::ScanResult>>,
+    tree_view: TreeView,
+    treemap: TreemapView,
+    unlock: UnlockState,
 }
 
 impl FreeSpaceApp {
@@ -280,6 +290,11 @@ impl FreeSpaceApp {
             tasks: TaskService::new(),
             latest_progress: None,
             last_error: None,
+            scan: ScanState::default(),
+            scan_result: None,
+            tree_view: TreeView::default(),
+            treemap: TreemapView::default(),
+            unlock: UnlockState::default(),
         }
     }
 
@@ -411,9 +426,32 @@ impl FreeSpaceApp {
 
         match self.page {
             Page::Dashboard => self.dashboard(ui),
+            Page::Scan => {
+                self.scan.ui(ui, self.settings.units);
+                if let Some(result) = self.scan.take_finished() {
+                    self.tree_view.reset();
+                    self.treemap.reset(result.tree.roots().next());
+                    self.scan_result = Some(result);
+                }
+            }
+            Page::Tree => {
+                if let Some(result) = &self.scan_result {
+                    self.tree_view.ui(ui, result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+            }
+            Page::Treemap => {
+                if let Some(result) = &self.scan_result {
+                    self.treemap.ui(ui, &result.tree, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+            }
+            Page::Unlock => self.unlock.ui(ui),
             Page::Settings => self.settings_page(ui),
             Page::About => {
-                ui.label(t!("app.phase2_ready").to_string());
+                ui.label(t!("app.phase3_ready").to_string());
                 ui.separator();
                 ui.label(format!("FreeSpace {}", env!("CARGO_PKG_VERSION")));
             }
@@ -424,7 +462,7 @@ impl FreeSpaceApp {
     }
 
     fn dashboard(&mut self, ui: &mut egui::Ui) {
-        ui.label(t!("app.phase2_ready").to_string());
+        ui.label(t!("app.phase3_ready").to_string());
         ui.add_space(12.0);
 
         if ui.button(t!("page.refresh_drives").to_string()).clicked() {
@@ -527,9 +565,13 @@ impl eframe::App for FreeSpaceApp {
         self.top_bar(context);
         self.sidebar(context);
         egui::CentralPanel::default().show(context, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            if matches!(self.page, Page::Tree | Page::Treemap) {
                 self.page_content(ui);
-            });
+            } else {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    self.page_content(ui);
+                });
+            }
         });
     }
 }

@@ -76,17 +76,17 @@
 
 **Independent Test**: просканировать тестовый том, сверить суммы с эталоном, проверить поиск/сортировку и пометку недоступных каталогов
 
-- [ ] T026 [P] [US1] Тест MFT-перечисления и сумм на эталонном томе (admin-gated) в `tests/scan_mft.rs`
-- [ ] T027 [P] [US1] Тест fallback-обхода и пометки недоступных каталогов в `tests/scan_walk.rs`
-- [ ] T028 [US1] Реализовать открытие тома и `FSCTL_ENUM_USN_DATA` в `crates/freespace-platform/src/mft.rs`
-- [ ] T029 [US1] Реализовать разбор `USN_RECORD_V2` и построение дерева в `crates/freespace-scan/src/mft_scan.rs`
-- [ ] T030 [US1] Реализовать инкрементальное обновление по USN (`JournalID`, `NextUSN`) в `crates/freespace-scan/src/usn.rs`
-- [ ] T031 [US1] Реализовать fallback-обход (`jwalk` + `rayon`) и определение метода в `crates/freespace-scan/src/walk.rs`
-- [ ] T032 [US1] Реализовать потоковую выдачу результатов, прогресс и учёт исключённых путей в `crates/freespace-scan/src/session.rs`
-- [ ] T033 [US1] Реализовать поиск/фильтры (`globset`) и сортировку в `crates/freespace-core/src/query.rs`
-- [ ] T034 [US1] Реализовать команды CLI `scan` и `tree` с JSON в `crates/freespace-cli/src/commands/scan.rs`
-- [ ] T035 [US1] Реализовать виртуализированное дерево в GUI в `apps/freespace-gui/src/views/tree.rs`
-- [ ] T036 [US1] Интегрировать прогресс и отмену сканирования в GUI в `apps/freespace-gui/src/views/scan.rs`
+- [x] T026 [P] [US1] Тест MFT-перечисления и сумм на эталонном томе (admin-gated) в `tests/scan_mft.rs`
+- [x] T027 [P] [US1] Тест fallback-обхода и пометки недоступных каталогов в `tests/scan_walk.rs`
+- [x] T028 [US1] Реализовать открытие тома и `FSCTL_ENUM_USN_DATA` в `crates/freespace-platform/src/mft.rs`
+- [x] T029 [US1] Реализовать разбор `USN_RECORD_V2` и построение дерева в `crates/freespace-scan/src/mft_scan.rs`
+- [x] T030 [US1] Реализовать инкрементальное обновление по USN (`JournalID`, `NextUSN`) в `crates/freespace-scan/src/usn.rs`
+- [x] T031 [US1] Реализовать fallback-обход (`jwalk` + `rayon`) и определение метода в `crates/freespace-scan/src/walk.rs`
+- [x] T032 [US1] Реализовать потоковую выдачу результатов, прогресс и учёт исключённых путей в `crates/freespace-scan/src/session.rs`
+- [x] T033 [US1] Реализовать поиск/фильтры (`globset`) и сортировку в `crates/freespace-core/src/query.rs`
+- [x] T034 [US1] Реализовать команды CLI `scan` и `tree` с JSON в `crates/freespace-cli/src/commands/scan.rs`
+- [x] T035 [US1] Реализовать виртуализированное дерево в GUI в `apps/freespace-gui/src/views/tree.rs`
+- [x] T036 [US1] Интегрировать прогресс и отмену сканирования в GUI в `apps/freespace-gui/src/views/scan.rs`
 
 **Checkpoint**: US1 полностью функциональна и может быть продемонстрирована как MVP
 
@@ -98,12 +98,12 @@
 
 **Independent Test**: проверить пропорциональность площадей, зум, подсказки и легенду на наборе с известными размерами
 
-- [ ] T037 [P] [US2] Тест раскладки squarified и пропорциональности площадей в `apps/freespace-gui/src/treemap/layout.rs`
-- [ ] T038 [US2] Реализовать алгоритм squarified treemap в `apps/freespace-gui/src/treemap/layout.rs`
-- [ ] T039 [US2] Реализовать отрисовку с уровнями детализации и кэшем раскладки в `apps/freespace-gui/src/treemap/view.rs`
-- [ ] T040 [US2] Реализовать зум, «хлебные крошки» и подсказки в `apps/freespace-gui/src/treemap/interaction.rs`
-- [ ] T041 [US2] Реализовать раскраску по типам файлов и легенду в `apps/freespace-gui/src/treemap/colors.rs`
-- [ ] T042 [P] [US2] Бенчмарк отрисовки на 1 млн узлов в `benches/treemap.rs`
+- [x] T037 [P] [US2] Тест раскладки squarified и пропорциональности площадей в `apps/freespace-gui/src/treemap/layout.rs`
+- [x] T038 [US2] Реализовать алгоритм squarified treemap в `apps/freespace-gui/src/treemap/layout.rs`
+- [x] T039 [US2] Реализовать отрисовку с уровнями детализации и кэшем раскладки в `apps/freespace-gui/src/treemap/view.rs`
+- [x] T040 [US2] Реализовать зум, «хлебные крошки» и подсказки в `apps/freespace-gui/src/treemap/interaction.rs`
+- [x] T041 [US2] Реализовать раскраску по типам файлов и легенду в `apps/freespace-gui/src/treemap/colors.rs`
+- [x] T042 [P] [US2] Бенчмарк отрисовки на 1 млн узлов в `benches/treemap.rs`
 
 **Checkpoint**: US2 работает на данных US1 независимо от остальных историй
 
@@ -115,11 +115,11 @@
 
 **Independent Test**: удержать файл тестовым процессом, найти блокировку, снять её и проверить доступность файла
 
-- [ ] T043 [P] [US3] Тест списка блокировок через Restart Manager в `tests/unlock.rs`
-- [ ] T044 [US3] Реализовать `RmStartSession`/`RmGetList` в `crates/freespace-platform/src/locks.rs`
-- [ ] T045 [US3] Реализовать мягкое/жёсткое снятие и удаление при перезагрузке в `crates/freespace-ops/src/unlock.rs`
-- [ ] T046 [US3] Реализовать CLI `unlock` (list/soft/force) в `crates/freespace-cli/src/commands/unlock.rs`
-- [ ] T047 [US3] Реализовать диалог блокировок в GUI в `apps/freespace-gui/src/views/unlock.rs`
+- [x] T043 [P] [US3] Тест списка блокировок через Restart Manager в `tests/unlock.rs`
+- [x] T044 [US3] Реализовать `RmStartSession`/`RmGetList` в `crates/freespace-platform/src/locks.rs`
+- [x] T045 [US3] Реализовать мягкое/жёсткое снятие и удаление при перезагрузке в `crates/freespace-ops/src/unlock.rs`
+- [x] T046 [US3] Реализовать CLI `unlock` (list/soft/force) в `crates/freespace-cli/src/commands/unlock.rs`
+- [x] T047 [US3] Реализовать диалог блокировок в GUI в `apps/freespace-gui/src/views/unlock.rs`
 
 ---
 

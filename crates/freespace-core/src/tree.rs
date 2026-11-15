@@ -185,6 +185,7 @@ pub struct FsNode {
     parent: Option<NodeId>,
     first_child: Option<NodeId>,
     last_child: Option<NodeId>,
+    prev_sibling: Option<NodeId>,
     next_sibling: Option<NodeId>,
     name: NameRef,
     link_target: Option<NameRef>,
@@ -206,6 +207,12 @@ pub struct FsNode {
     pub changed_during_scan: bool,
     /// Alternate data streams; absent for the vast majority of nodes.
     pub ads: Option<Box<[AdsStream]>>,
+    /// Number of regular files below this node (descendants only).
+    file_count: u32,
+    /// Number of directories below this node (descendants only).
+    dir_count: u32,
+    /// Tombstone used by incremental updates; removed nodes are skipped.
+    removed: bool,
 }
 
 impl FsNode {
@@ -221,10 +228,34 @@ impl FsNode {
         self.first_child
     }
 
+    /// Previous sibling node.
+    #[must_use]
+    pub const fn prev_sibling(&self) -> Option<NodeId> {
+        self.prev_sibling
+    }
+
     /// Next sibling node.
     #[must_use]
     pub const fn next_sibling(&self) -> Option<NodeId> {
         self.next_sibling
+    }
+
+    /// Number of regular files below this node.
+    #[must_use]
+    pub const fn file_count(&self) -> u32 {
+        self.file_count
+    }
+
+    /// Number of directories below this node.
+    #[must_use]
+    pub const fn dir_count(&self) -> u32 {
+        self.dir_count
+    }
+
+    /// Returns `true` when the node was removed by an incremental update.
+    #[must_use]
+    pub const fn is_removed(&self) -> bool {
+        self.removed
     }
 
     /// Returns `true` when the object is a directory.
@@ -336,6 +367,7 @@ impl FsTree {
             parent,
             first_child: None,
             last_child: None,
+            prev_sibling: None,
             next_sibling: None,
             name,
             link_target,
@@ -352,6 +384,9 @@ impl FsTree {
             } else {
                 Some(spec.ads.into_boxed_slice())
             },
+            file_count: 0,
+            dir_count: 0,
+            removed: false,
         };
 
         self.nodes.push(node);
@@ -366,6 +401,7 @@ impl FsTree {
                     self.nodes[parent as usize].first_child = Some(id);
                 }
                 self.nodes[parent as usize].last_child = Some(id);
+                self.nodes[id as usize].prev_sibling = last_child;
             }
         }
 
@@ -414,6 +450,8 @@ impl FsTree {
     }
 
     /// Iterates over the children of a node in insertion order.
+    ///
+    /// Removed nodes are skipped.
     #[must_use]
     pub fn children(&self, id: NodeId) -> ChildIter<'_> {
         ChildIter {
@@ -424,13 +462,182 @@ impl FsTree {
 
     /// Iterates over every scan root in insertion order.
     pub fn roots(&self) -> impl Iterator<Item = NodeId> + '_ {
-        self.roots.iter().copied()
+        self.roots
+            .iter()
+            .copied()
+            .filter(|id| !self.nodes[*id as usize].removed)
     }
 
     /// Number of scan roots.
     #[must_use]
     pub fn root_count(&self) -> usize {
         self.roots.len()
+    }
+
+    /// Number of nodes that were not removed by an incremental update.
+    #[must_use]
+    pub fn live_len(&self) -> usize {
+        self.nodes.iter().filter(|node| !node.removed).count()
+    }
+
+    /// Replaces the name of a node.
+    ///
+    /// # Errors
+    /// Returns an error when the new name is empty or the arena overflows.
+    pub fn set_name(&mut self, id: NodeId, name: &str) -> Result<()> {
+        if name.is_empty() {
+            return Err(Error::InvalidArgument(
+                "a file-system name cannot be empty".to_owned(),
+            ));
+        }
+
+        let reference = self.intern(name)?;
+        self.nodes[id as usize].name = reference;
+
+        Ok(())
+    }
+
+    /// Moves a node below another parent, preserving sibling order.
+    ///
+    /// The node must not be a scan root and `new_parent` must be a directory.
+    ///
+    /// # Errors
+    /// Returns an error when either node does not exist, the parent is not a
+    /// directory or the move would create a cycle.
+    pub fn set_parent(&mut self, id: NodeId, new_parent: NodeId) -> Result<()> {
+        if id as usize >= self.nodes.len() || new_parent as usize >= self.nodes.len() {
+            return Err(Error::InvalidArgument(
+                "set_parent refers to an unknown node".to_owned(),
+            ));
+        }
+        if id == new_parent || !self.nodes[new_parent as usize].kind.is_directory() {
+            return Err(Error::InvalidArgument(
+                "a node can only be moved below a different directory".to_owned(),
+            ));
+        }
+
+        // Refuse to create a cycle: the new parent must not be a descendant.
+        let mut current = Some(new_parent);
+        while let Some(node) = current {
+            if node == id {
+                return Err(Error::Operation(
+                    "moving a node below its own subtree is not allowed".to_owned(),
+                ));
+            }
+            current = self.nodes[node as usize].parent;
+        }
+
+        if self.nodes[id as usize].parent.is_none() {
+            self.roots.retain(|root| *root != id);
+        } else {
+            self.unlink(id);
+        }
+
+        self.nodes[id as usize].parent = Some(new_parent);
+        let last_child = self.nodes[new_parent as usize].last_child;
+        self.nodes[id as usize].prev_sibling = last_child;
+        self.nodes[id as usize].next_sibling = None;
+        match last_child {
+            Some(last_child) => self.nodes[last_child as usize].next_sibling = Some(id),
+            None => self.nodes[new_parent as usize].first_child = Some(id),
+        }
+        self.nodes[new_parent as usize].last_child = Some(id);
+
+        Ok(())
+    }
+
+    /// Marks a node and its whole subtree as removed.
+    ///
+    /// Returns the number of nodes that were still live. Tombstones keep the
+    /// arena stable, so existing [`NodeId`] values stay valid.
+    pub fn mark_removed(&mut self, id: NodeId) -> usize {
+        let mut removed = 0;
+        let mut stack = vec![id];
+
+        while let Some(current) = stack.pop() {
+            let node = &mut self.nodes[current as usize];
+            if node.removed {
+                continue;
+            }
+            node.removed = true;
+            removed += 1;
+
+            let mut child = node.first_child;
+            while let Some(child_id) = child {
+                stack.push(child_id);
+                child = self.nodes[child_id as usize].next_sibling;
+            }
+        }
+
+        removed
+    }
+
+    /// Recomputes directory sizes and file/directory counters bottom-up.
+    ///
+    /// Nodes are always appended after their parent, so a single reverse pass
+    /// is enough. Inaccessible objects contribute an estimated (zero) size and
+    /// mark every ancestor as estimated, so totals never pretend to be exact.
+    pub fn recompute_totals(&mut self) {
+        for node in &mut self.nodes {
+            node.file_count = 0;
+            node.dir_count = 0;
+            if node.removed {
+                continue;
+            }
+            if node.kind.is_directory() {
+                node.size = SizeMetrics::ZERO;
+            }
+            if !node.is_accessible() {
+                node.size = SizeMetrics::ZERO;
+                node.size.mark_estimated();
+            }
+        }
+
+        for index in (0..self.nodes.len()).rev() {
+            let node = &self.nodes[index];
+            if node.removed {
+                continue;
+            }
+            let Some(parent) = node.parent else {
+                continue;
+            };
+
+            let own_file = u32::from(!node.kind.is_directory() && !node.kind.is_link());
+            let own_dir = u32::from(node.kind.is_directory());
+            let size = node.size;
+            let files = node
+                .file_count
+                .saturating_add(own_file)
+                .saturating_add(u32::from(node.kind == NodeKind::Hardlink));
+            let dirs = node.dir_count.saturating_add(own_dir);
+
+            let parent_node = &mut self.nodes[parent as usize];
+            parent_node.size += size;
+            parent_node.file_count = parent_node.file_count.saturating_add(files);
+            parent_node.dir_count = parent_node.dir_count.saturating_add(dirs);
+        }
+    }
+
+    fn unlink(&mut self, id: NodeId) {
+        let (parent, previous, next) = {
+            let node = &self.nodes[id as usize];
+            (node.parent, node.prev_sibling, node.next_sibling)
+        };
+
+        if let Some(previous) = previous {
+            self.nodes[previous as usize].next_sibling = next;
+        } else if let Some(parent) = parent {
+            self.nodes[parent as usize].first_child = next;
+        }
+
+        if let Some(next) = next {
+            self.nodes[next as usize].prev_sibling = previous;
+        } else if let Some(parent) = parent {
+            self.nodes[parent as usize].last_child = previous;
+        }
+
+        self.nodes[id as usize].prev_sibling = None;
+        self.nodes[id as usize].next_sibling = None;
     }
 
     /// Builds the full path by walking parent links.
@@ -545,7 +752,10 @@ impl Iterator for ChildIter<'_> {
     type Item = NodeId;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let current = self.next?;
+        let mut current = self.next?;
+        while self.tree.node(current).is_removed() {
+            current = self.tree.node(current).next_sibling?;
+        }
         self.next = self.tree.node(current).next_sibling;
 
         Some(current)
@@ -706,5 +916,91 @@ mod tests {
             "FsNode grew to {} bytes",
             size_of::<FsNode>()
         );
+    }
+
+    #[test]
+    fn recomputes_directory_totals_and_counters() {
+        let mut tree = FsTree::new();
+        let root = tree.add_node(None, directory("root")).expect("root");
+        let nested = tree
+            .add_node(Some(root), directory("nested"))
+            .expect("nested");
+        tree.add_node(Some(root), file("a.txt", 10)).expect("a");
+        tree.add_node(Some(nested), file("b.txt", 20)).expect("b");
+        tree.add_node(Some(nested), file("c.txt", 30)).expect("c");
+
+        tree.recompute_totals();
+
+        assert_eq!(tree.node(root).size.logical, 60);
+        assert_eq!(tree.node(nested).size.logical, 50);
+        assert_eq!(tree.node(root).file_count(), 3);
+        assert_eq!(tree.node(root).dir_count(), 1);
+        assert_eq!(tree.node(nested).file_count(), 2);
+        assert_eq!(tree.node(nested).dir_count(), 0);
+    }
+
+    #[test]
+    fn marks_inaccessible_nodes_as_estimated() {
+        let mut tree = FsTree::new();
+        let root = tree.add_node(None, directory("root")).expect("root");
+        tree.add_node(Some(root), file("readable.txt", 10))
+            .expect("a");
+        tree.add_node(
+            Some(root),
+            NodeSpec {
+                name: "private".to_owned(),
+                kind: NodeKind::Directory,
+                access: AccessState::Denied,
+                ..NodeSpec::default()
+            },
+        )
+        .expect("denied");
+
+        tree.recompute_totals();
+
+        assert_eq!(tree.node(root).size.logical, 10);
+        assert!(tree.node(root).size.is_estimated());
+    }
+
+    #[test]
+    fn moves_and_removes_nodes() {
+        let mut tree = FsTree::new();
+        let root = tree.add_node(None, directory("root")).expect("root");
+        let first = tree
+            .add_node(Some(root), directory("first"))
+            .expect("first");
+        let second = tree
+            .add_node(Some(root), directory("second"))
+            .expect("second");
+        let moved = tree
+            .add_node(Some(first), file("moved.txt", 5))
+            .expect("moved");
+
+        tree.set_parent(moved, second).expect("move");
+        assert_eq!(tree.node(moved).parent(), Some(second));
+        assert!(tree.children(first).next().is_none());
+        assert_eq!(tree.children(second).collect::<Vec<_>>(), vec![moved]);
+
+        assert!(tree.set_parent(second, moved).is_err(), "cycle refused");
+
+        assert_eq!(tree.mark_removed(second), 2);
+        assert!(tree.node(moved).is_removed());
+        assert_eq!(tree.children(root).collect::<Vec<_>>(), vec![first]);
+        assert_eq!(tree.live_len(), 2);
+        tree.recompute_totals();
+        assert_eq!(tree.node(root).size.logical, 0);
+        tree.validate().expect("tree stays consistent");
+    }
+
+    #[test]
+    fn renames_nodes() {
+        let mut tree = FsTree::new();
+        let root = tree.add_node(None, directory("root")).expect("root");
+        let node = tree.add_node(Some(root), file("old.txt", 1)).expect("node");
+
+        tree.set_name(node, "новое имя.txt").expect("rename");
+
+        assert_eq!(tree.name(node), "новое имя.txt");
+        assert!(tree.set_name(node, "").is_err());
     }
 }

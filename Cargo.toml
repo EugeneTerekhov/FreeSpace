@@ -33,6 +33,11 @@ uuid = { version = "1", features = ["v4", "v5", "serde"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 sha2 = "0.10"
 
+# Scanning, filtering and parallelism
+jwalk = "0.9"
+rayon = "1.11"
+globset = "0.4"
+
 # Windows platform layer
 windows = "0.62"
 
