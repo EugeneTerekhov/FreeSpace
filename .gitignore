@@ -16,3 +16,12 @@ node_modules/
 
 # Local binaries
 *.pdb
+
+# Coverage and profiling artifacts
+/coverage/
+lcov.info
+*.profraw
+*.profdata
+
+# Packaging output
+/dist/

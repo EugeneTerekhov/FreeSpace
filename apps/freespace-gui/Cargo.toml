@@ -1,0 +1,15 @@
+[package]
+name = "freespace-gui"
+description = "FreeSpace graphical interface built with egui/eframe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+eframe = { workspace = true }
+freespace-core = { workspace = true }
+rust-i18n = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+_version = 1
+
+# English translation table. New keys are added together with the feature that
+# introduces them; `locales/ru.toml` must always contain the same key set.
+
+[app]
+name = "FreeSpace"
+tagline = "Disk space analyzer and manager for Windows"
+phase1_ready = "The workspace, platform layer and localization are ready."
+
+[common]
+ok = "OK"
+cancel = "Cancel"
+close = "Close"
+error = "Error"
+warning = "Warning"

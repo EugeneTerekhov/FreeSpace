@@ -1,0 +1,15 @@
+[package]
+name = "freespace-ops"
+description = "FreeSpace safe file operations, journal, quarantine and undo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

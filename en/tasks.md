@@ -31,14 +31,14 @@ verified independently.
 
 **Purpose**: Initialize the workspace, tools and crate skeletons
 
-- [ ] T001 Create the Cargo workspace in `Cargo.toml` and pin the toolchain in `rust-toolchain.toml` (Rust 1.85+, edition 2024)
-- [ ] T002 [P] Configure workspace lints, build profiles and `.gitignore` in `Cargo.toml` and `.gitignore`
-- [ ] T003 [P] Create skeletons for the crates `crates/freespace-core`, `crates/freespace-platform`, `crates/freespace-scan`, `crates/freespace-ops`, `crates/freespace-analysis`, `crates/freespace-report`, `crates/freespace-cli` (Cargo.toml + src/lib.rs)
-- [ ] T004 [P] Create the GUI application skeleton `apps/freespace-gui` (eframe, Cargo.toml + src/main.rs)
-- [ ] T005 [P] Set up GitHub Actions CI for `fmt`, `clippy -D warnings`, `test` on windows-latest in `.github/workflows/ci.yml`
-- [ ] T006 [P] Create the localization files `locales/ru.toml` and `locales/en.toml` and wire up `rust-i18n`
-- [ ] T007 [P] Configure `tracing` logging and base error types in `crates/freespace-core/src/error.rs`
-- [ ] T008 [P] Create the `ru/`, `en/`, `docs/` directories and a basic `README.md` with build commands
+- [x] T001 Create the Cargo workspace in `Cargo.toml` and pin the toolchain in `rust-toolchain.toml` (Rust 1.85+, edition 2024)
+- [x] T002 [P] Configure workspace lints, build profiles and `.gitignore` in `Cargo.toml` and `.gitignore`
+- [x] T003 [P] Create skeletons for the crates `crates/freespace-core`, `crates/freespace-platform`, `crates/freespace-scan`, `crates/freespace-ops`, `crates/freespace-analysis`, `crates/freespace-report`, `crates/freespace-cli` (Cargo.toml + src/lib.rs)
+- [x] T004 [P] Create the GUI application skeleton `apps/freespace-gui` (eframe, Cargo.toml + src/main.rs)
+- [x] T005 [P] Set up GitHub Actions CI for `fmt`, `clippy -D warnings`, `test` on windows-latest in `.github/workflows/ci.yml`
+- [x] T006 [P] Create the localization files `locales/ru.toml` and `locales/en.toml` and wire up `rust-i18n`
+- [x] T007 [P] Configure `tracing` logging and base error types in `crates/freespace-core/src/error.rs`
+- [x] T008 [P] Create the `ru/`, `en/`, `docs/` directories and a basic `README.md` with build commands
 
 ---
 

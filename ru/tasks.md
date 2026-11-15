@@ -31,14 +31,14 @@
 
 **Purpose**: Инициализация workspace, инструментов и скелетов крейтов
 
-- [ ] T001 Создать Cargo workspace в `Cargo.toml` и зафиксировать тулчейн в `rust-toolchain.toml` (Rust 1.85+, edition 2024)
-- [ ] T002 [P] Настроить линты workspace, профили сборки и `.gitignore` в `Cargo.toml` и `.gitignore`
-- [ ] T003 [P] Создать скелеты крейтов `crates/freespace-core`, `crates/freespace-platform`, `crates/freespace-scan`, `crates/freespace-ops`, `crates/freespace-analysis`, `crates/freespace-report`, `crates/freespace-cli` (Cargo.toml + src/lib.rs)
-- [ ] T004 [P] Создать скелет GUI-приложения `apps/freespace-gui` (eframe, Cargo.toml + src/main.rs)
-- [ ] T005 [P] Настроить CI GitHub Actions для `fmt`, `clippy -D warnings`, `test` на windows-latest в `.github/workflows/ci.yml`
-- [ ] T006 [P] Создать файлы локализации `locales/ru.toml` и `locales/en.toml` и подключить `rust-i18n`
-- [ ] T007 [P] Настроить журналирование `tracing` и базовые типы ошибок в `crates/freespace-core/src/error.rs`
-- [ ] T008 [P] Создать каталоги `ru/`, `en/`, `docs/` и базовый `README.md` с командами сборки
+- [x] T001 Создать Cargo workspace в `Cargo.toml` и зафиксировать тулчейн в `rust-toolchain.toml` (Rust 1.85+, edition 2024)
+- [x] T002 [P] Настроить линты workspace, профили сборки и `.gitignore` в `Cargo.toml` и `.gitignore`
+- [x] T003 [P] Создать скелеты крейтов `crates/freespace-core`, `crates/freespace-platform`, `crates/freespace-scan`, `crates/freespace-ops`, `crates/freespace-analysis`, `crates/freespace-report`, `crates/freespace-cli` (Cargo.toml + src/lib.rs)
+- [x] T004 [P] Создать скелет GUI-приложения `apps/freespace-gui` (eframe, Cargo.toml + src/main.rs)
+- [x] T005 [P] Настроить CI GitHub Actions для `fmt`, `clippy -D warnings`, `test` на windows-latest в `.github/workflows/ci.yml`
+- [x] T006 [P] Создать файлы локализации `locales/ru.toml` и `locales/en.toml` и подключить `rust-i18n`
+- [x] T007 [P] Настроить журналирование `tracing` и базовые типы ошибок в `crates/freespace-core/src/error.rs`
+- [x] T008 [P] Создать каталоги `ru/`, `en/`, `docs/` и базовый `README.md` с командами сборки
 
 ---
 

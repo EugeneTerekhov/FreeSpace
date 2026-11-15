@@ -12,8 +12,10 @@ automates cleanup via CLI.
 
 ## Статус / Status
 
-Спецификация, план и задачи готовы (Spec-Driven Development). Реализация ещё не начата.
-Specification, plan and tasks are ready (Spec-Driven Development). Implementation has not started.
+Фаза 1 (Setup) завершена: создан Cargo workspace, скелеты крейтов и GUI, CI и локализация.
+Следующая фаза — Foundational (T009–T025).
+Phase 1 (Setup) is complete: the Cargo workspace, crate and GUI skeletons, CI and localization
+are in place. Next phase — Foundational (T009–T025).
 
 ## Документация / Documentation
 
@@ -49,6 +51,14 @@ clarify → plan → checklist → tasks → implement → converge.
 cargo build --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+cargo run -p freespace-gui
 ```
 
 Требования / Requirements: Rust stable 1.85+ (edition 2024), Windows 10 21H2+ / Windows 11 x64.
+Тулчейн фиксируется в [rust-toolchain.toml](rust-toolchain.toml), линты и профили сборки — в
+[Cargo.toml](Cargo.toml). Неинтерактивная проверка выполняется в CI
+([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+The toolchain is pinned in [rust-toolchain.toml](rust-toolchain.toml); lints and build profiles
+live in [Cargo.toml](Cargo.toml). CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs
+the same checks non-interactively.

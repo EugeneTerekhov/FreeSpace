@@ -1,0 +1,15 @@
+[package]
+name = "freespace-scan"
+description = "FreeSpace MFT and directory-walk scanners"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
