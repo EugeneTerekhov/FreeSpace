@@ -11,7 +11,7 @@ use freespace_core::{
 };
 
 use super::{
-    colors::{self, FileCategory, category_for},
+    colors::{self, CategoryColor, FileCategory, category_for},
     interaction::{self, Navigation},
     layout::{self, Rect, TreemapItem},
 };

@@ -12,16 +12,19 @@ automates cleanup via CLI.
 
 ## Статус / Status
 
-Фаза 3 (US1), фаза 4 (US2) и фаза 5 (US3) завершены: сканирование NTFS через MFT и USN-журнал,
-fallback-обход каталогов, дерево размеров с поиском и сортировкой, интерактивная Treemap-карта с
-зумом и легендой, разблокировка файлов через Restart Manager и удаление при перезагрузке, а также
-команды CLI `scan`, `tree` и `unlock` (T026–T047). Следующая фаза — US4: топ файлов и группировка
-по типам (T048–T052).
-Phases 3 (US1), 4 (US2) and 5 (US3) are complete: NTFS scanning through the MFT and the USN journal,
-the directory-walk fallback, the size tree with search and sorting, the interactive treemap with
-zoom and legend, file unlocking through the Restart Manager and deletion on reboot, and the CLI
-commands `scan`, `tree` and `unlock` (T026–T047). Next phase — US4: top files and type grouping
-(T048–T052).
+Фазы 3–8 (US1–US6) завершены: сканирование NTFS через MFT и USN-журнал, fallback-обход
+каталогов, дерево размеров с поиском и сортировкой, интерактивная Treemap-карта с зумом и
+легендой, разблокировка файлов через Restart Manager и удаление при перезагрузке, топ файлов и
+группировка по типам, поиск дубликатов с побайтовой проверкой и кешем хешей, шредер с
+предупреждением об SSD и TRIM, а также команды CLI `scan`, `tree`, `top`, `types`, `duplicates`,
+`unlock` и `shred` (T026–T063). Следующая фаза — US7: устаревшие файлы, пустые папки и
+рекомендации по очистке (T064–T072).
+Phases 3–8 (US1–US6) are complete: NTFS scanning through the MFT and the USN journal, the
+directory-walk fallback, the size tree with search and sorting, the interactive treemap with zoom
+and legend, file unlocking through the Restart Manager and deletion on reboot, top files and type
+grouping, duplicate search with byte verification and a hash cache, the shredder with SSD warnings
+and TRIM, and the CLI commands `scan`, `tree`, `top`, `types`, `duplicates`, `unlock` and `shred`
+(T026–T063). Next phase — US7: stale files, empty folders and cleanup recommendations (T064–T072).
 
 ## Документация / Documentation
 

@@ -6,8 +6,11 @@
 
 use std::{
     ffi::{OsStr, OsString, c_void},
-    fmt, io,
-    os::windows::ffi::{OsStrExt, OsStringExt},
+    fmt, fs, io,
+    os::windows::{
+        ffi::{OsStrExt, OsStringExt},
+        io::FromRawHandle,
+    },
     path::Path,
 };
 
@@ -16,8 +19,9 @@ use windows::{
     Win32::{
         Foundation::{CloseHandle, GetLastError, HANDLE},
         Storage::FileSystem::{
-            CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_GENERIC_READ, FILE_SHARE_DELETE,
-            FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+            CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_WRITE_THROUGH, FILE_GENERIC_READ,
+            FILE_GENERIC_WRITE, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+            OPEN_EXISTING,
         },
     },
     core::PCWSTR,
@@ -82,6 +86,38 @@ pub fn win_error(error: &windows::core::Error) -> io::Error {
 
 /// An owned WinAPI handle that is closed on drop.
 pub struct Handle(HANDLE);
+
+/// Opens `path` for writing with `FILE_FLAG_WRITE_THROUGH`.
+///
+/// The flag asks the cache manager to flush every write to the device, which
+/// the shredder needs: a buffered pass could be reordered or coalesced and leave
+/// the original bytes on the media (FR-030).
+///
+/// # Errors
+/// Returns [`Error::InvalidPath`] for unusable paths and [`Error::Io`] when the
+/// object cannot be opened.
+pub fn open_write_through(path: &Path) -> Result<fs::File> {
+    let verbatim = super::paths::to_verbatim(path)?;
+    let wide = to_wide(verbatim.as_os_str());
+
+    // SAFETY: `wide` is NUL-terminated and lives for the duration of the call.
+    let handle = unsafe {
+        CreateFileW(
+            PCWSTR(wide.as_ptr()),
+            FILE_GENERIC_WRITE.0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH,
+            None,
+        )
+    }
+    .map_err(|error| Error::Io(win_error(&error)))?;
+
+    // SAFETY: `CreateFileW` returned an owned handle; `File` now closes it
+    // exactly once.
+    Ok(unsafe { fs::File::from_raw_handle(handle.0) })
+}
 
 impl Handle {
     /// Wraps a raw handle, rejecting `NULL` and `INVALID_HANDLE_VALUE`.

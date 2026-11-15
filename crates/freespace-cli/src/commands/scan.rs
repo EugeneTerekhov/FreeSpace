@@ -85,7 +85,7 @@ pub fn run_tree(
     .with_warnings(result.warnings.clone()))
 }
 
-fn execute(args: ScanArgs<'_>) -> Result<ScanResult> {
+pub(crate) fn execute(args: ScanArgs<'_>) -> Result<ScanResult> {
     let method = MethodChoice::parse_value(args.method).ok_or_else(|| {
         Error::InvalidArgument(format!(
             "unknown scan method `{}`; expected `auto`, `mft` or `walk`",

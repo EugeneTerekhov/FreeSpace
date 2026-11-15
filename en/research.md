@@ -69,8 +69,10 @@ alternatives".
 ## 7. Duplicate search
 
 - **Decision**: pipeline "size → partial hash (first and last 64 KiB) → full
-  SHA-256/MD5 hash → byte-by-byte comparison". Hash cache in SQLite keyed by
-  `(VolumeSerial, FRN, Size, MTime)`; `rayon` parallelism; `memmap2` for large files.
+  SHA-256/MD5 hash → byte-by-byte comparison". Hash cache in SQLite: the `hash_cache`
+  table keyed by `(VolumeSerial, FRN, Size, MTime)` and the `analysis_hash_cache` table
+  keyed by `(Path, Size, MTime)` for files without an FRN; `rayon` parallelism; large
+  files are streamed.
 - **Rationale**: eliminates false matches, minimizes disk reads, speeds up repeated
   checks.
 - **Alternatives considered**: comparison by name/size only (false matches); full

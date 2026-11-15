@@ -129,11 +129,11 @@
 
 **Independent Test**: сверить топ-список при разных N и суммы по расширениям с эталоном
 
-- [ ] T048 [P] [US4] Тест агрегации топ-N и типов в `tests/top_types.rs`
-- [ ] T049 [US4] Реализовать топ-N (частичная сортировка) в `crates/freespace-analysis/src/top.rs`
-- [ ] T050 [US4] Реализовать группировку по расширениям и категориям в `crates/freespace-analysis/src/types.rs`
-- [ ] T051 [US4] Реализовать CLI `top` и `types` в `crates/freespace-cli/src/commands/top.rs`
-- [ ] T052 [US4] Реализовать вкладки «Топ» и «Типы» в GUI в `apps/freespace-gui/src/views/top_types.rs`
+- [x] T048 [P] [US4] Тест агрегации топ-N и типов в `tests/top_types.rs`
+- [x] T049 [US4] Реализовать топ-N (частичная сортировка) в `crates/freespace-analysis/src/top.rs`
+- [x] T050 [US4] Реализовать группировку по расширениям и категориям в `crates/freespace-analysis/src/types.rs`
+- [x] T051 [US4] Реализовать CLI `top` и `types` в `crates/freespace-cli/src/commands/top.rs`
+- [x] T052 [US4] Реализовать вкладки «Топ» и «Типы» в GUI в `apps/freespace-gui/src/views/top_types.rs`
 
 **Checkpoint**: MVP (US1–US4) готов к демонстрации
 
@@ -145,12 +145,12 @@
 
 **Independent Test**: набор с известными дубликатами и «ложными» файлами одинакового размера — проверить отсутствие ложных совпадений и сохранность копии
 
-- [ ] T053 [P] [US5] Тест конвейера хеширования и отсутствия ложных совпадений в `tests/duplicates.rs`
-- [ ] T054 [US5] Реализовать двухэтапное хеширование и побайтовую проверку в `crates/freespace-analysis/src/hash.rs`
-- [ ] T055 [US5] Реализовать кеш хешей в SQLite в `crates/freespace-analysis/src/hash_cache.rs`
-- [ ] T056 [US5] Реализовать группировку дубликатов и правила keep в `crates/freespace-analysis/src/duplicates.rs`
-- [ ] T057 [US5] Реализовать CLI `duplicates` в `crates/freespace-cli/src/commands/duplicates.rs`
-- [ ] T058 [US5] Реализовать экран дубликатов в GUI в `apps/freespace-gui/src/views/duplicates.rs`
+- [x] T053 [P] [US5] Тест конвейера хеширования и отсутствия ложных совпадений в `tests/duplicates.rs`
+- [x] T054 [US5] Реализовать двухэтапное хеширование и побайтовую проверку в `crates/freespace-analysis/src/hash.rs`
+- [x] T055 [US5] Реализовать кеш хешей в SQLite в `crates/freespace-analysis/src/hash_cache.rs`
+- [x] T056 [US5] Реализовать группировку дубликатов и правила keep в `crates/freespace-analysis/src/duplicates.rs`
+- [x] T057 [US5] Реализовать CLI `duplicates` в `crates/freespace-cli/src/commands/duplicates.rs`
+- [x] T058 [US5] Реализовать экран дубликатов в GUI в `apps/freespace-gui/src/views/duplicates.rs`
 
 ---
 
@@ -160,11 +160,11 @@
 
 **Independent Test**: уничтожить тестовый набор и убедиться в невозможности восстановления независимым инструментом
 
-- [ ] T059 [P] [US6] Тест перезаписи/удаления и предупреждений SSD в `tests/shred.rs`
-- [ ] T060 [US6] Реализовать шредер (проходы, паттерны, write-through, rename/truncate/delete) в `crates/freespace-ops/src/shred.rs`
-- [ ] T061 [US6] Реализовать определение SSD и TRIM в `crates/freespace-platform/src/trim.rs`
-- [ ] T062 [US6] Реализовать CLI `shred` и проверку `--yes` в `crates/freespace-cli/src/commands/shred.rs`
-- [ ] T063 [US6] Реализовать UI шредера с предупреждением и подтверждением в `apps/freespace-gui/src/views/shred.rs`
+- [x] T059 [P] [US6] Тест перезаписи/удаления и предупреждений SSD в `tests/shred.rs`
+- [x] T060 [US6] Реализовать шредер (проходы, паттерны, write-through, rename/truncate/delete) в `crates/freespace-ops/src/shred.rs`
+- [x] T061 [US6] Реализовать определение SSD и TRIM в `crates/freespace-platform/src/trim.rs`
+- [x] T062 [US6] Реализовать CLI `shred` и проверку `--yes` в `crates/freespace-cli/src/commands/shred.rs`
+- [x] T063 [US6] Реализовать UI шредера с предупреждением и подтверждением в `apps/freespace-gui/src/views/shred.rs`
 
 ---
 

@@ -23,6 +23,7 @@ pub struct TreeView {
     descending: bool,
     filter: String,
     expanded: HashSet<NodeId>,
+    selected: Option<NodeId>,
     initialized: bool,
 }
 
@@ -33,6 +34,7 @@ impl Default for TreeView {
             descending: true,
             filter: String::new(),
             expanded: HashSet::new(),
+            selected: None,
             initialized: false,
         }
     }
@@ -51,7 +53,28 @@ impl TreeView {
     pub fn reset(&mut self) {
         self.expanded.clear();
         self.filter.clear();
+        self.selected = None;
         self.initialized = false;
+    }
+
+    /// Expands every ancestor of `id` and selects it.
+    ///
+    /// Used by the top-files and type screens to jump into the tree (FR-020).
+    pub fn reveal(&mut self, tree: &FsTree, id: NodeId) {
+        let mut current = tree.node(id).parent();
+        while let Some(parent) = current {
+            self.expanded.insert(parent);
+            current = tree.node(parent).parent();
+        }
+        self.selected = Some(id);
+        self.initialized = true;
+    }
+
+    /// Currently selected node.
+    #[cfg(test)]
+    #[must_use]
+    pub const fn selected(&self) -> Option<NodeId> {
+        self.selected
     }
 
     /// Draws the tree.
@@ -100,18 +123,26 @@ impl TreeView {
 
         let available = ui.available_size_before_wrap();
         let mut toggled = None;
+        let mut clicked = None;
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .max_height(available.y.max(ROW_HEIGHT * 4.0))
             .show_rows(ui, ROW_HEIGHT, rows.len(), |ui, range| {
                 for index in range {
                     let row = rows[index];
-                    if self.row(ui, tree, row, units) {
+                    let (toggle, select) = self.row(ui, tree, row, units);
+                    if toggle {
                         toggled = Some((row.id, row.expanded));
+                    }
+                    if select {
+                        clicked = Some(row.id);
                     }
                 }
             });
 
+        if let Some(id) = clicked {
+            self.selected = Some(id);
+        }
         if let Some((id, was_expanded)) = toggled {
             if was_expanded {
                 self.expanded.remove(&id);
@@ -232,9 +263,10 @@ impl TreeView {
             .collect()
     }
 
-    fn row(&self, ui: &mut egui::Ui, tree: &FsTree, row: Row, units: Units) -> bool {
+    fn row(&self, ui: &mut egui::Ui, tree: &FsTree, row: Row, units: Units) -> (bool, bool) {
         let node = tree.node(row.id);
         let mut toggle = false;
+        let mut select = false;
 
         ui.horizontal(|ui| {
             ui.set_min_height(ROW_HEIGHT);
@@ -256,9 +288,12 @@ impl TreeView {
             if node.access != AccessState::Ok {
                 text = text.color(ui.visuals().warn_fg_color);
             }
-            let label = ui.selectable_label(false, text);
-            if label.clicked() && row.has_children {
-                toggle = true;
+            let label = ui.selectable_label(self.selected == Some(row.id), text);
+            if label.clicked() {
+                select = true;
+                if row.has_children {
+                    toggle = true;
+                }
             }
             if label.double_clicked() && is_directory {
                 toggle = true;
@@ -282,7 +317,7 @@ impl TreeView {
             });
         });
 
-        toggle
+        (toggle, select)
     }
 
     /// Full path of a row, used by tests.
@@ -386,5 +421,19 @@ mod tests {
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].level, 0);
         assert_eq!(rows[2].level, 2);
+    }
+
+    #[test]
+    fn reveals_ancestors_and_selects_the_node() {
+        let (tree, root, folder) = fixture();
+        let deep = tree.children(folder).next().expect("deep file");
+        let mut view = TreeView::default();
+
+        view.reveal(&tree, deep);
+
+        assert_eq!(view.selected(), Some(deep));
+        assert!(view.expanded.contains(&root));
+        assert!(view.expanded.contains(&folder));
+        assert!(view.initialized);
     }
 }

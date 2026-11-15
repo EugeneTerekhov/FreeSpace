@@ -1,75 +1,20 @@
 //! Colour coding by file category.
 //!
-//! A category is derived from the extension only; the mapping is deliberately
-//! small and stable so that the legend and the rectangles can never disagree.
+//! The category itself lives in `freespace-core` so that the analysis report and
+//! the treemap can never disagree about what a "video" is. Only the palette is
+//! a graphical concern and stays here.
 
 use eframe::egui::Color32;
-use freespace_core::query::extension_of;
+pub use freespace_core::category::{FileCategory, category_for};
 
-/// Coarse category used for colouring.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FileCategory {
-    /// Video files.
-    Video,
-    /// Audio files.
-    Audio,
-    /// Images and photos.
-    Image,
-    /// Archives and disk images.
-    Archive,
-    /// Documents.
-    Document,
-    /// Source code and scripts.
-    Code,
-    /// Executables and libraries.
-    Executable,
-    /// Databases and virtual machine disks.
-    Database,
-    /// Fonts.
-    Font,
-    /// Anything else.
-    #[default]
-    Other,
+/// Palette used to paint rectangles, legends and type rows.
+pub trait CategoryColor {
+    /// Fill colour of the category.
+    fn color(self) -> Color32;
 }
 
-impl FileCategory {
-    /// Stable machine-readable name.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Video => "video",
-            Self::Audio => "audio",
-            Self::Image => "image",
-            Self::Archive => "archive",
-            Self::Document => "document",
-            Self::Code => "code",
-            Self::Executable => "executable",
-            Self::Database => "database",
-            Self::Font => "font",
-            Self::Other => "other",
-        }
-    }
-
-    /// Translation key used by the legend.
-    #[must_use]
-    pub const fn label_key(self) -> &'static str {
-        match self {
-            Self::Video => "treemap.category.video",
-            Self::Audio => "treemap.category.audio",
-            Self::Image => "treemap.category.image",
-            Self::Archive => "treemap.category.archive",
-            Self::Document => "treemap.category.document",
-            Self::Code => "treemap.category.code",
-            Self::Executable => "treemap.category.executable",
-            Self::Database => "treemap.category.database",
-            Self::Font => "treemap.category.font",
-            Self::Other => "treemap.category.other",
-        }
-    }
-
-    /// Fill colour of the category.
-    #[must_use]
-    pub const fn color(self) -> Color32 {
+impl CategoryColor for FileCategory {
+    fn color(self) -> Color32 {
         match self {
             Self::Video => Color32::from_rgb(196, 88, 88),
             Self::Audio => Color32::from_rgb(196, 140, 70),
@@ -82,51 +27,6 @@ impl FileCategory {
             Self::Font => Color32::from_rgb(180, 120, 150),
             Self::Other => Color32::from_rgb(128, 132, 140),
         }
-    }
-
-    /// Every category in legend order.
-    pub const ALL: [Self; 10] = [
-        Self::Video,
-        Self::Audio,
-        Self::Image,
-        Self::Archive,
-        Self::Document,
-        Self::Code,
-        Self::Executable,
-        Self::Database,
-        Self::Font,
-        Self::Other,
-    ];
-}
-
-/// Maps a file name to its category.
-#[must_use]
-pub fn category_for(name: &str) -> FileCategory {
-    let extension = extension_of(name).to_ascii_lowercase();
-
-    match extension.as_str() {
-        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "webm" | "m4v" | "mpg" | "mpeg" => {
-            FileCategory::Video
-        }
-        "mp3" | "flac" | "wav" | "aac" | "ogg" | "m4a" | "wma" | "opus" | "mid" => {
-            FileCategory::Audio
-        }
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tif" | "tiff" | "webp" | "heic" | "svg"
-        | "raw" | "psd" => FileCategory::Image,
-        "zip" | "7z" | "rar" | "tar" | "gz" | "bz2" | "xz" | "cab" | "iso" | "vhd" | "vhdx" => {
-            FileCategory::Archive
-        }
-        "pdf" | "doc" | "docx" | "txt" | "rtf" | "odt" | "xls" | "xlsx" | "ods" | "ppt"
-        | "pptx" | "odp" | "md" | "epub" => FileCategory::Document,
-        "rs" | "c" | "h" | "cpp" | "hpp" | "cs" | "js" | "ts" | "tsx" | "py" | "go" | "java"
-        | "kt" | "sh" | "ps1" | "bat" | "cmd" | "html" | "css" | "json" | "toml" | "yaml"
-        | "yml" | "xml" | "sql" => FileCategory::Code,
-        "exe" | "dll" | "sys" | "msi" | "com" | "so" | "lib" | "bin" => FileCategory::Executable,
-        "db" | "sqlite" | "sqlite3" | "mdf" | "ldf" | "vmdk" | "qcow2" | "ova" => {
-            FileCategory::Database
-        }
-        "ttf" | "otf" | "woff" | "woff2" | "fon" | "ttc" => FileCategory::Font,
-        _ => FileCategory::Other,
     }
 }
 
@@ -142,7 +42,7 @@ pub const fn directory_color(dark_mode: bool) -> Color32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{FileCategory, category_for, directory_color};
+    use super::{CategoryColor, FileCategory, category_for, directory_color};
 
     #[test]
     fn maps_common_extensions() {

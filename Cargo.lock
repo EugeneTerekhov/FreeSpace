@@ -1418,7 +1418,12 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "freespace-core",
+ "freespace-platform",
+ "md-5",
+ "rayon",
+ "rusqlite",
  "sha2",
+ "tempfile",
  "thiserror 2.0.21",
  "tracing",
 ]
@@ -1428,6 +1433,7 @@ name = "freespace-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "freespace-analysis",
  "freespace-core",
  "freespace-ops",
  "freespace-platform",
@@ -1461,6 +1467,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "eframe",
+ "freespace-analysis",
  "freespace-core",
  "freespace-ops",
  "freespace-platform",
@@ -1476,6 +1483,7 @@ version = "0.1.0"
 dependencies = [
  "freespace-core",
  "freespace-platform",
+ "getrandom 0.3.4",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1524,6 +1532,7 @@ dependencies = [
 name = "freespace-tests"
 version = "0.1.0"
 dependencies = [
+ "freespace-analysis",
  "freespace-cli",
  "freespace-core",
  "freespace-ops",
@@ -2263,6 +2272,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
  "regex-automata",
+]
+
+[[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest",
 ]
 
 [[package]]

@@ -24,7 +24,9 @@ use freespace_core::{
 
 use crate::{
     treemap::TreemapView,
-    views::{ScanState, TreeView, UnlockState},
+    views::{
+        DuplicatesState, ScanState, ShredState, TopTypesState, TopTypesTab, TreeView, UnlockState,
+    },
 };
 
 /// Top-level screens.
@@ -51,6 +53,8 @@ pub enum Page {
     Snapshots,
     /// File unlocking.
     Unlock,
+    /// Irreversible destruction.
+    Shred,
     /// Application settings.
     Settings,
     /// About screen.
@@ -59,7 +63,7 @@ pub enum Page {
 
 impl Page {
     /// Every screen in navigation order.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Dashboard,
         Self::Scan,
         Self::Tree,
@@ -70,6 +74,7 @@ impl Page {
         Self::Cleanup,
         Self::Snapshots,
         Self::Unlock,
+        Self::Shred,
         Self::Settings,
         Self::About,
     ];
@@ -88,6 +93,7 @@ impl Page {
             Self::Cleanup => t!("nav.cleanup").to_string(),
             Self::Snapshots => t!("nav.snapshots").to_string(),
             Self::Unlock => t!("nav.unlock").to_string(),
+            Self::Shred => t!("nav.shred").to_string(),
             Self::Settings => t!("nav.settings").to_string(),
             Self::About => t!("nav.about").to_string(),
         }
@@ -258,7 +264,10 @@ pub struct FreeSpaceApp {
     scan_result: Option<Arc<freespace_scan::ScanResult>>,
     tree_view: TreeView,
     treemap: TreemapView,
+    top_types: TopTypesState,
+    duplicates: DuplicatesState,
     unlock: UnlockState,
+    shred: ShredState,
 }
 
 impl FreeSpaceApp {
@@ -294,7 +303,10 @@ impl FreeSpaceApp {
             scan_result: None,
             tree_view: TreeView::default(),
             treemap: TreemapView::default(),
+            top_types: TopTypesState::default(),
+            duplicates: DuplicatesState::default(),
             unlock: UnlockState::default(),
+            shred: ShredState::default(),
         }
     }
 
@@ -305,8 +317,13 @@ impl FreeSpaceApp {
     }
 
     /// Switches to another page.
-    pub const fn set_page(&mut self, page: Page) {
+    pub fn set_page(&mut self, page: Page) {
         self.page = page;
+        match page {
+            Page::Top => self.top_types.set_tab(TopTypesTab::Top),
+            Page::Types => self.top_types.set_tab(TopTypesTab::Types),
+            _ => {}
+        }
     }
 
     /// Persists settings; returns `true` on success.
@@ -431,6 +448,8 @@ impl FreeSpaceApp {
                 if let Some(result) = self.scan.take_finished() {
                     self.tree_view.reset();
                     self.treemap.reset(result.tree.roots().next());
+                    self.top_types.reset();
+                    self.duplicates.reset();
                     self.scan_result = Some(result);
                 }
             }
@@ -448,10 +467,32 @@ impl FreeSpaceApp {
                     ui.label(t!("scan.required").to_string());
                 }
             }
+            Page::Top | Page::Types => {
+                let mut selected = None;
+                if let Some(result) = &self.scan_result {
+                    selected = self.top_types.ui(ui, result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+                if let Some(id) = selected {
+                    if let Some(result) = &self.scan_result {
+                        self.tree_view.reveal(&result.tree, id);
+                    }
+                    self.set_page(Page::Tree);
+                }
+            }
+            Page::Duplicates => {
+                if let Some(result) = self.scan_result.clone() {
+                    self.duplicates.ui(ui, &result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+            }
             Page::Unlock => self.unlock.ui(ui),
+            Page::Shred => self.shred.ui(ui, self.settings.units),
             Page::Settings => self.settings_page(ui),
             Page::About => {
-                ui.label(t!("app.phase3_ready").to_string());
+                ui.label(t!("app.phase4_ready").to_string());
                 ui.separator();
                 ui.label(format!("FreeSpace {}", env!("CARGO_PKG_VERSION")));
             }
@@ -462,7 +503,7 @@ impl FreeSpaceApp {
     }
 
     fn dashboard(&mut self, ui: &mut egui::Ui) {
-        ui.label(t!("app.phase3_ready").to_string());
+        ui.label(t!("app.phase4_ready").to_string());
         ui.add_space(12.0);
 
         if ui.button(t!("page.refresh_drives").to_string()).clicked() {

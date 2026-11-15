@@ -4,7 +4,10 @@ use serde_json::Value;
 
 pub mod config;
 pub mod drives;
+pub mod duplicates;
 pub mod scan;
+pub mod shred;
+pub mod top;
 pub mod unlock;
 
 /// Result of a successful command.

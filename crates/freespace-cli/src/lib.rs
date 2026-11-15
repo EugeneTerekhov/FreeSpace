@@ -126,6 +126,53 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             let settings = load_settings(cli)?;
             commands::scan::run_tree(path, *depth, *min_size, settings.units)
         }
+        Command::Top { path, limit } => {
+            let settings = load_settings(cli)?;
+            commands::top::run_top(path, *limit, settings.units)
+        }
+        Command::Types { path } => {
+            let settings = load_settings(cli)?;
+            commands::top::run_types(path, settings.units)
+        }
+        Command::Duplicates {
+            path,
+            min_size,
+            algorithm,
+            keep_rule,
+        } => {
+            let settings = load_settings(cli)?;
+            let cache = freespace_ops::store::default_path()
+                .ok()
+                .and_then(|path| freespace_analysis::HashCache::open(&path).ok());
+            commands::duplicates::run(
+                commands::duplicates::DuplicatesArgs {
+                    path,
+                    min_size: *min_size,
+                    algorithm: algorithm.as_deref(),
+                    keep_rule: keep_rule.as_deref(),
+                },
+                settings.units,
+                cache.as_ref(),
+            )
+        }
+        Command::Shred {
+            paths,
+            passes,
+            pattern,
+        } => {
+            let settings = load_settings(cli)?;
+            let store = freespace_ops::store::default_path()
+                .ok()
+                .and_then(|path| freespace_ops::Store::open(&path).ok());
+            commands::shred::run(
+                paths,
+                *passes,
+                pattern,
+                cli.yes,
+                store.as_ref(),
+                settings.units,
+            )
+        }
         Command::Unlock {
             path,
             list: _,
@@ -318,7 +365,7 @@ mod tests {
 
     #[test]
     fn unsupported_commands_return_exit_code_8() {
-        let (code, stdout, stderr) = run_args(&["freespace", "top", "C:\\", "--json"]);
+        let (code, stdout, stderr) = run_args(&["freespace", "filter", "C:\\", "--json"]);
 
         assert_eq!(code, 8);
         assert!(stderr.is_empty());

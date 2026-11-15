@@ -129,11 +129,11 @@ verified independently.
 
 **Independent Test**: verify the top list at different N and the per-extension totals against the reference
 
-- [ ] T048 [P] [US4] Test top-N and type aggregation in `tests/top_types.rs`
-- [ ] T049 [US4] Implement top-N (partial sort) in `crates/freespace-analysis/src/top.rs`
-- [ ] T050 [US4] Implement grouping by extension and category in `crates/freespace-analysis/src/types.rs`
-- [ ] T051 [US4] Implement CLI `top` and `types` in `crates/freespace-cli/src/commands/top.rs`
-- [ ] T052 [US4] Implement the "Top" and "Types" tabs in the GUI in `apps/freespace-gui/src/views/top_types.rs`
+- [x] T048 [P] [US4] Test top-N and type aggregation in `tests/top_types.rs`
+- [x] T049 [US4] Implement top-N (partial sort) in `crates/freespace-analysis/src/top.rs`
+- [x] T050 [US4] Implement grouping by extension and category in `crates/freespace-analysis/src/types.rs`
+- [x] T051 [US4] Implement CLI `top` and `types` in `crates/freespace-cli/src/commands/top.rs`
+- [x] T052 [US4] Implement the "Top" and "Types" tabs in the GUI in `apps/freespace-gui/src/views/top_types.rs`
 
 **Checkpoint**: the MVP (US1–US4) is ready for demonstration
 
@@ -145,12 +145,12 @@ verified independently.
 
 **Independent Test**: a set with known duplicates and "false" files of identical size — verify the absence of false matches and the preservation of the kept copy
 
-- [ ] T053 [P] [US5] Test the hashing pipeline and the absence of false matches in `tests/duplicates.rs`
-- [ ] T054 [US5] Implement two-stage hashing and byte-by-byte verification in `crates/freespace-analysis/src/hash.rs`
-- [ ] T055 [US5] Implement the hash cache in SQLite in `crates/freespace-analysis/src/hash_cache.rs`
-- [ ] T056 [US5] Implement duplicate grouping and keep rules in `crates/freespace-analysis/src/duplicates.rs`
-- [ ] T057 [US5] Implement CLI `duplicates` in `crates/freespace-cli/src/commands/duplicates.rs`
-- [ ] T058 [US5] Implement the duplicates screen in the GUI in `apps/freespace-gui/src/views/duplicates.rs`
+- [x] T053 [P] [US5] Test the hashing pipeline and the absence of false matches in `tests/duplicates.rs`
+- [x] T054 [US5] Implement two-stage hashing and byte-by-byte verification in `crates/freespace-analysis/src/hash.rs`
+- [x] T055 [US5] Implement the hash cache in SQLite in `crates/freespace-analysis/src/hash_cache.rs`
+- [x] T056 [US5] Implement duplicate grouping and keep rules in `crates/freespace-analysis/src/duplicates.rs`
+- [x] T057 [US5] Implement CLI `duplicates` in `crates/freespace-cli/src/commands/duplicates.rs`
+- [x] T058 [US5] Implement the duplicates screen in the GUI in `apps/freespace-gui/src/views/duplicates.rs`
 
 ---
 
@@ -160,11 +160,11 @@ verified independently.
 
 **Independent Test**: destroy a test set and verify that recovery with an independent tool is impossible
 
-- [ ] T059 [P] [US6] Test overwrite/deletion and SSD warnings in `tests/shred.rs`
-- [ ] T060 [US6] Implement the shredder (passes, patterns, write-through, rename/truncate/delete) in `crates/freespace-ops/src/shred.rs`
-- [ ] T061 [US6] Implement SSD and TRIM detection in `crates/freespace-platform/src/trim.rs`
-- [ ] T062 [US6] Implement CLI `shred` and the `--yes` check in `crates/freespace-cli/src/commands/shred.rs`
-- [ ] T063 [US6] Implement the shredder UI with warning and confirmation in `apps/freespace-gui/src/views/shred.rs`
+- [x] T059 [P] [US6] Test overwrite/deletion and SSD warnings in `tests/shred.rs`
+- [x] T060 [US6] Implement the shredder (passes, patterns, write-through, rename/truncate/delete) in `crates/freespace-ops/src/shred.rs`
+- [x] T061 [US6] Implement SSD and TRIM detection in `crates/freespace-platform/src/trim.rs`
+- [x] T062 [US6] Implement CLI `shred` and the `--yes` check in `crates/freespace-cli/src/commands/shred.rs`
+- [x] T063 [US6] Implement the shredder UI with warning and confirmation in `apps/freespace-gui/src/views/shred.rs`
 
 ---
 

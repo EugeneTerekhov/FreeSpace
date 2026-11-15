@@ -1,9 +1,9 @@
 //! `clap` command tree for the FreeSpace CLI.
 //!
 //! The shape follows `specs/001-freespace-disk-analyzer/contracts/cli.md`.
-//! Commands that belong to later user stories parse their full argument set but
-//! currently return `E_UNSUPPORTED`; the foundational commands (`drives`,
-//! `config`) are functional.
+//! Commands that arrive with later user stories parse their full argument set
+//! but currently return `E_UNSUPPORTED`; `drives`, `config`, `scan`, `tree`,
+//! `top`, `types`, `duplicates`, `unlock` and `shred` are functional.
 
 use std::path::PathBuf;
 

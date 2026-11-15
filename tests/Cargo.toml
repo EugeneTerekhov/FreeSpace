@@ -7,6 +7,7 @@ rust-version.workspace = true
 publish = false
 
 [dev-dependencies]
+freespace-analysis = { workspace = true }
 freespace-core = { workspace = true }
 freespace-cli = { workspace = true }
 freespace-ops = { workspace = true }
@@ -29,6 +30,18 @@ path = "scan_mft.rs"
 [[test]]
 name = "unlock"
 path = "unlock.rs"
+
+[[test]]
+name = "top_types"
+path = "top_types.rs"
+
+[[test]]
+name = "duplicates"
+path = "duplicates.rs"
+
+[[test]]
+name = "shred"
+path = "shred.rs"
 
 [lints]
 workspace = true
