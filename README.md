@@ -28,6 +28,10 @@ Specification, plan and tasks are ready (Spec-Driven Development). Implementatio
 | Быстрый старт / Quickstart | [ru/quickstart.md](ru/quickstart.md) | [en/quickstart.md](en/quickstart.md) |
 | Контракты / Contracts | [ru/contracts/](ru/contracts/) | [en/contracts/](en/contracts/) |
 | Чек-листы / Checklists | [ru/checklists/](ru/checklists/) | [en/checklists/](en/checklists/) |
+| Как пользоваться репозиторием / Repository guide | [ru/repository-guide.md](ru/repository-guide.md) | [en/repository-guide.md](en/repository-guide.md) |
+
+Правила для AI-агентов описаны в [AGENTS.md](AGENTS.md).
+Rules for AI agents are described in [AGENTS.md](AGENTS.md).
 
 Канонические артефакты Spec Kit находятся в [specs/001-freespace-disk-analyzer/](specs/001-freespace-disk-analyzer/).
 Canonical Spec Kit artifacts live in [specs/001-freespace-disk-analyzer/](specs/001-freespace-disk-analyzer/).
