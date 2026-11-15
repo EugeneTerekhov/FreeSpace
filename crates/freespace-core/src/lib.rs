@@ -13,5 +13,12 @@ i18n!("../../locales", fallback = "en");
 pub mod error;
 pub mod i18n;
 pub mod logging;
+pub mod model;
+pub mod settings;
+pub mod size;
+pub mod time;
+pub mod tree;
 
-pub use error::{Error, Result};
+pub use error::{Error, ErrorCode, Result};
+pub use time::Timestamp;
+pub use uuid::Uuid;

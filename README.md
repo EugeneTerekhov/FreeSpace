@@ -12,10 +12,12 @@ automates cleanup via CLI.
 
 ## Статус / Status
 
-Фаза 1 (Setup) завершена: создан Cargo workspace, скелеты крейтов и GUI, CI и локализация.
-Следующая фаза — Foundational (T009–T025).
-Phase 1 (Setup) is complete: the Cargo workspace, crate and GUI skeletons, CI and localization
-are in place. Next phase — Foundational (T009–T025).
+Фаза 2 (Foundational) завершена: доменная модель, дерево-арена, настройки, слой путей и томов,
+SQLite-хранилище, безопасные операции с карантином, каркасы CLI и GUI, общие тестовые фикстуры и
+бенчмарки. Следующая фаза — US1: сканирование тома и дерево размеров (T026–T036).
+Phase 2 (Foundational) is complete: the domain model, tree arena, settings, path and volume layer,
+SQLite store, safe operations with quarantine, CLI and GUI shells, shared test fixtures and
+benchmarks are in place. Next phase — US1: volume scanning and the size tree (T026–T036).
 
 ## Документация / Documentation
 

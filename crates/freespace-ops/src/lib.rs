@@ -4,5 +4,24 @@
 //!
 //! Destructive actions go through this crate only: preview, confirmation,
 //! journal, quarantine/Recycle Bin, undo and system-path protection.
+//!
+//! The foundational phase provides:
+//!
+//! * [`operation`] — operation model, state machine and journal entries;
+//! * [`confirm`] — preview, confirmation, scope and system-path guards;
+//! * [`quarantine`] — reversible removal with checksums and restore;
+//! * [`store`] — SQLite schema and persistence for journal, quarantine and the
+//!   hash cache.
 
-// Phase 2 adds the operation state machine, journal and quarantine.
+pub mod confirm;
+pub mod operation;
+pub mod quarantine;
+pub mod store;
+
+pub use confirm::{Preview, PreviewItem, is_protected_path, preview_delete, require_confirmation};
+pub use operation::{
+    DeleteMode, JournalEntry, JournalResult, Operation, OperationKind, OperationParams,
+    OperationStatus, OperationTarget, ResultSummary, TargetStatus,
+};
+pub use quarantine::{Quarantine, QuarantineItem, QuarantineStatus};
+pub use store::{HashKey, Store};

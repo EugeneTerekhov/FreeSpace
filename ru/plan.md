@@ -23,6 +23,7 @@ FreeSpace — нативное Windows-приложение (Rust + egui/eframe)
 - Системные вызовы: `windows` (официальный crate Microsoft), `winreg`
 - Параллелизм: `rayon`, `crossbeam-channel`, `jwalk` (fallback-обход)
 - Хранение: `rusqlite` (bundled SQLite — журнал, карантин, настройки), `serde` + `toml`/`json`
+- Идентификаторы: `uuid` (v4 для операций и сессий, v5 для стабильных идентификаторов томов)
 - Снимки: `serde` + `ciborium` (CBOR) + `zstd`
 - Хеширование: `sha2`, `md-5`, `memmap2`
 - Архивы: `zip`, `sevenz-rust`, `tar` + `flate2`, `iso9660`; `unrar` — опционально (RAR)

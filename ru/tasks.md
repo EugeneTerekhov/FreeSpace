@@ -48,23 +48,23 @@
 
 **⚠️ CRITICAL**: Ни одна пользовательская история не начинается до завершения этой фазы
 
-- [ ] T009 Реализовать `SizeMetrics` (логический/на диске/физический/ADS/экономия) в `crates/freespace-core/src/size.rs`
-- [ ] T010 Реализовать арену `FsNode` (SoA, `NodeId = u32`, имена в UTF-8-арене) в `crates/freespace-core/src/tree.rs`
-- [ ] T011 Реализовать `Volume`, `ScanSession` и перечисления статусов в `crates/freespace-core/src/model.rs`
-- [ ] T012 [P] Реализовать `Settings` (serde + TOML) и хранение в портативном режиме в `crates/freespace-core/src/settings.rs`
-- [ ] T013 [P] Реализовать слой путей: verbatim-пути, нормализация, предел 32 000 символов в `crates/freespace-platform/src/paths.rs`
-- [ ] T014 [P] Реализовать обёртки WinAPI (handle RAII, преобразование ошибок) в `crates/freespace-platform/src/win.rs`
-- [ ] T015 [P] Реализовать перечисление томов (`GetLogicalDrives`, `GetVolumeInformationW`) в `crates/freespace-platform/src/volumes.rs`
-- [ ] T016 Реализовать схему SQLite и миграции (журнал, карантин, кеш хешей) в `crates/freespace-ops/src/store.rs`
-- [ ] T017 Реализовать модель `Operation`/`JournalEntry` и машину состояний в `crates/freespace-ops/src/operation.rs`
-- [ ] T018 [P] Реализовать движок предпросмотра и подтверждения операций в `crates/freespace-ops/src/confirm.rs`
-- [ ] T019 [P] Реализовать карантин (перемещение, индекс, восстановление) в `crates/freespace-ops/src/quarantine.rs`
-- [ ] T020 [P] Реализовать каркас CLI: clap, глобальные флаги, JSON-конверт, коды возврата в `crates/freespace-cli/src/main.rs`
-- [ ] T021 [P] Реализовать каркас GUI: окно, навигация, фоновые задачи и канал прогресса в `apps/freespace-gui/src/app.rs`
-- [ ] T022 [P] Создать тестовые фикстуры ФС и утилиты в `tests/common/mod.rs`
-- [ ] T023 [P] Настроить бенчмарки criterion (сканирование, хеширование, Treemap) в `benches/`
-- [ ] T024 Реализовать загрузку локалей и переключение языка в рантайме в `crates/freespace-core/src/i18n.rs`
-- [ ] T025 Определить доменные коды ошибок `E_*` и их соответствие кодам возврата в `crates/freespace-core/src/error.rs`
+- [x] T009 Реализовать `SizeMetrics` (логический/на диске/физический/ADS/экономия) в `crates/freespace-core/src/size.rs`
+- [x] T010 Реализовать арену `FsNode` (SoA, `NodeId = u32`, имена в UTF-8-арене) в `crates/freespace-core/src/tree.rs`
+- [x] T011 Реализовать `Volume`, `ScanSession` и перечисления статусов в `crates/freespace-core/src/model.rs`
+- [x] T012 [P] Реализовать `Settings` (serde + TOML) и хранение в портативном режиме в `crates/freespace-core/src/settings.rs`
+- [x] T013 [P] Реализовать слой путей: verbatim-пути, нормализация, предел 32 000 символов в `crates/freespace-platform/src/paths.rs`
+- [x] T014 [P] Реализовать обёртки WinAPI (handle RAII, преобразование ошибок) в `crates/freespace-platform/src/win.rs`
+- [x] T015 [P] Реализовать перечисление томов (`GetLogicalDrives`, `GetVolumeInformationW`) в `crates/freespace-platform/src/volumes.rs`
+- [x] T016 Реализовать схему SQLite и миграции (журнал, карантин, кеш хешей) в `crates/freespace-ops/src/store.rs`
+- [x] T017 Реализовать модель `Operation`/`JournalEntry` и машину состояний в `crates/freespace-ops/src/operation.rs`
+- [x] T018 [P] Реализовать движок предпросмотра и подтверждения операций в `crates/freespace-ops/src/confirm.rs`
+- [x] T019 [P] Реализовать карантин (перемещение, индекс, восстановление) в `crates/freespace-ops/src/quarantine.rs`
+- [x] T020 [P] Реализовать каркас CLI: clap, глобальные флаги, JSON-конверт, коды возврата в `crates/freespace-cli/src/main.rs`
+- [x] T021 [P] Реализовать каркас GUI: окно, навигация, фоновые задачи и канал прогресса в `apps/freespace-gui/src/app.rs`
+- [x] T022 [P] Создать тестовые фикстуры ФС и утилиты в `tests/common/mod.rs`
+- [x] T023 [P] Настроить бенчмарки criterion (сканирование, хеширование, Treemap) в `benches/`
+- [x] T024 Реализовать загрузку локалей и переключение языка в рантайме в `crates/freespace-core/src/i18n.rs`
+- [x] T025 Определить доменные коды ошибок `E_*` и их соответствие кодам возврата в `crates/freespace-core/src/error.rs`
 
 **Checkpoint**: фундамент готов — истории можно реализовывать параллельно
 

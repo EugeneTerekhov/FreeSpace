@@ -2,12 +2,16 @@
 //!
 //! Translation tables are embedded at compile time by the `rust_i18n::i18n!`
 //! macro invoked in the crate root; this module exposes the supported locales
-//! and switches the process-wide active language.
+//! and switches the process-wide active language. Switching happens at runtime
+//! and never resets application state, which satisfies FR-092.
 
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
+
 /// Locale shipped with FreeSpace.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Locale {
     /// Russian.
     Ru,
@@ -55,6 +59,17 @@ pub fn set_locale(locale: Locale) {
     rust_i18n::set_locale(locale.code());
 }
 
+/// Applies a locale given by code.
+///
+/// Returns the applied locale, or `None` when the code is not supported; the
+/// active language is left untouched in that case.
+pub fn set_locale_from_code(code: &str) -> Option<Locale> {
+    let locale = Locale::from_code(code)?;
+    set_locale(locale);
+
+    Some(locale)
+}
+
 /// Returns the currently active locale, falling back to [`Locale::DEFAULT`].
 #[must_use]
 pub fn locale() -> Locale {
@@ -65,7 +80,13 @@ pub fn locale() -> Locale {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::Locale;
+
+    /// Locale switching is process-wide, so tests that change it must not run
+    /// concurrently with each other.
+    static LOCALE_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn parses_supported_codes() {
@@ -82,6 +103,7 @@ mod tests {
 
     #[test]
     fn loads_embedded_translations() {
+        let _guard = LOCALE_LOCK.lock().expect("locale lock");
         rust_i18n::set_locale("en");
         assert_eq!(t!("app.name").to_string(), "FreeSpace");
 
@@ -92,5 +114,31 @@ mod tests {
         );
 
         rust_i18n::set_locale("en");
+    }
+
+    #[test]
+    fn switches_language_at_runtime() {
+        let _guard = LOCALE_LOCK.lock().expect("locale lock");
+        super::set_locale(Locale::Ru);
+        assert_eq!(super::locale(), Locale::Ru);
+        assert_eq!(t!("common.cancel").to_string(), "Отмена");
+
+        let applied = super::set_locale_from_code("en-GB");
+
+        assert_eq!(applied, Some(Locale::En));
+        assert_eq!(super::locale(), Locale::En);
+        assert_eq!(t!("common.cancel").to_string(), "Cancel");
+        assert_eq!(super::set_locale_from_code("de"), None);
+    }
+
+    #[test]
+    fn round_trips_locale_through_serde() {
+        let json = serde_json::to_string(&Locale::Ru).expect("serialise locale");
+
+        assert_eq!(json, "\"ru\"");
+        assert_eq!(
+            serde_json::from_str::<Locale>(&json).expect("deserialise locale"),
+            Locale::Ru
+        );
     }
 }

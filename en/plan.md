@@ -23,6 +23,7 @@ archives), and automation (reports, scheduling, context menu, monitoring).
 - System calls: `windows` (official Microsoft crate), `winreg`
 - Concurrency: `rayon`, `crossbeam-channel`, `jwalk` (fallback traversal)
 - Storage: `rusqlite` (bundled SQLite — journal, quarantine, settings), `serde` + `toml`/`json`
+- Identifiers: `uuid` (v4 for operations and sessions, v5 for stable volume identifiers)
 - Snapshots: `serde` + `ciborium` (CBOR) + `zstd`
 - Hashing: `sha2`, `md-5`, `memmap2`
 - Archives: `zip`, `sevenz-rust`, `tar` + `flate2`, `iso9660`; `unrar` — optional (RAR)

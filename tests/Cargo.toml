@@ -1,0 +1,19 @@
+[package]
+name = "freespace-tests"
+description = "Cross-crate FreeSpace integration tests and shared filesystem fixtures"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dev-dependencies]
+freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+tempfile = { workspace = true }
+
+[[test]]
+name = "fixtures"
+path = "fixtures.rs"
+
+[lints]
+workspace = true

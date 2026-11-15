@@ -8,8 +8,14 @@ rust-version.workspace = true
 [dependencies]
 clap = { workspace = true }
 freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

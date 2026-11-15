@@ -48,23 +48,23 @@ verified independently.
 
 **⚠️ CRITICAL**: No user story starts before this phase is complete
 
-- [ ] T009 Implement `SizeMetrics` (logical/on-disk/physical/ADS/savings) in `crates/freespace-core/src/size.rs`
-- [ ] T010 Implement the `FsNode` arena (SoA, `NodeId = u32`, names in a UTF-8 arena) in `crates/freespace-core/src/tree.rs`
-- [ ] T011 Implement `Volume`, `ScanSession` and status enums in `crates/freespace-core/src/model.rs`
-- [ ] T012 [P] Implement `Settings` (serde + TOML) and portable-mode storage in `crates/freespace-core/src/settings.rs`
-- [ ] T013 [P] Implement the path layer: verbatim paths, normalization, the 32,000-character limit in `crates/freespace-platform/src/paths.rs`
-- [ ] T014 [P] Implement WinAPI wrappers (RAII handle, error conversion) in `crates/freespace-platform/src/win.rs`
-- [ ] T015 [P] Implement volume enumeration (`GetLogicalDrives`, `GetVolumeInformationW`) in `crates/freespace-platform/src/volumes.rs`
-- [ ] T016 Implement the SQLite schema and migrations (journal, quarantine, hash cache) in `crates/freespace-ops/src/store.rs`
-- [ ] T017 Implement the `Operation`/`JournalEntry` model and state machine in `crates/freespace-ops/src/operation.rs`
-- [ ] T018 [P] Implement the operation preview and confirmation engine in `crates/freespace-ops/src/confirm.rs`
-- [ ] T019 [P] Implement quarantine (move, index, restore) in `crates/freespace-ops/src/quarantine.rs`
-- [ ] T020 [P] Implement the CLI skeleton: clap, global flags, JSON envelope, return codes in `crates/freespace-cli/src/main.rs`
-- [ ] T021 [P] Implement the GUI skeleton: window, navigation, background tasks and progress channel in `apps/freespace-gui/src/app.rs`
-- [ ] T022 [P] Create test FS fixtures and utilities in `tests/common/mod.rs`
-- [ ] T023 [P] Set up criterion benchmarks (scan, hashing, Treemap) in `benches/`
-- [ ] T024 Implement locale loading and runtime language switching in `crates/freespace-core/src/i18n.rs`
-- [ ] T025 Define the domain error codes `E_*` and their mapping to return codes in `crates/freespace-core/src/error.rs`
+- [x] T009 Implement `SizeMetrics` (logical/on-disk/physical/ADS/savings) in `crates/freespace-core/src/size.rs`
+- [x] T010 Implement the `FsNode` arena (SoA, `NodeId = u32`, names in a UTF-8 arena) in `crates/freespace-core/src/tree.rs`
+- [x] T011 Implement `Volume`, `ScanSession` and status enums in `crates/freespace-core/src/model.rs`
+- [x] T012 [P] Implement `Settings` (serde + TOML) and portable-mode storage in `crates/freespace-core/src/settings.rs`
+- [x] T013 [P] Implement the path layer: verbatim paths, normalization, the 32,000-character limit in `crates/freespace-platform/src/paths.rs`
+- [x] T014 [P] Implement WinAPI wrappers (RAII handle, error conversion) in `crates/freespace-platform/src/win.rs`
+- [x] T015 [P] Implement volume enumeration (`GetLogicalDrives`, `GetVolumeInformationW`) in `crates/freespace-platform/src/volumes.rs`
+- [x] T016 Implement the SQLite schema and migrations (journal, quarantine, hash cache) in `crates/freespace-ops/src/store.rs`
+- [x] T017 Implement the `Operation`/`JournalEntry` model and state machine in `crates/freespace-ops/src/operation.rs`
+- [x] T018 [P] Implement the operation preview and confirmation engine in `crates/freespace-ops/src/confirm.rs`
+- [x] T019 [P] Implement quarantine (move, index, restore) in `crates/freespace-ops/src/quarantine.rs`
+- [x] T020 [P] Implement the CLI skeleton: clap, global flags, JSON envelope, return codes in `crates/freespace-cli/src/main.rs`
+- [x] T021 [P] Implement the GUI skeleton: window, navigation, background tasks and progress channel in `apps/freespace-gui/src/app.rs`
+- [x] T022 [P] Create test FS fixtures and utilities in `tests/common/mod.rs`
+- [x] T023 [P] Set up criterion benchmarks (scan, hashing, Treemap) in `benches/`
+- [x] T024 Implement locale loading and runtime language switching in `crates/freespace-core/src/i18n.rs`
+- [x] T025 Define the domain error codes `E_*` and their mapping to return codes in `crates/freespace-core/src/error.rs`
 
 **Checkpoint**: the foundation is ready — stories can be implemented in parallel
 

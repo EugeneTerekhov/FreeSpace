@@ -216,3 +216,26 @@ alternatives".
   large volumes.
 - **Alternatives considered**: XLS generation (legacy format); HTML via a template engine
   (redundant).
+
+## 23. Identifiers and supporting dependencies
+
+- **Decision**: operations, sessions and quarantine items are identified by `uuid` v4; a volume
+  identifier is derived deterministically (UUID v5) from the normalized mount point. The `uuid`
+  crate (`v4`, `v5`, `serde`) is added to `freespace-core`; other modules use the
+  `freespace_core::Uuid` re-export.
+- **Rationale**: stable identifiers are required by the journal, quarantine and undo; UUID v5 keeps
+  volume references valid between runs; the re-export prevents `uuid` versions from diverging across
+  crates.
+- **Alternatives considered**: a hand-written string generator (no uniqueness or format
+  guarantees); the volume serial number as an identifier (changes when the volume is reformatted and
+  does not cover mount points).
+
+## 24. Integration-test layout
+
+- **Decision**: cross-crate tests and shared filesystem fixtures live in a separate
+  `freespace-tests` package (`tests/Cargo.toml`), because the root manifest is virtual and the
+  `tests/` directory would otherwise not be compiled.
+- **Rationale**: `tests/common/mod.rs` is reused by every scenario, and `cargo test --workspace`
+  runs it in CI.
+- **Alternatives considered**: duplicating fixtures per crate (drift); tests on real disks
+  (forbidden by the constitution).

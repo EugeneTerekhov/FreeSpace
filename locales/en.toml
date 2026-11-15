@@ -6,7 +6,7 @@ _version = 1
 [app]
 name = "FreeSpace"
 tagline = "Disk space analyzer and manager for Windows"
-phase1_ready = "The workspace, platform layer and localization are ready."
+phase2_ready = "Core model, platform layer, safe operations and CLI foundations are ready."
 
 [common]
 ok = "OK"
@@ -14,3 +14,44 @@ cancel = "Cancel"
 close = "Close"
 error = "Error"
 warning = "Warning"
+
+[nav]
+dashboard = "Drives"
+scan = "Scan"
+tree = "Tree"
+treemap = "Treemap"
+top = "Largest files"
+types = "File types"
+duplicates = "Duplicates"
+cleanup = "Cleanup"
+snapshots = "Snapshots"
+unlock = "Unlock"
+settings = "Settings"
+about = "About"
+
+[status]
+ready = "Ready"
+running = "Running…"
+finished = "Finished"
+failed = "Failed"
+cancelled = "Cancelled"
+
+[delete.mode]
+recycle_bin = "Recycle Bin — recoverable until the bin is emptied"
+quarantine = "FreeSpace quarantine — recoverable from the app"
+permanent = "Permanent deletion — cannot be undone"
+
+[settings]
+language = "Language"
+theme = "Theme"
+units = "Units"
+confirm = "Always confirm destructive actions"
+save = "Save"
+saved = "Settings saved"
+tasks = "Background tasks"
+no_tasks = "No background tasks"
+
+[page]
+placeholder = "This screen is wired to the shared core and will be filled in by the next user story."
+refresh_drives = "Refresh drives"
+volumes_found = "Volumes found"
