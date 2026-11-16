@@ -174,12 +174,12 @@
 
 **Independent Test**: набор с известными датами и пустыми каталогами — проверить точность фильтров и полноту списка
 
-- [ ] T064 [P] [US7] Тест фильтров дат и поиска пустых каталогов в `tests/cleanup.rs`
-- [ ] T065 [US7] Реализовать фильтр устаревания по максимуму дат с пометкой достоверности в `crates/freespace-analysis/src/cleanup.rs`
-- [ ] T066 [US7] Реализовать категории temp/cache/log/backup и рекомендации в `crates/freespace-analysis/src/recommend.rs`
-- [ ] T067 [US7] Реализовать поиск пустых каталогов в `crates/freespace-scan/src/empty_dirs.rs`
-- [ ] T068 [US7] Реализовать CLI `cleanup suggest` и `cleanup empty-dirs` в `crates/freespace-cli/src/commands/cleanup.rs`
-- [ ] T069 [US7] Реализовать экран рекомендаций и пустых папок в GUI в `apps/freespace-gui/src/views/cleanup.rs`
+- [x] T064 [P] [US7] Тест фильтров дат и поиска пустых каталогов в `tests/cleanup.rs`
+- [x] T065 [US7] Реализовать фильтр устаревания по максимуму дат с пометкой достоверности в `crates/freespace-analysis/src/cleanup.rs`
+- [x] T066 [US7] Реализовать категории temp/cache/log/backup и рекомендации в `crates/freespace-analysis/src/recommend.rs`
+- [x] T067 [US7] Реализовать поиск пустых каталогов в `crates/freespace-scan/src/empty_dirs.rs`
+- [x] T068 [US7] Реализовать CLI `cleanup suggest` и `cleanup empty-dirs` в `crates/freespace-cli/src/commands/cleanup.rs`
+- [x] T069 [US7] Реализовать экран рекомендаций и пустых папок в GUI в `apps/freespace-gui/src/views/cleanup.rs`
 
 ---
 
@@ -189,11 +189,11 @@
 
 **Independent Test**: два снимка с известными различиями — проверить полноту и сортировку отчёта
 
-- [ ] T070 [P] [US8] Тест round-trip снимка и сравнения в `tests/snapshot.rs`
-- [ ] T071 [US8] Реализовать формат `.fssnap` (CBOR + zstd, колонки, checksum) в `crates/freespace-report/src/snapshot.rs`
-- [ ] T072 [US8] Реализовать сравнение снимков и дельту в `crates/freespace-report/src/diff.rs`
-- [ ] T073 [US8] Реализовать CLI `snapshot create` и `snapshot diff` в `crates/freespace-cli/src/commands/snapshot.rs`
-- [ ] T074 [US8] Реализовать экран снимков и сравнения в GUI в `apps/freespace-gui/src/views/snapshots.rs`
+- [x] T070 [P] [US8] Тест round-trip снимка и сравнения в `tests/snapshot.rs`
+- [x] T071 [US8] Реализовать формат `.fssnap` (CBOR + zstd, колонки, checksum) в `crates/freespace-report/src/snapshot.rs`
+- [x] T072 [US8] Реализовать сравнение снимков и дельту в `crates/freespace-report/src/diff.rs`
+- [x] T073 [US8] Реализовать CLI `snapshot create` и `snapshot diff` в `crates/freespace-cli/src/commands/snapshot.rs`
+- [x] T074 [US8] Реализовать экран снимков и сравнения в GUI в `apps/freespace-gui/src/views/snapshots.rs`
 
 ---
 
@@ -203,13 +203,13 @@
 
 **Independent Test**: выполнить удаление, восстановить объект из карантина, проверить журнал и отмену
 
-- [ ] T075 [P] [US9] Тест выбора режима удаления, карантина и undo в `tests/safe_ops.rs`
-- [ ] T076 [US9] Реализовать диалог подтверждения с выбором «Корзина/Карантин/Безвозвратно» в `apps/freespace-gui/src/views/confirm.rs`
-- [ ] T077 [US9] Реализовать удаление в Корзину через `IFileOperation` в `crates/freespace-platform/src/recycle.rs`
-- [ ] T078 [US9] Реализовать проверку свободного места и сценарий нехватки в `crates/freespace-ops/src/delete.rs`
-- [ ] T079 [US9] Реализовать журнал операций, undo и восстановление в `crates/freespace-ops/src/undo.rs` и `apps/freespace-gui/src/views/journal.rs`
-- [ ] T080 [US9] Реализовать CLI `delete --mode` с проверками подтверждения в `crates/freespace-cli/src/commands/delete.rs`
-- [ ] T081 [US9] Реализовать защиту системных путей, запрет выхода за выбранную область и дополнительное подтверждение в `crates/freespace-ops/src/guarded.rs`
+- [x] T075 [P] [US9] Тест выбора режима удаления, карантина и undo в `tests/safe_ops.rs`
+- [x] T076 [US9] Реализовать диалог подтверждения с выбором «Корзина/Карантин/Безвозвратно» в `apps/freespace-gui/src/views/confirm.rs`
+- [x] T077 [US9] Реализовать удаление в Корзину через `IFileOperation` в `crates/freespace-platform/src/recycle.rs`
+- [x] T078 [US9] Реализовать проверку свободного места и сценарий нехватки в `crates/freespace-ops/src/delete.rs`
+- [x] T079 [US9] Реализовать журнал операций, undo и восстановление в `crates/freespace-ops/src/undo.rs` и `apps/freespace-gui/src/views/journal.rs`
+- [x] T080 [US9] Реализовать CLI `delete --mode` с проверками подтверждения в `crates/freespace-cli/src/commands/delete.rs`
+- [x] T081 [US9] Реализовать защиту системных путей, запрет выхода за выбранную область и дополнительное подтверждение в `crates/freespace-ops/src/guarded.rs`
 
 ---
 
@@ -219,13 +219,13 @@
 
 **Independent Test**: набор с hard links, junction, сжатыми/разреженными файлами и ADS — сверить с эталоном
 
-- [ ] T082 [P] [US10] Тест дедупликации hard links, junction, sparse/compressed и ADS в `tests/accounting.rs`
-- [ ] T083 [US10] Реализовать определение reparse points и ссылок в `crates/freespace-platform/src/reparse.rs`
-- [ ] T084 [US10] Реализовать точный размер на диске (`GetCompressedFileSizeW`, allocated ranges) в `crates/freespace-platform/src/allocated.rs`
-- [ ] T085 [US10] Реализовать дедупликацию физического размера по FRN в `crates/freespace-analysis/src/accounting.rs`
-- [ ] T086 [US10] Реализовать перечисление ADS (`FindFirstStreamW`) в `crates/freespace-platform/src/ads.rs`
-- [ ] T087 [US10] Реализовать отображение метрик и ADS в GUI в `apps/freespace-gui/src/views/size_details.rs`
-- [ ] T088 [US10] Реализовать CLI-флаги учёта ADS и режима размера в `crates/freespace-cli/src/commands/scan.rs`
+- [x] T082 [P] [US10] Тест дедупликации hard links, junction, sparse/compressed и ADS в `tests/accounting.rs`
+- [x] T083 [US10] Реализовать определение reparse points и ссылок в `crates/freespace-platform/src/reparse.rs`
+- [x] T084 [US10] Реализовать точный размер на диске (`GetCompressedFileSizeW`, allocated ranges) в `crates/freespace-platform/src/allocated.rs`
+- [x] T085 [US10] Реализовать дедупликацию физического размера по FRN в `crates/freespace-analysis/src/accounting.rs`
+- [x] T086 [US10] Реализовать перечисление ADS (`FindFirstStreamW`) в `crates/freespace-platform/src/ads.rs`
+- [x] T087 [US10] Реализовать отображение метрик и ADS в GUI в `apps/freespace-gui/src/views/size_details.rs`
+- [x] T088 [US10] Реализовать CLI-флаги учёта ADS и режима размера в `crates/freespace-cli/src/commands/scan.rs`
 
 ---
 
@@ -235,10 +235,10 @@
 
 **Independent Test**: создать пути 261/1000/32000 символов и выполнить rename/move/copy/delete
 
-- [ ] T089 [P] [US11] Тест операций на длинных путях и предельных значениях в `tests/long_paths.rs`
-- [ ] T090 [US11] Реализовать файловый менеджер длинных путей в `crates/freespace-ops/src/long_path_ops.rs`
-- [ ] T091 [US11] Реализовать проверку предела пути и понятные ошибки до изменения данных в `crates/freespace-platform/src/paths.rs`
-- [ ] T092 [US11] Реализовать UI файлового менеджера длинных путей в `apps/freespace-gui/src/views/long_paths.rs`
+- [x] T089 [P] [US11] Тест операций на длинных путях и предельных значениях в `tests/long_paths.rs`
+- [x] T090 [US11] Реализовать файловый менеджер длинных путей в `crates/freespace-ops/src/long_path_ops.rs`
+- [x] T091 [US11] Реализовать проверку предела пути и понятные ошибки до изменения данных в `crates/freespace-platform/src/paths.rs`
+- [x] T092 [US11] Реализовать UI файлового менеджера длинных путей в `apps/freespace-gui/src/views/long_paths.rs`
 
 ---
 
@@ -248,11 +248,11 @@
 
 **Independent Test**: применить правило к 1000 файлам, проверить предпросмотр, конфликты, результат и откат
 
-- [ ] T093 [P] [US12] Тест правил переименования, конфликтов и отката в `tests/rename.rs`
-- [ ] T094 [US12] Реализовать движок правил переименования в `crates/freespace-ops/src/rename.rs`
-- [ ] T095 [US12] Реализовать предпросмотр, обнаружение конфликтов и журнал отката в `crates/freespace-ops/src/rename_plan.rs`
-- [ ] T096 [US12] Реализовать CLI `rename` в `crates/freespace-cli/src/commands/rename.rs`
-- [ ] T097 [US12] Реализовать UI массового переименования в `apps/freespace-gui/src/views/rename.rs`
+- [x] T093 [P] [US12] Тест правил переименования, конфликтов и отката в `tests/rename.rs`
+- [x] T094 [US12] Реализовать движок правил переименования в `crates/freespace-ops/src/rename.rs`
+- [x] T095 [US12] Реализовать предпросмотр, обнаружение конфликтов и журнал отката в `crates/freespace-ops/src/rename_plan.rs`
+- [x] T096 [US12] Реализовать CLI `rename` в `crates/freespace-cli/src/commands/rename.rs`
+- [x] T097 [US12] Реализовать UI массового переименования в `apps/freespace-gui/src/views/rename.rs`
 
 ---
 
@@ -262,12 +262,12 @@
 
 **Independent Test**: сменить атрибуты, владельца и права на тестовом наборе, проверить отчёт и повышение прав
 
-- [ ] T098 [P] [US13] Тест смены атрибутов/владельца/прав (admin-gated) в `tests/permissions.rs`
-- [ ] T099 [US13] Реализовать установку и снятие атрибутов в `crates/freespace-ops/src/attributes.rs`
-- [ ] T100 [US13] Реализовать работу с ACL и владельцем (привилегии, `SetNamedSecurityInfoW`) в `crates/freespace-platform/src/security.rs`
-- [ ] T101 [US13] Реализовать пакетную смену прав и отчёт об ошибках в `crates/freespace-ops/src/acl.rs`
-- [ ] T102 [US13] Реализовать CLI `attrs` и `acl` в `crates/freespace-cli/src/commands/attrs.rs`
-- [ ] T103 [US13] Реализовать UI прав и атрибутов в `apps/freespace-gui/src/views/permissions.rs`
+- [x] T098 [P] [US13] Тест смены атрибутов/владельца/прав (admin-gated) в `tests/permissions.rs`
+- [x] T099 [US13] Реализовать установку и снятие атрибутов в `crates/freespace-ops/src/attributes.rs`
+- [x] T100 [US13] Реализовать работу с ACL и владельцем (привилегии, `SetNamedSecurityInfoW`) в `crates/freespace-platform/src/security.rs`
+- [x] T101 [US13] Реализовать пакетную смену прав и отчёт об ошибках в `crates/freespace-ops/src/acl.rs`
+- [x] T102 [US13] Реализовать CLI `attrs` и `acl` в `crates/freespace-cli/src/commands/attrs.rs`
+- [x] T103 [US13] Реализовать UI прав и атрибутов в `apps/freespace-gui/src/views/permissions.rs`
 
 ---
 
@@ -277,13 +277,13 @@
 
 **Independent Test**: подготовить файлы с известными метаданными и проверить отображение, фильтры и устойчивость к повреждениям
 
-- [ ] T104 [P] [US14] Тест чтения EXIF/аудио/видео/PE и повреждённых файлов в `tests/metadata.rs`
-- [ ] T105 [US14] Реализовать чтение EXIF в `crates/freespace-analysis/src/metadata/exif.rs`
-- [ ] T106 [US14] Реализовать чтение аудио/видео метаданных в `crates/freespace-analysis/src/metadata/media.rs`
-- [ ] T107 [US14] Реализовать чтение версий PE в `crates/freespace-analysis/src/metadata/pe.rs`
-- [ ] T108 [US14] Реализовать фоновое извлечение и кеш метаданных в `crates/freespace-analysis/src/metadata/mod.rs`
-- [ ] T109 [US14] Реализовать столбцы и фильтры метаданных в GUI в `apps/freespace-gui/src/views/metadata.rs`
-- [ ] T110 [US14] Реализовать CLI-фильтры метаданных в `crates/freespace-cli/src/commands/filter.rs` и соответствующий контракт
+- [x] T104 [P] [US14] Тест чтения EXIF/аудио/видео/PE и повреждённых файлов в `tests/metadata.rs`
+- [x] T105 [US14] Реализовать чтение EXIF в `crates/freespace-analysis/src/metadata/exif.rs`
+- [x] T106 [US14] Реализовать чтение аудио/видео метаданных в `crates/freespace-analysis/src/metadata/media.rs`
+- [x] T107 [US14] Реализовать чтение версий PE в `crates/freespace-analysis/src/metadata/pe.rs`
+- [x] T108 [US14] Реализовать фоновое извлечение и кеш метаданных в `crates/freespace-analysis/src/metadata/mod.rs`
+- [x] T109 [US14] Реализовать столбцы и фильтры метаданных в GUI в `apps/freespace-gui/src/views/metadata.rs`
+- [x] T110 [US14] Реализовать CLI-фильтры метаданных в `crates/freespace-cli/src/commands/filter.rs` и соответствующий контракт
 
 ---
 
@@ -293,10 +293,10 @@
 
 **Independent Test**: набор с файлами разных владельцев — проверить суммы, фильтр и категорию «неизвестно»
 
-- [ ] T111 [P] [US15] Тест агрегации по владельцам в `tests/owners.rs`
-- [ ] T112 [US15] Реализовать интернирование SID и сводку владельцев в `crates/freespace-analysis/src/owners.rs`
-- [ ] T113 [US15] Реализовать фильтр дерева по владельцу в `crates/freespace-core/src/query.rs`
-- [ ] T114 [US15] Реализовать отчёт и UI владельцев в `apps/freespace-gui/src/views/owners.rs` и `crates/freespace-report/src/owners.rs`
+- [x] T111 [P] [US15] Тест агрегации по владельцам в `tests/owners.rs`
+- [x] T112 [US15] Реализовать интернирование SID и сводку владельцев в `crates/freespace-analysis/src/owners.rs`
+- [x] T113 [US15] Реализовать фильтр дерева по владельцу в `crates/freespace-core/src/query.rs`
+- [x] T114 [US15] Реализовать отчёт и UI владельцев в `apps/freespace-gui/src/views/owners.rs` и `crates/freespace-report/src/owners.rs`
 
 ---
 
@@ -306,11 +306,11 @@
 
 **Independent Test**: открыть архивы известных форматов, проверить список, сортировку, пароли и повреждения
 
-- [ ] T115 [P] [US16] Тест чтения архивов и обработки паролей/повреждений в `tests/archives.rs`
-- [ ] T116 [US16] Реализовать ридеры ZIP/7z/TAR/ISO в `crates/freespace-analysis/src/archives/mod.rs`
-- [ ] T117 [US16] Реализовать опциональный RAR с проверкой наличия библиотеки в `crates/freespace-analysis/src/archives/rar.rs`
-- [ ] T118 [US16] Реализовать лимиты ресурсов и обработку ошибок архивов в `crates/freespace-analysis/src/archives/limits.rs`
-- [ ] T119 [US16] Реализовать CLI `archives` и UI просмотра архивов в `crates/freespace-cli/src/commands/archives.rs` и `apps/freespace-gui/src/views/archives.rs`
+- [x] T115 [P] [US16] Тест чтения архивов и обработки паролей/повреждений в `tests/archives.rs`
+- [x] T116 [US16] Реализовать ридеры ZIP/7z/TAR/ISO в `crates/freespace-analysis/src/archives/mod.rs`
+- [x] T117 [US16] Реализовать опциональный RAR с проверкой наличия библиотеки в `crates/freespace-analysis/src/archives/rar.rs`
+- [x] T118 [US16] Реализовать лимиты ресурсов и обработку ошибок архивов в `crates/freespace-analysis/src/archives/limits.rs`
+- [x] T119 [US16] Реализовать CLI `archives` и UI просмотра архивов в `crates/freespace-cli/src/commands/archives.rs` и `apps/freespace-gui/src/views/archives.rs`
 
 ---
 
@@ -320,12 +320,12 @@
 
 **Independent Test**: экспортировать один результат во все форматы и сверить суммы и открытие в целевых инструментах
 
-- [ ] T120 [P] [US17] Тест схем CSV/XML/HTML/XLSX и согласованности сумм в `tests/export.rs`
-- [ ] T121 [US17] Реализовать потоковый CSV-экспорт в `crates/freespace-report/src/csv.rs`
-- [ ] T122 [US17] Реализовать XML-экспорт (`quick-xml`) в `crates/freespace-report/src/xml.rs`
-- [ ] T123 [US17] Реализовать HTML-экспорт с экранированием в `crates/freespace-report/src/html.rs`
-- [ ] T124 [US17] Реализовать XLSX-экспорт (`rust_xlsxwriter`) в `crates/freespace-report/src/xlsx.rs`
-- [ ] T125 [US17] Реализовать CLI `export` и диалог экспорта в GUI в `crates/freespace-cli/src/commands/export.rs` и `apps/freespace-gui/src/views/export.rs`
+- [x] T120 [P] [US17] Тест схем CSV/XML/HTML/XLSX и согласованности сумм в `tests/export.rs`
+- [x] T121 [US17] Реализовать потоковый CSV-экспорт в `crates/freespace-report/src/csv.rs`
+- [x] T122 [US17] Реализовать XML-экспорт (`quick-xml`) в `crates/freespace-report/src/xml.rs`
+- [x] T123 [US17] Реализовать HTML-экспорт с экранированием в `crates/freespace-report/src/html.rs`
+- [x] T124 [US17] Реализовать XLSX-экспорт (`rust_xlsxwriter`) в `crates/freespace-report/src/xlsx.rs`
+- [x] T125 [US17] Реализовать CLI `export` и диалог экспорта в GUI в `crates/freespace-cli/src/commands/export.rs` и `apps/freespace-gui/src/views/export.rs`
 
 ---
 
@@ -335,11 +335,11 @@
 
 **Independent Test**: выполнить основные команды в неинтерактивном режиме, проверить JSON, коды возврата и XML-задание
 
-- [ ] T126 [P] [US18] Тест JSON-схем и кодов возврата всех команд в `tests/cli_contract.rs`
-- [ ] T127 [US18] Реализовать экспорт задания Планировщика (XML) в `crates/freespace-cli/src/commands/schedule.rs`
-- [ ] T128 [US18] Реализовать блокировку и очередь параллельных запусков в `crates/freespace-cli/src/lock.rs`
-- [ ] T129 [US18] Задокументировать CLI-контракт и коды возврата в `docs/cli.md`
-- [ ] T130 [US18] Реализовать профили автоматизации в `crates/freespace-ops/src/automation.rs`
+- [x] T126 [P] [US18] Тест JSON-схем и кодов возврата всех команд в `tests/cli_contract.rs`
+- [x] T127 [US18] Реализовать экспорт задания Планировщика (XML) в `crates/freespace-cli/src/commands/schedule.rs`
+- [x] T128 [US18] Реализовать блокировку и очередь параллельных запусков в `crates/freespace-cli/src/lock.rs`
+- [x] T129 [US18] Задокументировать CLI-контракт и коды возврата в `docs/cli.md`
+- [x] T130 [US18] Реализовать профили автоматизации в `crates/freespace-ops/src/automation.rs`
 
 ---
 

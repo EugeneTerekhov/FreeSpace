@@ -8,7 +8,7 @@ The CLI uses the same core as the GUI and MUST provide feature parity (FR-074…
 
 - Format: `freespace <command> [subcommand] [arguments] [options]`.
 - Global options: `--json`, `--quiet`, `--yes`, `--no-color`, `--lang <ru|en>`, `--config <path>`,
-  `--log-level <error|warn|info|debug>`.
+  `--log-level <error|warn|info|debug>`, `--lock-timeout <seconds>`.
 - `--json` switches output to a machine-readable envelope (see below); human-readable output
   goes to stdout, errors go to stderr.
 - Destructive commands in non-interactive mode MUST require `--yes`; without it the command
@@ -76,10 +76,15 @@ freespace types <path> [--json]
 ```text
 freespace filter <path> [--kind <file|dir|link>] [--min-size <bytes>] [--older-than <days>]
                        [--type <ext,...>] [--min-resolution <WxH>] [--min-bitrate <kbps>]
-                       [--owner <account>] [--json]
+                       [--min-duration <seconds>] [--metadata exif,audio,video,pe]
+                       [--owner <account|unknown>] [--json]
 ```
 
-- `data`: `{ "items": [{ "path", "size", "metadata": {...} }] }`.
+- `data`: `{ "items": [{ "path", "size", "metadata": {...}, "owner": "..." }] }`.
+- `--owner` accepts an account name, a SID or `unknown`; an absent account returns an empty list
+  with `matched_owner = false`.
+- Metadata that cannot be read is reported as `unsupported` or `corrupted` and never aborts the
+  command.
 
 ### `duplicates`
 
@@ -149,6 +154,17 @@ freespace attrs <path>... --set read-only,hidden --clear archive [--yes] [--json
 freespace acl <path>... --owner <account> | --reset | --copy-from <path> [--yes] [--json]
 ```
 
+### `owners`
+
+```text
+freespace owners <path> [--json]
+```
+
+- `data`: `{ "items": [{ "owner_id", "sid", "display_name", "total_bytes", "file_count", "share" }],
+  "count", "total_bytes", "unknown_count", "error_count" }`.
+- Objects without a resolvable owner are reported under `unknown`.
+- The report reuses the same rows as the GUI and the `owners` export section.
+
 ### `snapshot`
 
 ```text
@@ -165,10 +181,12 @@ freespace export <path> --format csv|xml|html|xlsx --out <file> [--include tree,
 ### `archives`
 
 ```text
-freespace archives <path> [--json]
+freespace archives <path> [--export <file.csv|json|xml|html>] [--json]
 ```
 
-- `data`: `{ "items": [{ "archive", "entries": [{ "path", "size", "compressed_size" }] }] }`.
+- `data`: `{ "items": [{ "archive", "format", "entries": [{ "path", "size", "compressed_size" }] }] }`.
+- Supports ZIP, 7z, TAR, TAR/GZ and ISO; RAR only when built with the optional `rar` feature.
+- `--export` writes the content list as CSV, JSON, XML or HTML.
 
 ### `monitor`
 
@@ -204,7 +222,14 @@ freespace context-menu uninstall [--machine] [--yes]
 freespace schedule export <profile> --out <file.xml>
 ```
 
-- Creates an XML task for the Windows Task Scheduler.
+- Creates a UTF-16LE Task Scheduler XML definition with a BOM.
+- Built-in profiles: `daily-scan`, `weekly-duplicates`, `monthly-export`.
+
+## Parallel Runs
+
+Every command takes an exclusive lock on `%LOCALAPPDATA%\FreeSpace\cli.lock`.
+A second process waits `--lock-timeout` seconds (30 by default) and then exits with code `10`
+(`E_LOCKED`). The lock is released when the process exits, including after a crash.
 
 ## Exit Codes
 

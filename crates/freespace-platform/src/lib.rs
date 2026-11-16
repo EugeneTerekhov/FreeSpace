@@ -8,11 +8,23 @@
 //! * [`volumes`] — logical-drive enumeration and volume queries;
 //! * [`mft`] — NTFS MFT and USN journal access;
 //! * [`locks`] — Restart Manager lock inspection and release;
-//! * [`trim`] — solid-state detection and TRIM requests.
+//! * [`trim`] — solid-state detection and TRIM requests;
+//! * [`recycle`] — Recycle Bin deletion through `IFileOperation`;
+//! * [`reparse`] — reparse-point classification;
+//! * [`allocated`] — exact allocated size and allocated ranges;
+//! * [`ads`] — alternate data stream enumeration;
+//! * [`security`] — file attributes, ownership and ACL operations;
+//! * [`file_lock`] — cross-process advisory locks for CLI runs.
 
+pub mod ads;
+pub mod allocated;
+pub mod file_lock;
 pub mod locks;
 pub mod mft;
 pub mod paths;
+pub mod recycle;
+pub mod reparse;
+pub mod security;
 pub mod trim;
 pub mod volumes;
 pub mod win;

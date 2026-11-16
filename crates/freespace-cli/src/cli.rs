@@ -3,7 +3,9 @@
 //! The shape follows `specs/001-freespace-disk-analyzer/contracts/cli.md`.
 //! Commands that arrive with later user stories parse their full argument set
 //! but currently return `E_UNSUPPORTED`; `drives`, `config`, `scan`, `tree`,
-//! `top`, `types`, `duplicates`, `unlock` and `shred` are functional.
+//! `top`, `types`, `filter`, `duplicates`, `owners`, `cleanup`, `unlock`,
+//! `delete`, `shred`, `rename`, `attrs`, `acl`, `snapshot`, `export`,
+//! `archives` and `schedule` are functional.
 
 use std::path::PathBuf;
 
@@ -51,6 +53,10 @@ pub struct Cli {
     )]
     pub log_level: Option<String>,
 
+    /// Seconds to wait for another FreeSpace process before failing.
+    #[arg(long = "lock-timeout", global = true, default_value_t = 30)]
+    pub lock_timeout: u64,
+
     /// Command to execute.
     #[command(subcommand)]
     pub command: Command,
@@ -85,6 +91,12 @@ pub enum Command {
         /// Write a snapshot after scanning.
         #[arg(long = "snapshot-out")]
         snapshot_out: Option<PathBuf>,
+        /// Enumerate NTFS alternate data streams.
+        #[arg(long = "include-ads")]
+        include_ads: bool,
+        /// Size dimension to report: `logical`, `on-disk` or `physical`.
+        #[arg(long = "size-mode", default_value = "logical")]
+        size_mode: String,
     },
 
     /// Print the size tree for a path.
@@ -133,6 +145,18 @@ pub enum Command {
         /// Owner account.
         #[arg(long)]
         owner: Option<String>,
+        /// Minimum image or video resolution (`WIDTHxHEIGHT`).
+        #[arg(long = "min-resolution")]
+        min_resolution: Option<String>,
+        /// Minimum audio bitrate in kbps.
+        #[arg(long = "min-bitrate")]
+        min_bitrate: Option<u32>,
+        /// Minimum audio or video duration in seconds.
+        #[arg(long = "min-duration")]
+        min_duration: Option<u64>,
+        /// Comma-separated metadata families (`exif`, `audio`, `video`, `pe`).
+        #[arg(long = "metadata")]
+        metadata: Option<String>,
     },
 
     /// Find duplicate files.
@@ -243,6 +267,12 @@ pub enum Command {
         copy_from: Option<PathBuf>,
     },
 
+    /// Summarise occupied space by file owner.
+    Owners {
+        /// Volume or directory.
+        path: PathBuf,
+    },
+
     /// Create or compare disk snapshots.
     Snapshot {
         /// Snapshot action.
@@ -267,8 +297,11 @@ pub enum Command {
 
     /// Inspect archive contents without unpacking.
     Archives {
-        /// Volume or directory.
+        /// Volume, directory or archive.
         path: PathBuf,
+        /// Export the content list to a file (`.csv`, `.json`, `.xml`, `.html`).
+        #[arg(long)]
+        export: Option<PathBuf>,
     },
 
     /// Monitor disk writes in real time (JSON Lines).
@@ -316,6 +349,7 @@ impl Command {
             Self::Rename { .. } => "rename",
             Self::Attrs { .. } => "attrs",
             Self::Acl { .. } => "acl",
+            Self::Owners { .. } => "owners",
             Self::Snapshot { .. } => "snapshot",
             Self::Export { .. } => "export",
             Self::Archives { .. } => "archives",

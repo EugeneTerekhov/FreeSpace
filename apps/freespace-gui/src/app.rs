@@ -20,12 +20,15 @@ use freespace_core::{
     i18n::{self, Locale},
     settings::{self, Settings, Theme},
     size::Units,
+    tree::NodeId,
 };
 
 use crate::{
     treemap::TreemapView,
     views::{
-        DuplicatesState, ScanState, ShredState, TopTypesState, TopTypesTab, TreeView, UnlockState,
+        ArchivesState, CleanupState, DuplicatesState, ExportState, JournalState, LongPathsState,
+        MetadataState, OwnersState, PermissionsState, RenameState, ScanState, ShredState,
+        SizeDetailsState, SnapshotsState, TopTypesState, TopTypesTab, TreeView, UnlockState,
     },
 };
 
@@ -51,6 +54,24 @@ pub enum Page {
     Cleanup,
     /// Disk snapshots.
     Snapshots,
+    /// Operation journal and undo.
+    Journal,
+    /// Exact size details and alternate data streams.
+    SizeDetails,
+    /// Long-path file manager.
+    LongPaths,
+    /// Bulk rename.
+    Rename,
+    /// Attributes and NTFS permissions.
+    Permissions,
+    /// EXIF, media and PE metadata.
+    Metadata,
+    /// Space by file owner.
+    Owners,
+    /// Archive contents.
+    Archives,
+    /// Report export.
+    Export,
     /// File unlocking.
     Unlock,
     /// Irreversible destruction.
@@ -63,7 +84,7 @@ pub enum Page {
 
 impl Page {
     /// Every screen in navigation order.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 22] = [
         Self::Dashboard,
         Self::Scan,
         Self::Tree,
@@ -73,6 +94,15 @@ impl Page {
         Self::Duplicates,
         Self::Cleanup,
         Self::Snapshots,
+        Self::Journal,
+        Self::SizeDetails,
+        Self::LongPaths,
+        Self::Rename,
+        Self::Permissions,
+        Self::Metadata,
+        Self::Owners,
+        Self::Archives,
+        Self::Export,
         Self::Unlock,
         Self::Shred,
         Self::Settings,
@@ -92,6 +122,15 @@ impl Page {
             Self::Duplicates => t!("nav.duplicates").to_string(),
             Self::Cleanup => t!("nav.cleanup").to_string(),
             Self::Snapshots => t!("nav.snapshots").to_string(),
+            Self::Journal => t!("nav.journal").to_string(),
+            Self::SizeDetails => t!("nav.size_details").to_string(),
+            Self::LongPaths => t!("nav.long_paths").to_string(),
+            Self::Rename => t!("nav.rename").to_string(),
+            Self::Permissions => t!("nav.permissions").to_string(),
+            Self::Metadata => t!("nav.metadata").to_string(),
+            Self::Owners => t!("nav.owners").to_string(),
+            Self::Archives => t!("nav.archives").to_string(),
+            Self::Export => t!("nav.export").to_string(),
             Self::Unlock => t!("nav.unlock").to_string(),
             Self::Shred => t!("nav.shred").to_string(),
             Self::Settings => t!("nav.settings").to_string(),
@@ -266,6 +305,17 @@ pub struct FreeSpaceApp {
     treemap: TreemapView,
     top_types: TopTypesState,
     duplicates: DuplicatesState,
+    cleanup: CleanupState,
+    snapshots: SnapshotsState,
+    journal: JournalState,
+    size_details: SizeDetailsState,
+    long_paths: LongPathsState,
+    rename: RenameState,
+    permissions: PermissionsState,
+    metadata: MetadataState,
+    owners: OwnersState,
+    archives: ArchivesState,
+    export: ExportState,
     unlock: UnlockState,
     shred: ShredState,
 }
@@ -305,6 +355,17 @@ impl FreeSpaceApp {
             treemap: TreemapView::default(),
             top_types: TopTypesState::default(),
             duplicates: DuplicatesState::default(),
+            cleanup: CleanupState::default(),
+            snapshots: SnapshotsState::default(),
+            journal: JournalState::default(),
+            size_details: SizeDetailsState::default(),
+            long_paths: LongPathsState::default(),
+            rename: RenameState::default(),
+            permissions: PermissionsState::default(),
+            metadata: MetadataState::default(),
+            owners: OwnersState::default(),
+            archives: ArchivesState::default(),
+            export: ExportState::default(),
             unlock: UnlockState::default(),
             shred: ShredState::default(),
         }
@@ -323,6 +384,21 @@ impl FreeSpaceApp {
             Page::Top => self.top_types.set_tab(TopTypesTab::Top),
             Page::Types => self.top_types.set_tab(TopTypesTab::Types),
             _ => {}
+        }
+    }
+
+    /// Writes owner indices produced by the owners worker into the scan tree.
+    fn apply_owner_assignments(&mut self, assignments: Vec<(NodeId, Option<u32>)>) {
+        let Some(result) = &mut self.scan_result else {
+            return;
+        };
+        let Some(result) = Arc::get_mut(result) else {
+            self.owners
+                .set_error("the scan result is shared; rescan before filtering by owner");
+            return;
+        };
+        for (node_id, owner_id) in assignments {
+            result.tree.node_mut(node_id).owner_id = owner_id;
         }
     }
 
@@ -450,6 +526,12 @@ impl FreeSpaceApp {
                     self.treemap.reset(result.tree.roots().next());
                     self.top_types.reset();
                     self.duplicates.reset();
+                    self.cleanup.reset();
+                    self.snapshots.reset();
+                    self.metadata.reset();
+                    self.owners.reset();
+                    self.archives.reset();
+                    self.export.reset();
                     self.scan_result = Some(result);
                 }
             }
@@ -488,16 +570,64 @@ impl FreeSpaceApp {
                     ui.label(t!("scan.required").to_string());
                 }
             }
+            Page::Cleanup => {
+                if let Some(result) = &self.scan_result {
+                    self.cleanup.ui(ui, result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+            }
+            Page::Snapshots => {
+                self.snapshots
+                    .ui(ui, self.scan_result.as_deref(), self.settings.units);
+            }
+            Page::Journal => self
+                .journal
+                .ui(ui, self.settings.portable_mode, self.settings.units),
+            Page::SizeDetails => self.size_details.ui(ui, self.settings.units),
+            Page::LongPaths => self.long_paths.ui(ui, self.settings.units),
+            Page::Rename => self.rename.ui(ui),
+            Page::Permissions => self.permissions.ui(ui),
+            Page::Metadata => {
+                if let Some(result) = &self.scan_result {
+                    self.metadata.ui(ui, result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+            }
+            Page::Owners => {
+                let mut filter = None;
+                if let Some(result) = &self.scan_result {
+                    filter = self.owners.ui(ui, result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+                if let Some(assignments) = self.owners.take_pending() {
+                    self.apply_owner_assignments(assignments);
+                }
+                if let Some(owner) = filter {
+                    self.tree_view.set_owner_filter(Some(owner));
+                    if let Some(result) = &self.scan_result {
+                        self.tree_view.expand_all(&result.tree);
+                    }
+                    self.set_page(Page::Tree);
+                }
+            }
+            Page::Archives => self.archives.ui(ui, self.settings.units),
+            Page::Export => {
+                if let Some(result) = &self.scan_result {
+                    self.export.ui(ui, result, self.settings.units);
+                } else {
+                    ui.label(t!("scan.required").to_string());
+                }
+            }
             Page::Unlock => self.unlock.ui(ui),
             Page::Shred => self.shred.ui(ui, self.settings.units),
             Page::Settings => self.settings_page(ui),
             Page::About => {
-                ui.label(t!("app.phase4_ready").to_string());
+                ui.label(t!("app.phase20_ready").to_string());
                 ui.separator();
                 ui.label(format!("FreeSpace {}", env!("CARGO_PKG_VERSION")));
-            }
-            _ => {
-                ui.label(t!("page.placeholder").to_string());
             }
         }
     }

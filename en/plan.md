@@ -31,9 +31,18 @@ archives), and automation (reports, scheduling, context menu, monitoring).
 - Reports: `csv`, `quick-xml`, `rust_xlsxwriter`, HTML templates
 - CLI: `clap` v4
 - Localization: `rust-i18n` (RU/EN, runtime switching)
+- Bulk rename: `regex` (linear-time engine without catastrophic backtracking)
 - Search/filters: `globset`
 - Monitoring: `ferrisetw` (ETW, provider `Microsoft-Windows-Kernel-File`) with fallback to
   `GetProcessIoCounters`
+
+**Dependencies added by phases 16–20** (versions resolved by Cargo):
+- Metadata: `kamadak-exif 0.6`, `lofty 0.25`, `mp4parse 0.17`, `pelite 0.10`.
+- Archives: `zip 9` (deflate/bzip2/zstd/lzma), `sevenz-rust 0.6`, `tar 0.4`, `flate2 1`,
+  `iso9660 0.1`; `unrar 0.5` is an optional feature `rar` because it needs a native library.
+- Reports: `csv 1.4`, `quick-xml 0.42`, `rust_xlsxwriter 0.102` with the `constant_memory`
+  feature so large XLSX exports stream to a temporary file.
+- CLI locks use the existing `windows` crate (`LockFileEx`); no new dependency is required.
 
 **Storage**: SQLite (operations journal, quarantine index, automation settings); snapshot files
 `.fssnap` (CBOR + zstd, versioned schema); TOML/JSON configuration

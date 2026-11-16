@@ -7,7 +7,7 @@
 
 use std::{
     os::windows::ffi::{OsStrExt, OsStringExt},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use freespace_core::{Error, Result};
@@ -126,6 +126,10 @@ pub fn validate_length(path: &Path) -> Result<()> {
 /// too long.
 pub fn normalize(path: &Path) -> Result<PathBuf> {
     let verbatim = to_verbatim(path)?;
+    // Resolve `.` and `..` lexically before any scope comparison: a path such
+    // as `C:\scope\..\outside` must never look like it is inside `C:\scope`.
+    let cleaned = resolve_parent_dirs(&strip_verbatim(&verbatim));
+    let verbatim = to_verbatim(&cleaned)?;
     let mut units: Vec<u16> = verbatim.as_os_str().encode_wide().collect();
     let root_length = verbatim_root_length(&units);
 
@@ -158,6 +162,37 @@ pub fn volume_root(path: &Path) -> Result<PathBuf> {
     Ok(root.to_path_buf())
 }
 
+/// Joins a file name to a directory and validates the resulting length before
+/// any file-system change happens (FR-052).
+///
+/// # Errors
+/// Returns [`Error::InvalidArgument`] for a name that cannot be a Windows file
+/// name and [`Error::InvalidPath`] when the result exceeds [`MAX_PATH_CHARS`].
+pub fn join_within_limit(parent: &Path, name: &str) -> Result<PathBuf> {
+    if name.is_empty() || name == "." || name == ".." {
+        return Err(Error::InvalidArgument(
+            "a file name cannot be empty, `.` or `..`".to_owned(),
+        ));
+    }
+    if name.chars().any(|character| {
+        matches!(
+            character,
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+        )
+    }) || name.chars().any(char::is_control)
+        || name.ends_with(['.', ' '])
+    {
+        return Err(Error::InvalidArgument(format!(
+            "`{name}` is not a valid Windows file name"
+        )));
+    }
+
+    let candidate = parent.join(name);
+    validate_length(&candidate)?;
+
+    Ok(candidate)
+}
+
 /// Verifies that `target` lies inside `root` (or is the root itself).
 ///
 /// Comparison is case-insensitive because Windows file names are.
@@ -183,6 +218,27 @@ pub fn ensure_within(root: &Path, target: &Path) -> Result<()> {
         display(&target_path),
         display(&root_path)
     )))
+}
+
+fn resolve_parent_dirs(path: &Path) -> PathBuf {
+    let mut resolved = PathBuf::new();
+
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if matches!(
+                    resolved.components().next_back(),
+                    Some(Component::Normal(_))
+                ) {
+                    resolved.pop();
+                }
+            }
+            other => resolved.push(other.as_os_str()),
+        }
+    }
+
+    resolved
 }
 
 fn verbatim_root_length(units: &[u16]) -> usize {
@@ -217,8 +273,8 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        MAX_PATH_CHARS, display, ensure_within, is_verbatim, normalize, strip_verbatim,
-        to_verbatim, validate_length, volume_root,
+        MAX_PATH_CHARS, display, ensure_within, is_verbatim, join_within_limit, normalize,
+        strip_verbatim, to_verbatim, validate_length, volume_root,
     };
 
     #[test]
@@ -298,6 +354,22 @@ mod tests {
     }
 
     #[test]
+    fn validates_join_targets_before_changes() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let parent = directory.path().join("nested");
+        std::fs::create_dir_all(&parent).expect("nested");
+
+        let joined = join_within_limit(&parent, "новый файл.txt").expect("valid name");
+        assert_eq!(joined.file_name().expect("name"), "новый файл.txt");
+        assert!(join_within_limit(&parent, "bad:name").is_err());
+        assert!(join_within_limit(&parent, "trailing.").is_err());
+        assert!(join_within_limit(&parent, "").is_err());
+
+        let long = "x".repeat(MAX_PATH_CHARS);
+        assert!(join_within_limit(&parent, &long).is_err());
+    }
+
+    #[test]
     fn enforces_the_selected_scope() {
         let directory = tempfile::tempdir().expect("temp dir");
         let root = directory.path();
@@ -308,7 +380,10 @@ mod tests {
 
         let outside = root.parent().expect("parent").join("outside.txt");
         let error = ensure_within(root, &outside).expect_err("must reject");
+        assert_eq!(error.code().as_str(), "E_OPERATION");
 
+        let escaping = root.join("..").join("outside.txt");
+        let error = ensure_within(root, &escaping).expect_err("parent traversal must reject");
         assert_eq!(error.code().as_str(), "E_OPERATION");
     }
 }

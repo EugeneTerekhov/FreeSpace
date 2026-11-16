@@ -8,7 +8,7 @@ CLI использует то же ядро, что и GUI, и обязан об
 
 - Формат: `freespace <command> [subcommand] [arguments] [options]`.
 - Глобальные опции: `--json`, `--quiet`, `--yes`, `--no-color`, `--lang <ru|en>`, `--config <path>`,
-  `--log-level <error|warn|info|debug>`.
+  `--log-level <error|warn|info|debug>`, `--lock-timeout <секунды>`.
 - `--json` переключает вывод в машиночитаемый конверт (см. ниже); человекочитаемый вывод
   направляется в stdout, ошибки — в stderr.
 - Разрушающие команды в неинтерактивном режиме MUST требовать `--yes`; без него команда
@@ -76,10 +76,15 @@ freespace types <path> [--json]
 ```text
 freespace filter <path> [--kind <file|dir|link>] [--min-size <bytes>] [--older-than <days>]
                        [--type <ext,...>] [--min-resolution <WxH>] [--min-bitrate <kbps>]
-                       [--owner <account>] [--json]
+                       [--min-duration <seconds>] [--metadata exif,audio,video,pe]
+                       [--owner <account|unknown>] [--json]
 ```
 
-- `data`: `{ "items": [{ "path", "size", "metadata": {...} }] }`.
+- `data`: `{ "items": [{ "path", "size", "metadata": {...}, "owner": "..." }] }`.
+- `--owner` принимает имя учётной записи, SID или `unknown`; неизвестный владелец
+  возвращает пустой список с `matched_owner = false`.
+- Метаданные, которые не удалось прочитать, отображаются как `unsupported` или `corrupted` и не
+  прерывают команду.
 
 ### `duplicates`
 
@@ -149,6 +154,17 @@ freespace attrs <path>... --set read-only,hidden --clear archive [--yes] [--json
 freespace acl <path>... --owner <account> | --reset | --copy-from <path> [--yes] [--json]
 ```
 
+### `owners`
+
+```text
+freespace owners <path> [--json]
+```
+
+- `data`: `{ "items": [{ "owner_id", "sid", "display_name", "total_bytes", "file_count", "share" }],
+  "count", "total_bytes", "unknown_count", "error_count" }`.
+- Объекты без определимого владельца попадают в категорию `unknown`.
+- Отчёт использует те же строки, что GUI и раздел `owners` экспорта.
+
 ### `snapshot`
 
 ```text
@@ -165,10 +181,12 @@ freespace export <path> --format csv|xml|html|xlsx --out <file> [--include tree,
 ### `archives`
 
 ```text
-freespace archives <path> [--json]
+freespace archives <path> [--export <file.csv|json|xml|html>] [--json]
 ```
 
-- `data`: `{ "items": [{ "archive", "entries": [{ "path", "size", "compressed_size" }] }] }`.
+- `data`: `{ "items": [{ "archive", "format", "entries": [{ "path", "size", "compressed_size" }] }] }`.
+- Поддерживаются ZIP, 7z, TAR, TAR/GZ и ISO; RAR — только при сборке с функцией `rar`.
+- `--export` выгружает список содержимого в CSV, JSON, XML или HTML.
 
 ### `monitor`
 
@@ -204,7 +222,14 @@ freespace context-menu uninstall [--machine] [--yes]
 freespace schedule export <profile> --out <file.xml>
 ```
 
-- Создаёт XML-задание для Планировщика заданий Windows.
+- Создаёт XML-задание для Планировщика заданий Windows (UTF-16LE с BOM).
+- Встроенные профили: `daily-scan`, `weekly-duplicates`, `monthly-export`.
+
+## Параллельные запуски
+
+Все команды берут эксклюзивную блокировку `%LOCALAPPDATA%\FreeSpace\cli.lock`.
+Второй процесс ждёт `--lock-timeout` секунд (по умолчанию 30) и затем завершается с кодом `10`
+(`E_LOCKED`). Блокировка снимается при завершении процесса, в том числе аварийном.
 
 ## Коды возврата
 

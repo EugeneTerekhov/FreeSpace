@@ -7,10 +7,12 @@
 
 pub mod cli;
 pub mod commands;
+pub mod lock;
 pub mod output;
 
 use std::{
     io::{self, Write},
+    sync::Mutex,
     time::Instant,
 };
 
@@ -24,6 +26,10 @@ use serde_json::Value;
 use cli::{Cli, Command};
 use commands::Outcome;
 use output::{ErrorItem, Status, envelope};
+
+/// Serialises runs inside one process so that the on-disk lock protects
+/// separate processes only and cargo tests can call [`run`] concurrently.
+static PROCESS_LOCK: Mutex<()> = Mutex::new(());
 
 /// Parses process arguments, initialises logging and runs the command.
 ///
@@ -64,6 +70,20 @@ pub fn main_entry() -> u8 {
 pub fn run(cli: Cli, stdout: &mut dyn Write, stderr: &mut dyn Write) -> u8 {
     let command = cli.command.name();
     let started = Instant::now();
+    let _process_guard = PROCESS_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _run_lock = match lock::acquire(cli.lock_timeout) {
+        Ok(mut lock) => {
+            let _ = lock::describe(&mut lock, command);
+            Some(lock)
+        }
+        Err(error) => {
+            let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            emit_error(&cli, command, &error, duration_ms, stdout, stderr);
+            return error.exit_code();
+        }
+    };
     let result = execute(&cli);
     let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
 
@@ -100,9 +120,11 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             incremental,
             exclusions,
             snapshot_out,
+            include_ads,
+            size_mode,
         } => {
             let settings = load_settings(cli)?;
-            let mut outcome = commands::scan::run_scan(
+            commands::scan::run_scan_with(
                 commands::scan::ScanArgs {
                     path,
                     method,
@@ -110,13 +132,10 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                     exclusions,
                 },
                 settings.units,
-            )?;
-            if snapshot_out.is_some() {
-                outcome
-                    .warnings
-                    .push("snapshot output arrives with user story 8".to_owned());
-            }
-            Ok(outcome)
+                snapshot_out.as_deref(),
+                *include_ads,
+                size_mode,
+            )
         }
         Command::Tree {
             path,
@@ -133,6 +152,39 @@ fn execute(cli: &Cli) -> Result<Outcome> {
         Command::Types { path } => {
             let settings = load_settings(cli)?;
             commands::top::run_types(path, settings.units)
+        }
+        Command::Filter {
+            path,
+            kind,
+            min_size,
+            older_than,
+            types,
+            owner,
+            min_resolution,
+            min_bitrate,
+            min_duration,
+            metadata,
+        } => {
+            let settings = load_settings(cli)?;
+            commands::filter::run(
+                commands::filter::FilterArgs {
+                    path,
+                    kind: kind.as_deref(),
+                    min_size: *min_size,
+                    older_than: *older_than,
+                    types: types.as_deref(),
+                    owner: owner.as_deref(),
+                    min_resolution: min_resolution.as_deref(),
+                    min_bitrate: *min_bitrate,
+                    min_duration: *min_duration,
+                    metadata: metadata.as_deref(),
+                },
+                settings.units,
+            )
+        }
+        Command::Owners { path } => {
+            let settings = load_settings(cli)?;
+            commands::owners::run(path, settings.units)
         }
         Command::Duplicates {
             path,
@@ -155,6 +207,76 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                 cache.as_ref(),
             )
         }
+        Command::Cleanup { action } => {
+            let settings = load_settings(cli)?;
+            match action {
+                cli::CleanupAction::Suggest { path, older_than } => {
+                    commands::cleanup::run_suggest(path, *older_than, settings.units)
+                }
+                cli::CleanupAction::EmptyDirs { path } => commands::cleanup::run_empty_dirs(path),
+            }
+        }
+        Command::Snapshot { action } => {
+            let settings = load_settings(cli)?;
+            match action {
+                cli::SnapshotAction::Create { path, out } => {
+                    commands::snapshot::create(path, out, settings.units)
+                }
+                cli::SnapshotAction::Diff {
+                    base,
+                    target,
+                    export,
+                } => commands::snapshot::diff(base, target, export.as_deref(), settings.units),
+            }
+        }
+        Command::Export {
+            path,
+            format,
+            out,
+            include,
+        } => {
+            let settings = load_settings(cli)?;
+            commands::export::run(
+                commands::export::ExportArgs {
+                    path,
+                    format,
+                    out,
+                    include: include.as_deref(),
+                },
+                settings.units,
+            )
+        }
+        Command::Archives { path, export } => {
+            let settings = load_settings(cli)?;
+            commands::archives::run(path, export.as_deref(), settings.units)
+        }
+        Command::Schedule { action } => match action {
+            cli::ScheduleAction::Export { profile, out } => {
+                commands::schedule::export(profile, out)
+            }
+        },
+        Command::Delete {
+            paths: targets,
+            mode,
+        } => {
+            let settings = load_settings(cli)?;
+            let mode = mode.as_deref().ok_or_else(|| {
+                Error::InvalidArgument(
+                    "`--mode recycle|quarantine|permanent` is required".to_owned(),
+                )
+            })?;
+            let path = freespace_ops::store::default_path()?;
+            let store = freespace_ops::Store::open(&path)?;
+            commands::delete::run(
+                targets,
+                mode,
+                cli.yes,
+                &store,
+                settings.portable_mode,
+                settings.quarantine_retention_days,
+                settings.units,
+            )
+        }
         Command::Shred {
             paths,
             passes,
@@ -171,6 +293,64 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                 cli.yes,
                 store.as_ref(),
                 settings.units,
+            )
+        }
+        Command::Rename {
+            paths: targets,
+            regex,
+            replacement,
+            case,
+            preview,
+        } => {
+            let store = if cli.yes && !*preview {
+                freespace_ops::store::default_path()
+                    .ok()
+                    .and_then(|path| freespace_ops::Store::open(&path).ok())
+            } else {
+                None
+            };
+            commands::rename::run(
+                targets,
+                regex,
+                replacement,
+                case.as_deref(),
+                *preview,
+                cli.yes,
+                store.as_ref(),
+            )
+        }
+        Command::Attrs {
+            paths: targets,
+            set,
+            clear,
+        } => {
+            let store = freespace_ops::store::default_path()
+                .ok()
+                .and_then(|path| freespace_ops::Store::open(&path).ok());
+            commands::attrs::run_attrs(
+                targets,
+                set.as_deref(),
+                clear.as_deref(),
+                cli.yes,
+                store.as_ref(),
+            )
+        }
+        Command::Acl {
+            paths: targets,
+            owner,
+            reset,
+            copy_from,
+        } => {
+            let store = freespace_ops::store::default_path()
+                .ok()
+                .and_then(|path| freespace_ops::Store::open(&path).ok());
+            commands::attrs::run_acl(
+                targets,
+                owner.as_deref(),
+                *reset,
+                copy_from.as_deref(),
+                cli.yes,
+                store.as_ref(),
             )
         }
         Command::Unlock {
@@ -365,7 +545,7 @@ mod tests {
 
     #[test]
     fn unsupported_commands_return_exit_code_8() {
-        let (code, stdout, stderr) = run_args(&["freespace", "filter", "C:\\", "--json"]);
+        let (code, stdout, stderr) = run_args(&["freespace", "monitor", "--json"]);
 
         assert_eq!(code, 8);
         assert!(stderr.is_empty());

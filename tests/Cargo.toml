@@ -7,13 +7,22 @@ rust-version.workspace = true
 publish = false
 
 [dev-dependencies]
+clap = { workspace = true }
+csv = { workspace = true }
+flate2 = { workspace = true }
 freespace-analysis = { workspace = true }
 freespace-core = { workspace = true }
 freespace-cli = { workspace = true }
 freespace-ops = { workspace = true }
 freespace-platform = { workspace = true }
+freespace-report = { workspace = true }
 freespace-scan = { workspace = true }
+quick-xml = { workspace = true }
+serde_json = { workspace = true }
+sevenz-rust = { workspace = true }
+tar = { workspace = true }
 tempfile = { workspace = true }
+zip = { workspace = true }
 
 [[test]]
 name = "fixtures"
@@ -42,6 +51,54 @@ path = "duplicates.rs"
 [[test]]
 name = "shred"
 path = "shred.rs"
+
+[[test]]
+name = "cleanup"
+path = "cleanup.rs"
+
+[[test]]
+name = "snapshot"
+path = "snapshot.rs"
+
+[[test]]
+name = "safe_ops"
+path = "safe_ops.rs"
+
+[[test]]
+name = "accounting"
+path = "accounting.rs"
+
+[[test]]
+name = "long_paths"
+path = "long_paths.rs"
+
+[[test]]
+name = "rename"
+path = "rename.rs"
+
+[[test]]
+name = "permissions"
+path = "permissions.rs"
+
+[[test]]
+name = "metadata"
+path = "metadata.rs"
+
+[[test]]
+name = "owners"
+path = "owners.rs"
+
+[[test]]
+name = "archives"
+path = "archives.rs"
+
+[[test]]
+name = "export"
+path = "export.rs"
+
+[[test]]
+name = "cli_contract"
+path = "cli_contract.rs"
 
 [lints]
 workspace = true

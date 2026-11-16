@@ -2,11 +2,21 @@
 
 use serde_json::Value;
 
+pub mod archives;
+pub mod attrs;
+pub mod cleanup;
 pub mod config;
+pub mod delete;
 pub mod drives;
 pub mod duplicates;
+pub mod export;
+pub mod filter;
+pub mod owners;
+pub mod rename;
 pub mod scan;
+pub mod schedule;
 pub mod shred;
+pub mod snapshot;
 pub mod top;
 pub mod unlock;
 

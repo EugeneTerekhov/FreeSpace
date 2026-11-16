@@ -11,6 +11,7 @@ freespace-analysis = { workspace = true }
 freespace-core = { workspace = true }
 freespace-ops = { workspace = true }
 freespace-platform = { workspace = true }
+freespace-report = { workspace = true }
 freespace-scan = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -19,6 +20,7 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+zip = { workspace = true }
 
 [lints]
 workspace = true

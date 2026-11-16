@@ -56,6 +56,20 @@ impl Timestamp {
     /// Formats the timestamp as `YYYY-MM-DD HH:MM:SS UTC`.
     #[must_use]
     pub fn format_utc(self) -> String {
+        let (date, time) = self.format_parts();
+
+        format!("{date} {time} UTC")
+    }
+
+    /// Formats the timestamp as an ISO 8601 instant (`YYYY-MM-DDTHH:MM:SSZ`).
+    #[must_use]
+    pub fn format_iso8601(self) -> String {
+        let (date, time) = self.format_parts();
+
+        format!("{date}T{time}Z")
+    }
+
+    fn format_parts(self) -> (String, String) {
         let days = self.0.div_euclid(MILLIS_PER_DAY);
         let millis_of_day = self.0.rem_euclid(MILLIS_PER_DAY);
         let (year, month, day) = civil_from_days(days);
@@ -65,7 +79,10 @@ impl Timestamp {
         let minute = (seconds % 3_600) / 60;
         let second = seconds % 60;
 
-        format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}:{second:02} UTC")
+        (
+            format!("{year:04}-{month:02}-{day:02}"),
+            format!("{hour:02}:{minute:02}:{second:02}"),
+        )
     }
 }
 
@@ -129,6 +146,10 @@ mod tests {
 
     #[test]
     fn formats_known_dates() {
+        assert_eq!(
+            Timestamp::from_millis(951_868_800_000).format_iso8601(),
+            "2000-03-01T00:00:00Z"
+        );
         assert_eq!(
             Timestamp::from_millis(951_868_800_000).format_utc(),
             "2000-03-01 00:00:00 UTC"

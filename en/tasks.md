@@ -174,12 +174,12 @@ verified independently.
 
 **Independent Test**: a set with known dates and empty directories — verify filter accuracy and list completeness
 
-- [ ] T064 [P] [US7] Test date filters and empty-directory search in `tests/cleanup.rs`
-- [ ] T065 [US7] Implement the staleness filter based on the maximum of dates with a confidence flag in `crates/freespace-analysis/src/cleanup.rs`
-- [ ] T066 [US7] Implement temp/cache/log/backup categories and recommendations in `crates/freespace-analysis/src/recommend.rs`
-- [ ] T067 [US7] Implement empty-directory search in `crates/freespace-scan/src/empty_dirs.rs`
-- [ ] T068 [US7] Implement CLI `cleanup suggest` and `cleanup empty-dirs` in `crates/freespace-cli/src/commands/cleanup.rs`
-- [ ] T069 [US7] Implement the recommendations and empty folders screen in the GUI in `apps/freespace-gui/src/views/cleanup.rs`
+- [x] T064 [P] [US7] Test date filters and empty-directory search in `tests/cleanup.rs`
+- [x] T065 [US7] Implement the staleness filter based on the maximum of dates with a confidence flag in `crates/freespace-analysis/src/cleanup.rs`
+- [x] T066 [US7] Implement temp/cache/log/backup categories and recommendations in `crates/freespace-analysis/src/recommend.rs`
+- [x] T067 [US7] Implement empty-directory search in `crates/freespace-scan/src/empty_dirs.rs`
+- [x] T068 [US7] Implement CLI `cleanup suggest` and `cleanup empty-dirs` in `crates/freespace-cli/src/commands/cleanup.rs`
+- [x] T069 [US7] Implement the recommendations and empty folders screen in the GUI in `apps/freespace-gui/src/views/cleanup.rs`
 
 ---
 
@@ -189,11 +189,11 @@ verified independently.
 
 **Independent Test**: two snapshots with known differences — verify the completeness and sorting of the report
 
-- [ ] T070 [P] [US8] Test snapshot round-trip and comparison in `tests/snapshot.rs`
-- [ ] T071 [US8] Implement the `.fssnap` format (CBOR + zstd, columns, checksum) in `crates/freespace-report/src/snapshot.rs`
-- [ ] T072 [US8] Implement snapshot comparison and delta in `crates/freespace-report/src/diff.rs`
-- [ ] T073 [US8] Implement CLI `snapshot create` and `snapshot diff` in `crates/freespace-cli/src/commands/snapshot.rs`
-- [ ] T074 [US8] Implement the snapshots and comparison screen in the GUI in `apps/freespace-gui/src/views/snapshots.rs`
+- [x] T070 [P] [US8] Test snapshot round-trip and comparison in `tests/snapshot.rs`
+- [x] T071 [US8] Implement the `.fssnap` format (CBOR + zstd, columns, checksum) in `crates/freespace-report/src/snapshot.rs`
+- [x] T072 [US8] Implement snapshot comparison and delta in `crates/freespace-report/src/diff.rs`
+- [x] T073 [US8] Implement CLI `snapshot create` and `snapshot diff` in `crates/freespace-cli/src/commands/snapshot.rs`
+- [x] T074 [US8] Implement the snapshots and comparison screen in the GUI in `apps/freespace-gui/src/views/snapshots.rs`
 
 ---
 
@@ -203,13 +203,13 @@ verified independently.
 
 **Independent Test**: perform a deletion, restore the object from quarantine, check the journal and undo
 
-- [ ] T075 [P] [US9] Test deletion mode selection, quarantine and undo in `tests/safe_ops.rs`
-- [ ] T076 [US9] Implement the confirmation dialog with the "Recycle Bin/Quarantine/Permanent" selection in `apps/freespace-gui/src/views/confirm.rs`
-- [ ] T077 [US9] Implement deletion to the Recycle Bin via `IFileOperation` in `crates/freespace-platform/src/recycle.rs`
-- [ ] T078 [US9] Implement free space checking and the insufficient-space scenario in `crates/freespace-ops/src/delete.rs`
-- [ ] T079 [US9] Implement the operation journal, undo and restore in `crates/freespace-ops/src/undo.rs` and `apps/freespace-gui/src/views/journal.rs`
-- [ ] T080 [US9] Implement CLI `delete --mode` with confirmation checks in `crates/freespace-cli/src/commands/delete.rs`
-- [ ] T081 [US9] Implement system path protection, prevention of escaping the selected scope, and additional confirmation in `crates/freespace-ops/src/guarded.rs`
+- [x] T075 [P] [US9] Test deletion mode selection, quarantine and undo in `tests/safe_ops.rs`
+- [x] T076 [US9] Implement the confirmation dialog with the "Recycle Bin/Quarantine/Permanent" selection in `apps/freespace-gui/src/views/confirm.rs`
+- [x] T077 [US9] Implement deletion to the Recycle Bin via `IFileOperation` in `crates/freespace-platform/src/recycle.rs`
+- [x] T078 [US9] Implement free space checking and the insufficient-space scenario in `crates/freespace-ops/src/delete.rs`
+- [x] T079 [US9] Implement the operation journal, undo and restore in `crates/freespace-ops/src/undo.rs` and `apps/freespace-gui/src/views/journal.rs`
+- [x] T080 [US9] Implement CLI `delete --mode` with confirmation checks in `crates/freespace-cli/src/commands/delete.rs`
+- [x] T081 [US9] Implement system path protection, prevention of escaping the selected scope, and additional confirmation in `crates/freespace-ops/src/guarded.rs`
 
 ---
 
@@ -219,13 +219,13 @@ verified independently.
 
 **Independent Test**: a set with hard links, junctions, compressed/sparse files and ADS — verify against the reference
 
-- [ ] T082 [P] [US10] Test deduplication of hard links, junctions, sparse/compressed and ADS in `tests/accounting.rs`
-- [ ] T083 [US10] Implement reparse point and link detection in `crates/freespace-platform/src/reparse.rs`
-- [ ] T084 [US10] Implement the exact size on disk (`GetCompressedFileSizeW`, allocated ranges) in `crates/freespace-platform/src/allocated.rs`
-- [ ] T085 [US10] Implement physical size deduplication by FRN in `crates/freespace-analysis/src/accounting.rs`
-- [ ] T086 [US10] Implement ADS enumeration (`FindFirstStreamW`) in `crates/freespace-platform/src/ads.rs`
-- [ ] T087 [US10] Implement metric and ADS display in the GUI in `apps/freespace-gui/src/views/size_details.rs`
-- [ ] T088 [US10] Implement CLI flags for ADS accounting and size mode in `crates/freespace-cli/src/commands/scan.rs`
+- [x] T082 [P] [US10] Test deduplication of hard links, junctions, sparse/compressed and ADS in `tests/accounting.rs`
+- [x] T083 [US10] Implement reparse point and link detection in `crates/freespace-platform/src/reparse.rs`
+- [x] T084 [US10] Implement the exact size on disk (`GetCompressedFileSizeW`, allocated ranges) in `crates/freespace-platform/src/allocated.rs`
+- [x] T085 [US10] Implement physical size deduplication by FRN in `crates/freespace-analysis/src/accounting.rs`
+- [x] T086 [US10] Implement ADS enumeration (`FindFirstStreamW`) in `crates/freespace-platform/src/ads.rs`
+- [x] T087 [US10] Implement metric and ADS display in the GUI in `apps/freespace-gui/src/views/size_details.rs`
+- [x] T088 [US10] Implement CLI flags for ADS accounting and size mode in `crates/freespace-cli/src/commands/scan.rs`
 
 ---
 
@@ -235,10 +235,10 @@ verified independently.
 
 **Independent Test**: create paths of 261/1000/32000 characters and perform rename/move/copy/delete
 
-- [ ] T089 [P] [US11] Test operations on long paths and limit values in `tests/long_paths.rs`
-- [ ] T090 [US11] Implement the long path file manager in `crates/freespace-ops/src/long_path_ops.rs`
-- [ ] T091 [US11] Implement path limit validation and clear errors before modifying data in `crates/freespace-platform/src/paths.rs`
-- [ ] T092 [US11] Implement the long path file manager UI in `apps/freespace-gui/src/views/long_paths.rs`
+- [x] T089 [P] [US11] Test operations on long paths and limit values in `tests/long_paths.rs`
+- [x] T090 [US11] Implement the long path file manager in `crates/freespace-ops/src/long_path_ops.rs`
+- [x] T091 [US11] Implement path limit validation and clear errors before modifying data in `crates/freespace-platform/src/paths.rs`
+- [x] T092 [US11] Implement the long path file manager UI in `apps/freespace-gui/src/views/long_paths.rs`
 
 ---
 
@@ -248,11 +248,11 @@ verified independently.
 
 **Independent Test**: apply a rule to 1000 files, verify the preview, conflicts, result and rollback
 
-- [ ] T093 [P] [US12] Test rename rules, conflicts and rollback in `tests/rename.rs`
-- [ ] T094 [US12] Implement the rename rule engine in `crates/freespace-ops/src/rename.rs`
-- [ ] T095 [US12] Implement preview, conflict detection and the rollback journal in `crates/freespace-ops/src/rename_plan.rs`
-- [ ] T096 [US12] Implement CLI `rename` in `crates/freespace-cli/src/commands/rename.rs`
-- [ ] T097 [US12] Implement the bulk rename UI in `apps/freespace-gui/src/views/rename.rs`
+- [x] T093 [P] [US12] Test rename rules, conflicts and rollback in `tests/rename.rs`
+- [x] T094 [US12] Implement the rename rule engine in `crates/freespace-ops/src/rename.rs`
+- [x] T095 [US12] Implement preview, conflict detection and the rollback journal in `crates/freespace-ops/src/rename_plan.rs`
+- [x] T096 [US12] Implement CLI `rename` in `crates/freespace-cli/src/commands/rename.rs`
+- [x] T097 [US12] Implement the bulk rename UI in `apps/freespace-gui/src/views/rename.rs`
 
 ---
 
@@ -262,12 +262,12 @@ verified independently.
 
 **Independent Test**: change attributes, owner and permissions on a test set, verify the report and privilege elevation
 
-- [ ] T098 [P] [US13] Test attribute/owner/permission changes (admin-gated) in `tests/permissions.rs`
-- [ ] T099 [US13] Implement setting and clearing attributes in `crates/freespace-ops/src/attributes.rs`
-- [ ] T100 [US13] Implement ACL and owner handling (privileges, `SetNamedSecurityInfoW`) in `crates/freespace-platform/src/security.rs`
-- [ ] T101 [US13] Implement batch permission changes and the error report in `crates/freespace-ops/src/acl.rs`
-- [ ] T102 [US13] Implement CLI `attrs` and `acl` in `crates/freespace-cli/src/commands/attrs.rs`
-- [ ] T103 [US13] Implement the permissions and attributes UI in `apps/freespace-gui/src/views/permissions.rs`
+- [x] T098 [P] [US13] Test attribute/owner/permission changes (admin-gated) in `tests/permissions.rs`
+- [x] T099 [US13] Implement setting and clearing attributes in `crates/freespace-ops/src/attributes.rs`
+- [x] T100 [US13] Implement ACL and owner handling (privileges, `SetNamedSecurityInfoW`) in `crates/freespace-platform/src/security.rs`
+- [x] T101 [US13] Implement batch permission changes and the error report in `crates/freespace-ops/src/acl.rs`
+- [x] T102 [US13] Implement CLI `attrs` and `acl` in `crates/freespace-cli/src/commands/attrs.rs`
+- [x] T103 [US13] Implement the permissions and attributes UI in `apps/freespace-gui/src/views/permissions.rs`
 
 ---
 
@@ -277,13 +277,13 @@ verified independently.
 
 **Independent Test**: prepare files with known metadata and verify display, filters and resilience to corruption
 
-- [ ] T104 [P] [US14] Test reading EXIF/audio/video/PE and corrupted files in `tests/metadata.rs`
-- [ ] T105 [US14] Implement EXIF reading in `crates/freespace-analysis/src/metadata/exif.rs`
-- [ ] T106 [US14] Implement audio/video metadata reading in `crates/freespace-analysis/src/metadata/media.rs`
-- [ ] T107 [US14] Implement PE version reading in `crates/freespace-analysis/src/metadata/pe.rs`
-- [ ] T108 [US14] Implement background extraction and the metadata cache in `crates/freespace-analysis/src/metadata/mod.rs`
-- [ ] T109 [US14] Implement metadata columns and filters in the GUI in `apps/freespace-gui/src/views/metadata.rs`
-- [ ] T110 [US14] Implement CLI metadata filters in `crates/freespace-cli/src/commands/filter.rs` and the corresponding contract
+- [x] T104 [P] [US14] Test reading EXIF/audio/video/PE and corrupted files in `tests/metadata.rs`
+- [x] T105 [US14] Implement EXIF reading in `crates/freespace-analysis/src/metadata/exif.rs`
+- [x] T106 [US14] Implement audio/video metadata reading in `crates/freespace-analysis/src/metadata/media.rs`
+- [x] T107 [US14] Implement PE version reading in `crates/freespace-analysis/src/metadata/pe.rs`
+- [x] T108 [US14] Implement background extraction and the metadata cache in `crates/freespace-analysis/src/metadata/mod.rs`
+- [x] T109 [US14] Implement metadata columns and filters in the GUI in `apps/freespace-gui/src/views/metadata.rs`
+- [x] T110 [US14] Implement CLI metadata filters in `crates/freespace-cli/src/commands/filter.rs` and the corresponding contract
 
 ---
 
@@ -293,10 +293,10 @@ verified independently.
 
 **Independent Test**: a set with files owned by different owners — verify the totals, the filter and the "unknown" category
 
-- [ ] T111 [P] [US15] Test aggregation by owners in `tests/owners.rs`
-- [ ] T112 [US15] Implement SID interning and the owner summary in `crates/freespace-analysis/src/owners.rs`
-- [ ] T113 [US15] Implement tree filtering by owner in `crates/freespace-core/src/query.rs`
-- [ ] T114 [US15] Implement the owners report and UI in `apps/freespace-gui/src/views/owners.rs` and `crates/freespace-report/src/owners.rs`
+- [x] T111 [P] [US15] Test aggregation by owners in `tests/owners.rs`
+- [x] T112 [US15] Implement SID interning and the owner summary in `crates/freespace-analysis/src/owners.rs`
+- [x] T113 [US15] Implement tree filtering by owner in `crates/freespace-core/src/query.rs`
+- [x] T114 [US15] Implement the owners report and UI in `apps/freespace-gui/src/views/owners.rs` and `crates/freespace-report/src/owners.rs`
 
 ---
 
@@ -306,11 +306,11 @@ verified independently.
 
 **Independent Test**: open archives of known formats, verify the list, sorting, passwords and corruption
 
-- [ ] T115 [P] [US16] Test archive reading and password/corruption handling in `tests/archives.rs`
-- [ ] T116 [US16] Implement ZIP/7z/TAR/ISO readers in `crates/freespace-analysis/src/archives/mod.rs`
-- [ ] T117 [US16] Implement optional RAR with a library presence check in `crates/freespace-analysis/src/archives/rar.rs`
-- [ ] T118 [US16] Implement resource limits and archive error handling in `crates/freespace-analysis/src/archives/limits.rs`
-- [ ] T119 [US16] Implement CLI `archives` and the archive viewer UI in `crates/freespace-cli/src/commands/archives.rs` and `apps/freespace-gui/src/views/archives.rs`
+- [x] T115 [P] [US16] Test archive reading and password/corruption handling in `tests/archives.rs`
+- [x] T116 [US16] Implement ZIP/7z/TAR/ISO readers in `crates/freespace-analysis/src/archives/mod.rs`
+- [x] T117 [US16] Implement optional RAR with a library presence check in `crates/freespace-analysis/src/archives/rar.rs`
+- [x] T118 [US16] Implement resource limits and archive error handling in `crates/freespace-analysis/src/archives/limits.rs`
+- [x] T119 [US16] Implement CLI `archives` and the archive viewer UI in `crates/freespace-cli/src/commands/archives.rs` and `apps/freespace-gui/src/views/archives.rs`
 
 ---
 
@@ -320,12 +320,12 @@ verified independently.
 
 **Independent Test**: export a single result to all formats and verify the totals and opening in the target tools
 
-- [ ] T120 [P] [US17] Test CSV/XML/HTML/XLSX schemas and total consistency in `tests/export.rs`
-- [ ] T121 [US17] Implement streaming CSV export in `crates/freespace-report/src/csv.rs`
-- [ ] T122 [US17] Implement XML export (`quick-xml`) in `crates/freespace-report/src/xml.rs`
-- [ ] T123 [US17] Implement HTML export with escaping in `crates/freespace-report/src/html.rs`
-- [ ] T124 [US17] Implement XLSX export (`rust_xlsxwriter`) in `crates/freespace-report/src/xlsx.rs`
-- [ ] T125 [US17] Implement CLI `export` and the export dialog in the GUI in `crates/freespace-cli/src/commands/export.rs` and `apps/freespace-gui/src/views/export.rs`
+- [x] T120 [P] [US17] Test CSV/XML/HTML/XLSX schemas and total consistency in `tests/export.rs`
+- [x] T121 [US17] Implement streaming CSV export in `crates/freespace-report/src/csv.rs`
+- [x] T122 [US17] Implement XML export (`quick-xml`) in `crates/freespace-report/src/xml.rs`
+- [x] T123 [US17] Implement HTML export with escaping in `crates/freespace-report/src/html.rs`
+- [x] T124 [US17] Implement XLSX export (`rust_xlsxwriter`) in `crates/freespace-report/src/xlsx.rs`
+- [x] T125 [US17] Implement CLI `export` and the export dialog in the GUI in `crates/freespace-cli/src/commands/export.rs` and `apps/freespace-gui/src/views/export.rs`
 
 ---
 
@@ -335,11 +335,11 @@ verified independently.
 
 **Independent Test**: run the main commands non-interactively, verify JSON, return codes and the XML job
 
-- [ ] T126 [P] [US18] Test JSON schemas and return codes of all commands in `tests/cli_contract.rs`
-- [ ] T127 [US18] Implement Task Scheduler job (XML) export in `crates/freespace-cli/src/commands/schedule.rs`
-- [ ] T128 [US18] Implement locking and queueing of concurrent runs in `crates/freespace-cli/src/lock.rs`
-- [ ] T129 [US18] Document the CLI contract and return codes in `docs/cli.md`
-- [ ] T130 [US18] Implement automation profiles in `crates/freespace-ops/src/automation.rs`
+- [x] T126 [P] [US18] Test JSON schemas and return codes of all commands in `tests/cli_contract.rs`
+- [x] T127 [US18] Implement Task Scheduler job (XML) export in `crates/freespace-cli/src/commands/schedule.rs`
+- [x] T128 [US18] Implement locking and queueing of concurrent runs in `crates/freespace-cli/src/lock.rs`
+- [x] T129 [US18] Document the CLI contract and return codes in `docs/cli.md`
+- [x] T130 [US18] Implement automation profiles in `crates/freespace-ops/src/automation.rs`
 
 ---
 

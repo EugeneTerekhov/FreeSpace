@@ -22,6 +22,7 @@ pub struct TreeView {
     sort_key: SortKey,
     descending: bool,
     filter: String,
+    owner_filter: Option<u32>,
     expanded: HashSet<NodeId>,
     selected: Option<NodeId>,
     initialized: bool,
@@ -33,6 +34,7 @@ impl Default for TreeView {
             sort_key: SortKey::Size,
             descending: true,
             filter: String::new(),
+            owner_filter: None,
             expanded: HashSet::new(),
             selected: None,
             initialized: false,
@@ -53,8 +55,24 @@ impl TreeView {
     pub fn reset(&mut self) {
         self.expanded.clear();
         self.filter.clear();
+        self.owner_filter = None;
         self.selected = None;
         self.initialized = false;
+    }
+
+    /// Restricts the tree to one owner index; `None` clears the filter.
+    pub const fn set_owner_filter(&mut self, owner_id: Option<u32>) {
+        self.owner_filter = owner_id;
+    }
+
+    /// Expands every visible directory so filtered files are not hidden.
+    pub fn expand_all(&mut self, tree: &FsTree) {
+        for id in 0..tree.len() as u32 {
+            if tree.node(id).kind.is_directory() && !tree.node(id).is_removed() {
+                self.expanded.insert(id);
+            }
+        }
+        self.initialized = true;
     }
 
     /// Expands every ancestor of `id` and selects it.
@@ -104,6 +122,10 @@ impl TreeView {
         let rows = if self.filter.trim().is_empty() {
             let filter = FilterSpec {
                 include_hidden: true,
+                owner_ids: self
+                    .owner_filter
+                    .map(|owner_id| vec![owner_id])
+                    .unwrap_or_default(),
                 ..FilterSpec::default()
             }
             .compile();
@@ -208,6 +230,15 @@ impl TreeView {
             if ui.button(t!("tree.collapse_all").to_string()).clicked() {
                 self.expanded.clear();
             }
+            if let Some(owner) = self.owner_filter {
+                ui.separator();
+                if ui
+                    .button(format!("{} #{owner} ✕", t!("nav.owners")))
+                    .clicked()
+                {
+                    self.owner_filter = None;
+                }
+            }
         });
     }
 
@@ -245,6 +276,10 @@ impl TreeView {
         let spec = FilterSpec {
             pattern: Some(self.filter.trim().to_owned()),
             include_hidden: true,
+            owner_ids: self
+                .owner_filter
+                .map(|owner_id| vec![owner_id])
+                .unwrap_or_default(),
             ..FilterSpec::default()
         };
         let Ok(filter) = spec.compile() else {

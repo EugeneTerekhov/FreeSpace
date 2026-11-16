@@ -84,6 +84,14 @@ pub enum Error {
     #[error("unsupported: {0}")]
     Unsupported(String),
 
+    /// Snapshots come from incompatible volumes or format versions.
+    #[error("incompatible snapshot: {0}")]
+    IncompatibleSnapshot(String),
+
+    /// A snapshot container or its checksum is corrupted.
+    #[error("corrupted snapshot: {0}")]
+    CorruptedSnapshot(String),
+
     /// Any other failure without a dedicated variant.
     #[error("{0}")]
     Other(String),
@@ -113,6 +121,8 @@ impl Error {
             Self::ProtectedPath(_) => ErrorCode::ProtectedPath,
             Self::Locked(_) => ErrorCode::Locked,
             Self::Unsupported(_) => ErrorCode::Unsupported,
+            Self::IncompatibleSnapshot(_) => ErrorCode::IncompatibleSnapshot,
+            Self::CorruptedSnapshot(_) => ErrorCode::CorruptedSnapshot,
             Self::Other(_) => ErrorCode::Unknown,
         }
     }
@@ -157,6 +167,10 @@ pub enum ErrorCode {
     Locked,
     /// Unsupported format or capability.
     Unsupported,
+    /// Snapshots refer to different volumes or format versions.
+    IncompatibleSnapshot,
+    /// A snapshot is damaged or fails its checksum.
+    CorruptedSnapshot,
     /// Unclassified failure.
     Unknown,
 }
@@ -181,6 +195,8 @@ impl ErrorCode {
             Self::ProtectedPath => "E_PROTECTED_PATH",
             Self::Locked => "E_LOCKED",
             Self::Unsupported => "E_UNSUPPORTED",
+            Self::IncompatibleSnapshot => "E_INCOMPATIBLE_SNAPSHOT",
+            Self::CorruptedSnapshot => "E_CORRUPTED_SNAPSHOT",
             Self::Unknown => "E_UNKNOWN",
         }
     }
@@ -198,6 +214,8 @@ impl ErrorCode {
             Self::Unsupported => 8,
             Self::InsufficientSpace => 9,
             Self::Locked => 10,
+            Self::IncompatibleSnapshot => 6,
+            Self::CorruptedSnapshot => 1,
             Self::Io | Self::Config | Self::Operation | Self::Unknown => 1,
         }
     }
@@ -257,6 +275,8 @@ mod tests {
             (ErrorCode::Locked, 10),
             (ErrorCode::Config, 1),
             (ErrorCode::Operation, 1),
+            (ErrorCode::IncompatibleSnapshot, 6),
+            (ErrorCode::CorruptedSnapshot, 1),
             (ErrorCode::Unknown, 1),
         ];
 

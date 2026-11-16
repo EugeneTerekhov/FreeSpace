@@ -12,19 +12,32 @@ automates cleanup via CLI.
 
 ## Статус / Status
 
-Фазы 3–8 (US1–US6) завершены: сканирование NTFS через MFT и USN-журнал, fallback-обход
+Фазы 3–20 (US1–US18) завершены: сканирование NTFS через MFT и USN-журнал, fallback-обход
 каталогов, дерево размеров с поиском и сортировкой, интерактивная Treemap-карта с зумом и
 легендой, разблокировка файлов через Restart Manager и удаление при перезагрузке, топ файлов и
 группировка по типам, поиск дубликатов с побайтовой проверкой и кешем хешей, шредер с
-предупреждением об SSD и TRIM, а также команды CLI `scan`, `tree`, `top`, `types`, `duplicates`,
-`unlock` и `shred` (T026–T063). Следующая фаза — US7: устаревшие файлы, пустые папки и
-рекомендации по очистке (T064–T072).
-Phases 3–8 (US1–US6) are complete: NTFS scanning through the MFT and the USN journal, the
+предупреждением об SSD и TRIM, рекомендации по очистке, пустые папки и фильтры устаревания,
+снимки `.fssnap` с сравнением, безопасные операции с Корзиной, карантином, журналом и отменой,
+точный учёт места с hard links, reparse points, сжатием, sparse и ADS, файловый менеджер длинных
+путей, массовое переименование с предпросмотром и откатом, пакетная смена атрибутов, владельца и
+прав NTFS, метаданные EXIF/аудио/видео/PE с фильтрацией, отчёт по владельцам, просмотр ZIP/7z/
+TAR/GZ/ISO без распаковки, экспорт CSV/XML/HTML/XLSX и автоматизация CLI с блокировкой
+параллельных запусков и экспортом задания Планировщика. CLI: `scan`, `tree`, `top`, `types`,
+`filter`, `duplicates`, `owners`, `cleanup`, `unlock`, `shred`, `snapshot`, `delete`, `rename`,
+`attrs`, `acl`, `archives`, `export` и `schedule` (T026–T130).
+Phases 3–20 (US1–US18) are complete: NTFS scanning through the MFT and the USN journal, the
 directory-walk fallback, the size tree with search and sorting, the interactive treemap with zoom
 and legend, file unlocking through the Restart Manager and deletion on reboot, top files and type
 grouping, duplicate search with byte verification and a hash cache, the shredder with SSD warnings
-and TRIM, and the CLI commands `scan`, `tree`, `top`, `types`, `duplicates`, `unlock` and `shred`
-(T026–T063). Next phase — US7: stale files, empty folders and cleanup recommendations (T064–T072).
+and TRIM, cleanup recommendations, empty folders and stale-file filters, `.fssnap` snapshots with
+comparison, safe operations with the Recycle Bin, quarantine, journal and undo, exact space
+accounting for hard links, reparse points, compression, sparse files and ADS, the long-path file
+manager, bulk rename with preview and rollback, batch attribute, owner and NTFS permission changes,
+EXIF/audio/video/PE metadata with filtering, per-owner reports, ZIP/7z/TAR/GZ/ISO inspection
+without unpacking, CSV/XML/HTML/XLSX export, and CLI automation with parallel-run locking and Task
+Scheduler export. CLI: `scan`, `tree`, `top`, `types`, `filter`, `duplicates`, `owners`, `cleanup`,
+`unlock`, `shred`, `snapshot`, `delete`, `rename`, `attrs`, `acl`, `archives`, `export` and
+`schedule` (T026–T130).
 
 ## Документация / Documentation
 

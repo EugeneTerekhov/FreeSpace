@@ -237,6 +237,64 @@ impl Store {
         rows.collect::<rusqlite::Result<Vec<_>>>().map_err(db)
     }
 
+    /// Looks up a journal entry by operation identifier.
+    ///
+    /// # Errors
+    /// Returns an error when the query fails or the row is malformed.
+    pub fn journal_by_operation(&self, operation_id: Uuid) -> Result<Option<JournalEntry>> {
+        self.connection
+            .query_row(
+                "SELECT id, operation_id, timestamp, user, summary, affected_count,
+                        affected_bytes, result, undo_available, details
+                 FROM journal
+                 WHERE operation_id = ?1
+                 ORDER BY id DESC
+                 LIMIT 1",
+                [operation_id.to_string()],
+                read_journal_entry,
+            )
+            .optional()
+            .map_err(db)
+    }
+
+    /// Enables or disables undo for a journal entry.
+    ///
+    /// # Errors
+    /// Returns [`Error::NotFound`] when the entry does not exist.
+    pub fn journal_set_undo_available(&self, id: u64, available: bool) -> Result<()> {
+        let updated = self
+            .connection
+            .execute(
+                "UPDATE journal SET undo_available = ?2 WHERE id = ?1",
+                params![to_i64(id), available],
+            )
+            .map_err(db)?;
+
+        if updated == 0 {
+            return Err(Error::NotFound(format!("journal entry `{id}`")));
+        }
+
+        Ok(())
+    }
+
+    /// Looks up one quarantine entry.
+    ///
+    /// # Errors
+    /// Returns an error when the query fails or the row is malformed.
+    pub fn quarantine_get(&self, id: Uuid) -> Result<Option<QuarantineItem>> {
+        self.connection
+            .query_row(
+                "SELECT id, original_path, stored_path, volume_id, size,
+                        deleted_at, expires_at, reason, status, checksum
+                 FROM quarantine
+                 WHERE id = ?1",
+                [id.to_string()],
+                read_quarantine_item,
+            )
+            .optional()
+            .map_err(db)
+    }
+
     /// Inserts a quarantine index entry.
     ///
     /// # Errors

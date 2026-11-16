@@ -2,12 +2,14 @@
 
 use std::path::Path;
 
+use freespace_analysis::{SizeMode, enrich_ads};
 use freespace_core::{
     Error, Result,
     size::{SizeMetrics, Units, format_bytes},
     tree::{AccessState, FsTree, NodeId},
 };
 use freespace_platform::paths;
+use freespace_report::{SnapshotSettings, from_tree};
 use freespace_scan::{MethodChoice, NoopObserver, ScanRequest, ScanResult, scan};
 use serde_json::{Value, json};
 
@@ -26,17 +28,78 @@ pub struct ScanArgs<'a> {
     pub exclusions: &'a [String],
 }
 
-/// Runs `scan` and renders its result.
+/// Runs `scan` and renders its result, optionally writing a snapshot.
 ///
 /// # Errors
-/// Returns an error when the method is unknown or the scan fails.
-pub fn run_scan(args: ScanArgs<'_>, units: Units) -> Result<Outcome> {
-    let result = execute(args)?;
+/// Returns an error when the method is unknown, the scan fails or the snapshot
+/// cannot be written.
+pub fn run_scan(args: ScanArgs<'_>, units: Units, snapshot_out: Option<&Path>) -> Result<Outcome> {
+    run_scan_with(args, units, snapshot_out, false, "logical")
+}
 
-    Ok(
-        Outcome::new(json_data(&result), human_summary(&result, units))
-            .with_warnings(result.warnings.clone()),
-    )
+/// Runs `scan` with ADS accounting and an explicit reported size mode.
+///
+/// # Errors
+/// Returns an error for an unknown size mode or a failed scan.
+pub fn run_scan_with(
+    args: ScanArgs<'_>,
+    units: Units,
+    snapshot_out: Option<&Path>,
+    include_ads: bool,
+    size_mode: &str,
+) -> Result<Outcome> {
+    let size_mode = SizeMode::parse_value(size_mode).ok_or_else(|| {
+        Error::InvalidArgument(format!(
+            "unknown size mode `{size_mode}`; expected `logical`, `on-disk` or `physical`"
+        ))
+    })?;
+    let mut result = execute(args)?;
+    let mut warnings = result.warnings.clone();
+    if include_ads {
+        let report = enrich_ads(&mut result.tree);
+        warnings.push(format!(
+            "{} files inspected for alternate streams, {} streams in {} files",
+            report.files, report.streams, report.files_with_streams
+        ));
+        if report.errors > 0 {
+            warnings.push(format!(
+                "{} files could not be inspected for alternate streams",
+                report.errors
+            ));
+        }
+    }
+    let mut data = json_data(&result);
+    data["size_mode"] = json!(size_mode.as_str());
+    let total = result
+        .tree
+        .roots()
+        .next()
+        .map_or(SizeMetrics::ZERO, |root| result.tree.node(root).size);
+    data["total_selected"] = json!(size_mode.value(total));
+
+    if let Some(out) = snapshot_out {
+        let payload = from_tree(
+            &result.tree,
+            &result.volume,
+            &result.session.roots,
+            SnapshotSettings {
+                units: units.as_str().to_owned(),
+                follow_links: false,
+                include_ads,
+            },
+            freespace_core::Timestamp::now(),
+        )?;
+        let checksum = payload.compute_checksum()?;
+        payload.write(out)?;
+        data["snapshot"] = json!({
+            "path": paths::display(out),
+            "node_count": payload.node_count,
+            "checksum": checksum,
+        });
+        warnings.push(format!("snapshot written to `{}`", paths::display(out)));
+    }
+
+    Ok(Outcome::new(data, human_summary(&result, units)).with_warnings(warnings))
 }
 
 /// Runs `tree`: scans the path and renders a hierarchical list.
@@ -265,6 +328,7 @@ mod tests {
                 exclusions: &[],
             },
             Units::Binary,
+            None,
         )
         .expect("scan");
 
@@ -297,6 +361,7 @@ mod tests {
                 exclusions: &[],
             },
             Units::Binary,
+            None,
         )
         .expect_err("must fail");
 

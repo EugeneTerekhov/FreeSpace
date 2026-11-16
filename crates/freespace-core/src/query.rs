@@ -186,6 +186,9 @@ pub struct FilterSpec {
     /// Whether hidden and system objects are included.
     #[serde(default)]
     pub include_hidden: bool,
+    /// Accepted owner indices; empty means every owner.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owner_ids: Vec<u32>,
 }
 
 impl FilterSpec {
@@ -269,6 +272,17 @@ impl NodeFilter {
             .is_some_and(|limit| modified < limit)
         {
             return false;
+        }
+
+        if !self.spec.owner_ids.is_empty() && !node.kind.is_directory() {
+            let unknown_owner = self.spec.owner_ids.contains(&u32::MAX);
+            let matches = match node.owner_id {
+                Some(owner_id) => self.spec.owner_ids.contains(&owner_id),
+                None => unknown_owner,
+            };
+            if !matches {
+                return false;
+            }
         }
 
         if !self.spec.extensions.is_empty() {
@@ -554,6 +568,41 @@ mod tests {
         .expect("large");
         assert!(large.matches(&tree, ids[0]));
         assert!(!large.matches(&tree, ids[1]));
+    }
+
+    #[test]
+    fn filters_by_owner() {
+        let (mut tree, root, ids) = fixture();
+        tree.node_mut(ids[0]).owner_id = Some(1);
+        tree.node_mut(ids[2]).owner_id = Some(2);
+
+        let filter = FilterSpec {
+            owner_ids: vec![2],
+            include_hidden: true,
+            ..FilterSpec::default()
+        }
+        .compile()
+        .expect("owner filter");
+
+        let matched = search(
+            &tree,
+            root,
+            &filter,
+            SortSpec::new(SortKey::Name, SortDirection::Ascending),
+            false,
+            10,
+        );
+        assert!(matched.contains(&ids[2]));
+        assert!(!matched.contains(&ids[0]));
+        assert!(!filter.matches(&tree, ids[0]));
+        assert!(
+            !filter.matches(&tree, ids[1]),
+            "missing owner does not match"
+        );
+        assert!(
+            filter.matches(&tree, root),
+            "directories stay visible as containers"
+        );
     }
 
     #[test]

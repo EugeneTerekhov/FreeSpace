@@ -31,9 +31,19 @@ FreeSpace — нативное Windows-приложение (Rust + egui/eframe)
 - Отчёты: `csv`, `quick-xml`, `rust_xlsxwriter`, HTML-шаблоны
 - CLI: `clap` v4
 - Локализация: `rust-i18n` (RU/EN, переключение в рантайме)
+- Массовое переименование: `regex` (линейный по времени движок без катастрофического
+  бэктрекинга)
 - Поиск/фильтры: `globset`
 - Мониторинг: `ferrisetw` (ETW, провайдер `Microsoft-Windows-Kernel-File`) с fallback на
   `GetProcessIoCounters`
+
+**Dependencies added by phases 16–20** (versions resolved by Cargo):
+- Metadata: `kamadak-exif 0.6`, `lofty 0.25`, `mp4parse 0.17`, `pelite 0.10`.
+- Archives: `zip 9` (deflate/bzip2/zstd/lzma), `sevenz-rust 0.6`, `tar 0.4`, `flate2 1`,
+  `iso9660 0.1`; `unrar 0.5` is an optional feature `rar` because it needs a native library.
+- Reports: `csv 1.4`, `quick-xml 0.42`, `rust_xlsxwriter 0.102` with the `constant_memory`
+  feature so large XLSX exports stream to a temporary file.
+- CLI locks use the existing `windows` crate (`LockFileEx`); no new dependency is required.
 
 **Storage**: SQLite (журнал операций, индекс карантина, настройки автоматизации); файлы снимков
 `.fssnap` (CBOR + zstd, версионированная схема); конфигурация TOML/JSON

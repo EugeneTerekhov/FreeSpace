@@ -1,15 +1,38 @@
 //! Application screens built on the shared core crates.
 
+pub mod archives;
+pub mod cleanup;
+pub mod confirm;
 pub mod duplicates;
+pub mod export;
+pub mod journal;
+pub mod long_paths;
+pub mod metadata;
+pub mod owners;
+pub mod permissions;
+pub mod rename;
 pub mod scan;
 pub mod shred;
+pub mod size_details;
+pub mod snapshots;
 pub mod top_types;
 pub mod tree;
 pub mod unlock;
 
+pub use archives::ArchivesState;
+pub use cleanup::CleanupState;
 pub use duplicates::DuplicatesState;
+pub use export::ExportState;
+pub use journal::JournalState;
+pub use long_paths::LongPathsState;
+pub use metadata::MetadataState;
+pub use owners::OwnersState;
+pub use permissions::PermissionsState;
+pub use rename::RenameState;
 pub use scan::ScanState;
 pub use shred::ShredState;
+pub use size_details::SizeDetailsState;
+pub use snapshots::SnapshotsState;
 pub use top_types::{TopTypesState, TopTypesTab};
 pub use tree::TreeView;
 pub use unlock::UnlockState;
