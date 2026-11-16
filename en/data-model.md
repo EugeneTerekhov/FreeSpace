@@ -311,8 +311,11 @@ match), `reason`.
 | `outdated_threshold_days` | u32 | Staleness threshold |
 | `monitor_threshold` | struct | Notification threshold and interval |
 | `quarantine_retention_days` | u32 | Quarantine retention period |
-| `portable_mode` | bool | Portable mode |
+| `context_menu_enabled` | bool | Enable Explorer entries (false by default) |
 | `confirm_destructive_actions` | bool | Always confirm (true by default) |
+
+The data directory is not a setting: it is always `<exe_dir>\data`, so `%APPDATA%`,
+`%LOCALAPPDATA%`, `%ProgramData%` and temporary directories do not participate in the model.
 
 ## Relationships Between Entities
 

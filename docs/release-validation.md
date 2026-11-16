@@ -1,4 +1,4 @@
-# Release validation — FreeSpace 1.0.0
+# Release validation — FreeSpace 1.1.0
 
 **Date**: 2026-11-16
 **Environment**: Windows 11 23H2 (build 22631), x64; Rust 1.93.0; cargo 1.93.0.
@@ -39,19 +39,24 @@ portable ZIP.
 | 15 | Archives (US16) | passed via `tests/archives.rs` (ZIP, 7z, TAR, ISO, damaged files) |
 | 16 | Export (US17) | passed via `tests/export.rs`; all four formats validated |
 | 17 | CLI and scheduling (US18) | passed via `tests/cli_contract.rs` (envelopes, codes, UTF-16 XML) |
-| 18 | Context menu (US19) | passed via `tests/context_menu.rs` under an isolated `HKCU` subtree |
+| 18 | Context menu (US19) | passed via `tests/context_menu.rs` under an isolated `HKCU` subtree; default-off setting covered by `tests/settings.rs` |
 | 19 | Monitoring (US20) | passed via `tests/monitor.rs` and `cargo run -p freespace-cli -- monitor --iterations 1 --interval 0 --no-etw --json` |
 | 20 | Protected directories (US21) | elevation state and protected-area probing covered; admin access check is opt-in |
 | 21 | Dashboard, settings, localization (US22, US23) | passed via `tests/dashboard.rs`, `tests/settings.rs`, `tests/privacy.rs` |
+| 22 | Portable build without context menu | `cargo check --workspace --all-targets --no-default-features` passed; command absent from the stripped binary |
+| 23 | Install/uninstall cleanup | installer removes leftover entries and writes the setting as disabled; uninstaller removes `{app}\data` and calls `context-menu uninstall` for both scopes |
 
 ## Manual checks performed
 
-- Portable mode: placed `portable.flag` next to the executable, changed the language and saved
-  settings; `%APPDATA%\FreeSpace\settings.toml` was not created.
+- Application-local storage: settings, journal and quarantine were created in `<exe_dir>\data`;
+  no `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` or temporary files were created.
+- Read-only application folder: settings remained in memory and the save reported an error without
+  falling back to a system directory.
 - Language switch RU ↔ EN at runtime without losing the scan or settings state.
 - Light/dark/system themes redraw the map and tables correctly.
-- Explorer integration install/uninstall in the current-user scope; entries appear in the extended
-  Windows 11 menu.
+- Explorer integration is absent after a fresh install; enabling `context_menu_enabled` adds the
+  entries and disabling it removes them.
+- `freespace context-menu uninstall --all` is idempotent and removes both scopes.
 - `freespace drives --json` and `freespace config set language ru|en` round-trip.
 
 ## Open items

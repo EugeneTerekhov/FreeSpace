@@ -1,16 +1,20 @@
-# FreeSpace User Guide 1.0
+# FreeSpace User Guide 1.1
 
 FreeSpace is a native Windows 10/11 utility that analyses disk usage, shows trees and maps, finds
 duplicates, helps reclaim space safely, and works completely offline.
 
 ## Installation and launch
 
-- Portable mode: unpack the ZIP and place an empty `portable.flag` file next to
-  `freespace-gui.exe`. Settings, the journal and quarantine stay in the application folder.
-- Regular mode: install with `freespace-setup.exe`. Settings live in `%APPDATA%\FreeSpace` and the
-  operation journal in `%LOCALAPPDATA%\FreeSpace`.
+- Portable build: unpack the ZIP into any folder and run `freespace-gui.exe`. The archive contains
+  no Explorer integration; settings, the journal, cache and quarantine live in the `data` folder
+  next to the executable.
+- Installer: run `freespace-setup.exe`. No context-menu entries are created during installation.
+  All application data lives in `data` next to the executable.
+- `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary directories are never used. If the
+  application folder is read-only, settings apply until the application closes and saving reports
+  an error; the application never falls back to a system location.
 - Windows 10 21H2+ or Windows 11, x64. Administrator rights are only needed for whole-volume MFT
-  scans and protected system directories.
+  scans, protected system directories and machine-wide installation.
 
 ## First run
 
@@ -37,7 +41,8 @@ duplicates, helps reclaim space safely, and works completely offline.
 - **Shredder** — irreversible overwrite with an SSD warning.
 - **Write monitor** — processes writing to disk, speed, thresholds and history.
 - **Elevation** — current mode, protected directories and restart as administrator.
-- **Settings** — language, theme, units, exclusions, thresholds, quarantine and portable mode.
+- **Settings** — language, theme, units, exclusions, thresholds, quarantine and the context-menu
+  toggle (disabled by default).
 
 ## Safety
 
@@ -47,6 +52,15 @@ duplicates, helps reclaim space safely, and works completely offline.
 - Every destructive operation is journaled; quarantined objects can be restored.
 - Real user files are changed only on an explicit user command. Tests use temporary directories and
   test VHDs.
+
+## Context menu and uninstall
+
+- No FreeSpace entries exist after installation. Enable them in **Settings** or with
+  `freespace config set context_menu_enabled true`, and disable them with the reverse command.
+- Remove the entries without uninstalling: `freespace context-menu uninstall --all`.
+- The uninstaller removes the executables, the `data` directory and the menu entries for the current
+  user and all users. The portable build contains no `context-menu` command and creates no registry
+  entries.
 
 ## Command line
 
@@ -77,5 +91,8 @@ machine. The regression test `tests/privacy.rs` verifies this at source and depe
   automatically.
 - **Monitor without paths**: ETW needs administrator rights, so process counters and USN path hints
   are shown instead.
-- **Settings are not saved**: check permissions on `%APPDATA%\FreeSpace` or enable portable mode with
-  a `portable.flag` file next to the executable.
+- **Settings are not saved**: check permissions on the `data` folder next to the executable or
+  unpack the application into a writable directory. There is no fallback save to `%APPDATA%`,
+  `%LOCALAPPDATA%` or `%ProgramData%`.
+- **No context-menu entries**: enable `context_menu_enabled` in the settings; the portable build does
+  not support the context menu.

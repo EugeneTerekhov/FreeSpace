@@ -19,9 +19,9 @@ FreeSpace — нативная утилита для Windows (Rust + egui/eframe
 ### Обязательный порядок чтения
 
 1. `.specify/memory/constitution.md` — 7 принципов, нарушать нельзя.
-2. `specs/001-freespace-disk-analyzer/spec.md` — 23 истории, 95 FR, 16 SC.
+2. `specs/001-freespace-disk-analyzer/spec.md` — 23 истории, 96 FR, 18 SC.
 3. `specs/001-freespace-disk-analyzer/plan.md`, `research.md`, `data-model.md`, `contracts/`.
-4. `specs/001-freespace-disk-analyzer/tasks.md` — 161 задача, порядок и зависимости.
+4. `specs/001-freespace-disk-analyzer/tasks.md` — 169 задач, порядок и зависимости.
 5. `specs/001-freespace-disk-analyzer/quickstart.md` — сценарии проверки.
 6. `checklists/requirements.md` — ворота качества; `checklists/quality.md` принадлежит ревьюеру.
 
@@ -111,9 +111,9 @@ The repository currently contains only the SDD documentation; there is no source
 ### Mandatory reading order
 
 1. `.specify/memory/constitution.md` — 7 principles that must not be violated.
-2. `specs/001-freespace-disk-analyzer/spec.md` — 23 stories, 95 FRs, 16 SCs.
+2. `specs/001-freespace-disk-analyzer/spec.md` — 23 stories, 96 FRs, 18 SCs.
 3. `specs/001-freespace-disk-analyzer/plan.md`, `research.md`, `data-model.md`, `contracts/`.
-4. `specs/001-freespace-disk-analyzer/tasks.md` — 161 tasks, their order and dependencies.
+4. `specs/001-freespace-disk-analyzer/tasks.md` — 169 tasks, their order and dependencies.
 5. `specs/001-freespace-disk-analyzer/quickstart.md` — validation scenarios.
 6. `checklists/requirements.md` — quality gate; `checklists/quality.md` belongs to the reviewer.
 

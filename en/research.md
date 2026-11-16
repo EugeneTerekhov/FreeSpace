@@ -168,19 +168,28 @@ alternatives".
 ## 17. Local storage
 
 - **Decision**: SQLite (`rusqlite`, bundled) for the operations journal, quarantine index and hash
-  cache; settings — TOML in `%APPDATA%\FreeSpace` or next to the exe in portable mode;
-  schema migrations — built-in and versioned.
-- **Rationale**: journal transactionality, crash recovery, simple migrations.
-- **Alternatives considered**: JSON journal files (risk of corruption); external DBMS (redundant).
+  cache; settings — TOML; everything lives in `<exe_dir>\data`. `%APPDATA%`, `%LOCALAPPDATA%`,
+  `%ProgramData%` and temporary directories are not used. Without write access settings stay in
+  memory and the operation reports an error. Schema migrations are built-in and versioned.
+- **Rationale**: journal transactionality, crash recovery, simple migrations and predictable
+  removal of every trace with the application folder; avoiding the profile removes hidden records
+  and simplifies portability.
+- **Alternatives considered**: `%APPDATA%`/`%LOCALAPPDATA%` (forbidden by the full opt-out
+  requirement); `%ProgramData%` (needs rights and is a system location); JSON journal files (risk
+  of corruption); external DBMS (redundant).
 
 ## 18. Context menu integration
 
 - **Decision**: registry entries `HKCU\Software\Classes\*\shell`, `Directory\shell`, `Drive\shell`
-  (and `HKLM` when elevated) via `winreg`, with `MUIVerb`, `Icon` and a launch command.
+  (and `HKLM` when elevated) via `winreg`, with `MUIVerb`, `Icon` and a launch command. Entries are
+  disabled by default and controlled by `context_menu_enabled`; the portable build compiles without
+  the `context-menu` feature and without the `winreg` dependency.
 - **Rationale**: works on Windows 10 and 11 (in Windows 11 — in the extended "Show
-  more options" menu), requires no COM server or installer.
+  more options" menu), requires no COM server or installer; disabled by default avoids unexpected
+  registry writes.
 - **Alternatives considered**: `IExplorerCommand` COM + MSIX (native Windows 11 menu, but
-  significantly more complex); third-party shells (unacceptable).
+  significantly more complex); always-on integration (violates the "empty by default"
+  requirement); third-party shells (unacceptable).
 
 ## 19. Localization and settings
 
@@ -200,14 +209,17 @@ alternatives".
 - **Alternatives considered**: tests on the developer's primary disk (dangerous); WinAPI mocks
   (do not verify real file system semantics).
 
-## 21. Packaging and portable mode
+## 21. Packaging and the portable build
 
-- **Decision**: portable ZIP distribution (settings next to the exe when a `portable.flag` marker
-  file is present); optional Inno Setup installer; code signing — a separate release task.
-- **Rationale**: portability is important for system administrators; the installer is needed for
-  the context menu and autostart.
-- **Alternatives considered**: MSIX (restricts registry integrations); Chocolatey/Winget
-  (additional channels, do not replace ZIP).
+- **Decision**: the portable ZIP is built with `--no-default-features` (no context-menu component)
+  and contains a `data` directory; the Inno Setup installer registers no menu entries and on
+  uninstall calls `context-menu uninstall` for both scopes and removes `{app}\data`. Code signing
+  is a separate release task.
+- **Rationale**: portability is important for system administrators; avoiding AppData and disabling
+  the menu by default make behaviour predictable and uninstall complete.
+- **Alternatives considered**: `portable.flag` (no longer needed, the storage mode is singular);
+  installing to `%LOCALAPPDATA%\Programs` (forbidden by the requirement); MSIX (restricts registry
+  integrations); Chocolatey/Winget (additional channels, do not replace ZIP).
 
 ## 22. Report export
 

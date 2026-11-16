@@ -32,17 +32,47 @@ pub fn run(config_path: Option<&Path>, action: &ConfigAction) -> Result<Outcome>
             ))
         }
         ConfigAction::Set { key, value } => {
+            if key == "context_menu_enabled" && !cfg!(feature = "context-menu") {
+                return Err(Error::Unsupported(
+                    "the context menu is not available in this portable build".to_owned(),
+                ));
+            }
+
             let mut settings = Settings::load(&path)?;
             settings.set_value(key, value)?;
             settings.save(&path)?;
             let stored = settings.get_value(key).unwrap_or_else(|| value.clone());
+            let warnings = apply_context_menu_setting(key, &settings);
 
             Ok(Outcome::new(
                 json!({ "key": key, "value": stored, "path": display_path }),
                 format!("{key} = {stored}\n"),
-            ))
+            )
+            .with_warnings(warnings))
         }
     }
+}
+
+fn apply_context_menu_setting(key: &str, settings: &Settings) -> Vec<String> {
+    #[cfg(feature = "context-menu")]
+    {
+        if key == "context_menu_enabled" {
+            if let Err(error) = freespace_platform::context_menu::ContextMenu::set_enabled(
+                settings.context_menu_enabled,
+            ) {
+                return vec![format!(
+                    "the setting was saved, but the context menu could not be updated: {error}"
+                )];
+            }
+        }
+    }
+
+    #[cfg(not(feature = "context-menu"))]
+    {
+        let _ = (key, settings);
+    }
+
+    Vec::new()
 }
 
 fn resolve_path(config_path: Option<&Path>) -> Result<PathBuf> {

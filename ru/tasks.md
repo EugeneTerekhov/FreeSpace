@@ -426,6 +426,26 @@
 
 ---
 
+## Phase 27: Уточнение хранения и контекстного меню (US19, US23)
+
+**Goal**: полный отказ от системных каталогов, портативная сборка без контекстного меню,
+включение меню настройкой и полная очистка при удалении
+
+**Independent Test**: запустить приложение из папки только для чтения, проверить отсутствие записей
+в `%APPDATA%`/`%LOCALAPPDATA%`/`%ProgramData%`/Temp; включить и выключить меню настройкой;
+удалить приложение и проверить очистку данных и реестра.
+
+- [x] T162 [P] [US23] Добавить регрессионный тест отсутствия системных каталогов и портативной сборки в `tests/privacy.rs` и `tests/settings.rs`
+- [x] T163 [US23] Централизовать каталог данных `<exe_dir>\data` и удалить `portable_mode`/`portable.flag` в `crates/freespace-core/src/settings.rs`
+- [x] T164 [US23] Перевести журнал, карантин, кеш и блокировку на каталог данных в `crates/freespace-ops` и `crates/freespace-cli/src/lock.rs`
+- [x] T165 [US19] Добавить `context_menu_enabled` (по умолчанию false) и применить настройку в GUI/CLI
+- [x] T166 [US19] Вынести контекстное меню в Cargo-функцию `context-menu` и собрать портативный вариант без неё
+- [x] T167 [US19] Добавить `context-menu uninstall --all` и очистку данных/реестра в `installer/freespace.iss`
+- [x] T168 [US19] Обновить документацию, локали, `installer/portable.ps1` и `CHANGELOG.md`
+- [x] T169 Прогнать `cargo fmt`, `cargo clippy -D warnings`, `cargo test` и `cargo check --no-default-features`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

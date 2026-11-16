@@ -194,11 +194,17 @@ impl SettingsState {
                 }
                 ui.end_row();
 
-                ui.label(t!("settings.portable").to_string());
-                if ui.checkbox(&mut settings.portable_mode, "").changed() {
-                    action = SettingsAction::Changed;
+                #[cfg(feature = "context-menu")]
+                {
+                    ui.label(t!("settings.context_menu").to_string());
+                    if ui
+                        .checkbox(&mut settings.context_menu_enabled, "")
+                        .changed()
+                    {
+                        action = SettingsAction::Changed;
+                    }
+                    ui.end_row();
                 }
-                ui.end_row();
 
                 ui.label(t!("settings.confirm").to_string());
                 if ui

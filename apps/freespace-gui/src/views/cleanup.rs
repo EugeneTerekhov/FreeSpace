@@ -175,7 +175,7 @@ impl CleanupState {
             let path = store::default_path()?;
             let store = Store::open(&path)?;
             let quarantine = if mode == DeleteMode::Quarantine {
-                Some(Quarantine::new(Quarantine::default_root(false)?)?)
+                Some(Quarantine::new(Quarantine::default_root()?)?)
             } else {
                 None
             };

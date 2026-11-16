@@ -14,7 +14,7 @@ members = [
 default-members = ["apps/freespace-gui", "crates/freespace-cli"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 rust-version = "1.85"
 
@@ -79,7 +79,7 @@ tempfile = "3"
 
 # Workspace crates
 freespace-core = { path = "crates/freespace-core" }
-freespace-platform = { path = "crates/freespace-platform" }
+freespace-platform = { path = "crates/freespace-platform", default-features = false }
 freespace-scan = { path = "crates/freespace-scan" }
 freespace-ops = { path = "crates/freespace-ops" }
 freespace-analysis = { path = "crates/freespace-analysis" }

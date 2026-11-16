@@ -33,6 +33,6 @@
 
 ## Notes
 
-- The specification contains 23 user stories, 95 functional requirements and 16 measurable success criteria.
+- The specification contains 23 user stories, 96 functional requirements and 18 measurable success criteria.
 - Mentions of MFT, USN, ADS and NTFS are domain capabilities explicitly requested by the user (Windows file system analysis), not a technology stack choice.
 - The technology stack, architecture and code structure are intentionally not fixed in the specification — they will be determined during the `/speckit.plan` stage.

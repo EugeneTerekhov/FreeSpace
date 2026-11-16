@@ -23,6 +23,14 @@ pub fn write(report: &Report<'_>, path: &Path) -> Result<()> {
     }
 
     let mut workbook = Workbook::new();
+    // Constant-memory worksheets spill to a temporary file. Keep that file next
+    // to the requested report instead of the system temporary directory so the
+    // application never touches a system location.
+    let tempdir = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    workbook.set_tempdir(tempdir).map_err(xlsx_error)?;
     write_summary(&mut workbook, report)?;
 
     let header_format = Format::new().set_bold();

@@ -211,12 +211,26 @@ freespace config get <key> [--json]
 freespace config set <key> <value> [--json]
 ```
 
+- `context_menu_enabled` (boolean, `false` by default) enables and disables Explorer entries.
+  `config set` applies the value immediately and synchronizes the registry.
+- Other keys: `language`, `theme`, `units`, `duplicate_keep_rule`,
+  `outdated_threshold_days`, `quarantine_retention_days`, `confirm_destructive_actions`,
+  `monitor_threshold_bytes`, `monitor_interval_secs`, `exclusions`.
+
 ### `context-menu`
 
 ```text
 freespace context-menu install [--machine] [--executable <path>] [--yes]
-freespace context-menu uninstall [--machine] [--yes]
+freespace context-menu uninstall [--machine] [--all] [--yes]
 ```
+
+- Entries are absent by default and after installation. Installing or removing current-user entries
+  enables and disables the `context_menu_enabled` setting; `--machine` is a separate administrator
+  action that does not change the per-user setting.
+- `uninstall --all` removes the current-user and machine entries and disables the setting;
+  `--machine` removes only the machine scope. The command is idempotent and is used by the
+  uninstaller.
+- The command is absent from the portable build (`--no-default-features`).
 
 ### `schedule`
 
@@ -229,9 +243,16 @@ freespace schedule export <profile> --out <file.xml>
 
 ## Parallel Runs
 
-Every command takes an exclusive lock on `%LOCALAPPDATA%\FreeSpace\cli.lock`.
-A second process waits `--lock-timeout` seconds (30 by default) and then exits with code `10`
-(`E_LOCKED`). The lock is released when the process exits, including after a crash.
+Every command takes an exclusive lock on `<exe_dir>\data\cli.lock`. A second process waits
+`--lock-timeout` seconds (30 by default) and then exits with code `10` (`E_LOCKED`). The lock is
+released when the process exits, including after a crash. Temporary directories and
+`%LOCALAPPDATA%` are not used.
+
+## Data Storage
+
+Settings, the SQLite journal, quarantine, the hash cache and the lock live in `<exe_dir>\data`.
+`%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary directories are not used. If the folder
+is read-only, settings stay in memory for the session and the command reports an error.
 
 ## Exit Codes
 

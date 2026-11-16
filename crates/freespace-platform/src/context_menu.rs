@@ -4,6 +4,8 @@
 //! elevation is required, or to `HKLM\Software\Classes` for a machine-wide
 //! installation. Every target class (files, folders and drives) gets an
 //! *Analyze* item; files and folders additionally get an *Unlock* item.
+//! Nothing is registered until the caller installs the entries: the setting is
+//! disabled by default and portable builds compile this module out.
 //!
 //! The command line is quoted according to the rules used by
 //! `CommandLineToArgvW`, so paths with spaces, Unicode characters and trailing
@@ -19,6 +21,8 @@ use winreg::{
     RegKey,
     enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ},
 };
+
+use crate::command_line::{quote_argument, quote_os};
 
 /// Registry key suffix of the *Analyze* command.
 pub const ANALYZE_KEY: &str = "FreeSpace.Analyze";
@@ -389,6 +393,51 @@ impl ContextMenu {
             ))
         })
     }
+
+    /// Resolves the command-line executable used for Explorer entries.
+    ///
+    /// The GUI and the CLI usually share a folder. Explorer entries always run
+    /// the CLI because it understands the bare-path form (`scan <path>`) and the
+    /// `unlock <path>` action. When a sibling `freespace.exe` exists it is
+    /// preferred over the current binary.
+    ///
+    /// # Errors
+    /// Returns [`Error::Config`] when the current executable path is unknown.
+    pub fn preferred_executable() -> Result<PathBuf> {
+        let current = Self::current_executable()?;
+        let sibling = current.with_file_name("freespace.exe");
+
+        if sibling.is_file() {
+            Ok(sibling)
+        } else {
+            Ok(current)
+        }
+    }
+
+    /// Enables or disables the current-user integration in one call.
+    ///
+    /// Returns the entries that were written when `enabled` is true.
+    ///
+    /// # Errors
+    /// Returns an error when the executable cannot be resolved or the registry
+    /// cannot be changed.
+    pub fn set_enabled(enabled: bool) -> Result<Vec<MenuEntry>> {
+        let menu = Self::user();
+
+        if enabled {
+            // A machine-wide installation already serves every account; adding a
+            // per-user copy would make Explorer show duplicate items.
+            if Self::machine().is_installed().unwrap_or(false) {
+                return Ok(Vec::new());
+            }
+
+            menu.install(&Self::preferred_executable()?)
+        } else {
+            menu.uninstall()?;
+
+            Ok(Vec::new())
+        }
+    }
 }
 
 fn is_not_found(error: &io::Error) -> bool {
@@ -406,93 +455,11 @@ fn registry_error(key: &str, error: &io::Error) -> Error {
     ))
 }
 
-/// Quotes one argument for a Windows command line.
-///
-/// Follows the `CommandLineToArgvW` rules: an argument is quoted when it is
-/// empty or contains whitespace or a double quote, and backslashes are doubled
-/// in front of the closing quote.
-#[must_use]
-pub fn quote_argument(argument: &str) -> String {
-    if !argument.is_empty()
-        && !argument
-            .chars()
-            .any(|character| character == ' ' || character == '\t' || character == '"')
-    {
-        return argument.to_owned();
-    }
-
-    let mut quoted = String::with_capacity(argument.len() + 2);
-    quoted.push('"');
-    let mut backslashes = 0usize;
-    for character in argument.chars() {
-        match character {
-            '\\' => {
-                backslashes += 1;
-                quoted.push('\\');
-            }
-            '"' => {
-                quoted.extend(std::iter::repeat_n('\\', backslashes));
-                quoted.push('\\');
-                quoted.push('"');
-                backslashes = 0;
-            }
-            _ => {
-                backslashes = 0;
-                quoted.push(character);
-            }
-        }
-    }
-    quoted.extend(std::iter::repeat_n('\\', backslashes));
-    quoted.push('"');
-
-    quoted
-}
-
-/// Quotes a filesystem path without lossy Unicode conversion.
-#[must_use]
-pub fn quote_os(path: &std::ffi::OsStr) -> String {
-    quote_argument(&path.to_string_lossy())
-}
-
 #[cfg(test)]
 mod tests {
-    use std::{ffi::OsStr, path::Path};
+    use std::path::Path;
 
-    use super::{ContextMenu, MenuAction, MenuScope, MenuTarget, quote_argument};
-
-    #[test]
-    fn quotes_only_when_required() {
-        assert_eq!(
-            quote_argument("C:\\Tools\\freespace.exe"),
-            "C:\\Tools\\freespace.exe"
-        );
-        assert_eq!(
-            quote_argument("C:\\Program Files\\FreeSpace\\freespace.exe"),
-            "\"C:\\Program Files\\FreeSpace\\freespace.exe\""
-        );
-        assert_eq!(quote_argument(""), "\"\"");
-        assert_eq!(quote_argument("%1"), "%1");
-    }
-
-    #[test]
-    fn escapes_quotes_and_trailing_backslashes() {
-        assert_eq!(quote_argument("say \"hi\""), r#""say \"hi\"""#);
-        assert_eq!(
-            quote_argument(r"C:\Program Files\FreeSpace\"),
-            "\"C:\\Program Files\\FreeSpace\\\\\""
-        );
-        assert_eq!(quote_argument("a\"b"), r#""a\"b""#);
-    }
-
-    #[test]
-    fn keeps_unicode_paths_intact() {
-        let path = r"C:\Пользователи\测试 目录\freespace.exe";
-        let quoted = quote_argument(path);
-
-        assert!(quoted.starts_with('"'));
-        assert!(quoted.ends_with('"'));
-        assert!(quoted.contains("测试 目录"));
-    }
+    use super::{ContextMenu, MenuAction, MenuScope, MenuTarget};
 
     #[test]
     fn plans_entries_for_every_target() {
@@ -547,10 +514,6 @@ mod tests {
         assert_eq!(
             ContextMenu::machine().entry_key(MenuTarget::Drive, MenuAction::Analyze),
             r"Software\Classes\Drive\shell\FreeSpace.Analyze"
-        );
-        assert_eq!(
-            quote_argument(OsStr::new("a b").to_string_lossy().as_ref()),
-            "\"a b\""
         );
     }
 }

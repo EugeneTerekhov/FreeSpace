@@ -5,12 +5,16 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["context-menu"]
+context-menu = ["dep:winreg"]
+
 [dependencies]
 ferrisetw = { workspace = true }
 freespace-core = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-winreg = { workspace = true }
+winreg = { workspace = true, optional = true }
 windows = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Security",

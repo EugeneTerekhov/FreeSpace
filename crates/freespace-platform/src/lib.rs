@@ -15,13 +15,16 @@
 //! * [`ads`] — alternate data stream enumeration;
 //! * [`security`] — file attributes, ownership and ACL operations;
 //! * [`file_lock`] — cross-process advisory locks for CLI runs;
-//! * [`context_menu`] — Explorer context-menu registration;
+//! * [`command_line`] — Windows command-line quoting;
+//! * [`context_menu`] — Explorer context-menu registration (optional feature);
 //! * [`etw`] — real-time write attribution through ETW;
 //! * [`process_io`] — per-process I/O counters for the monitor fallback;
 //! * [`elevation`] — elevation state and on-demand UAC relaunch.
 
 pub mod ads;
 pub mod allocated;
+pub mod command_line;
+#[cfg(feature = "context-menu")]
 pub mod context_menu;
 pub mod elevation;
 pub mod etw;

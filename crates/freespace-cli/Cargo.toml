@@ -5,6 +5,14 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["context-menu"]
+context-menu = ["freespace-platform/context-menu"]
+
+[[bin]]
+name = "freespace"
+path = "src/main.rs"
+
 [dependencies]
 clap = { workspace = true }
 freespace-analysis = { workspace = true }

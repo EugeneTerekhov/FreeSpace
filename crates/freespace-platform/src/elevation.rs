@@ -22,7 +22,7 @@ use windows::{
 };
 
 use super::{
-    context_menu::quote_argument,
+    command_line::quote_argument,
     win::{self, Handle},
 };
 

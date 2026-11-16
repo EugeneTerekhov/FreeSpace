@@ -35,5 +35,8 @@ jobs:
       - name: Run clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Build the portable feature set
+        run: cargo check --workspace --all-targets --no-default-features
+
       - name: Run tests
         run: cargo test --workspace

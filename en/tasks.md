@@ -426,6 +426,26 @@ verified independently.
 
 ---
 
+## Phase 27: Storage and context-menu refinements (US19, US23)
+
+**Goal**: complete opt-out from system directories, a portable build without context menu,
+setting-controlled menu entries and full cleanup on uninstall
+
+**Independent Test**: run the application from a read-only folder and verify that nothing is written
+to `%APPDATA%`/`%LOCALAPPDATA%`/`%ProgramData%`/Temp; enable and disable the menu with the setting;
+uninstall the application and verify data and registry cleanup.
+
+- [x] T162 [P] [US23] Add regression tests for the absence of system directories and the portable build in `tests/privacy.rs` and `tests/settings.rs`
+- [x] T163 [US23] Centralize the `<exe_dir>\data` root and remove `portable_mode`/`portable.flag` in `crates/freespace-core/src/settings.rs`
+- [x] T164 [US23] Move the journal, quarantine, cache and lock to the data directory in `crates/freespace-ops` and `crates/freespace-cli/src/lock.rs`
+- [x] T165 [US19] Add `context_menu_enabled` (false by default) and apply it in the GUI/CLI
+- [x] T166 [US19] Move the context menu behind the `context-menu` Cargo feature and build the portable variant without it
+- [x] T167 [US19] Add `context-menu uninstall --all` and data/registry cleanup in `installer/freespace.iss`
+- [x] T168 [US19] Update documentation, locales, `installer/portable.ps1` and `CHANGELOG.md`
+- [x] T169 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test` and `cargo check --no-default-features`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

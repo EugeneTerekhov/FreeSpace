@@ -94,7 +94,7 @@ A hierarchical list of nodes.
 <freespace-report version="1">
   <meta>
     <generated-at>2026-11-15T12:00:00Z</generated-at>
-    <app-version>1.0.0</app-version>
+    <app-version>1.1.0</app-version>
     <volume letter="C" label="System" filesystem="NTFS" scan-method="mft"/>
     <roots><root>C:\</root></roots>
   </meta>

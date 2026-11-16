@@ -113,31 +113,16 @@ impl Quarantine {
         &self.root
     }
 
-    /// Resolves the default quarantine location.
+    /// Resolves the default quarantine location: `<exe_dir>\data\Quarantine`.
     ///
-    /// Portable mode keeps the quarantine next to the executable; otherwise it
-    /// lives under `%LOCALAPPDATA%\FreeSpace\Quarantine`.
+    /// The quarantine is application-owned and lives beside the executable so
+    /// that removing the application folder removes every trace from the
+    /// machine. System profile and temporary directories are never used.
     ///
     /// # Errors
-    /// Returns [`Error::Config`] when the location cannot be resolved.
-    pub fn default_root(portable: bool) -> Result<PathBuf> {
-        if portable {
-            let executable = std::env::current_exe()
-                .map_err(|error| Error::Config(format!("cannot locate executable: {error}")))?;
-            let directory = executable
-                .parent()
-                .ok_or_else(|| Error::Config("executable has no parent directory".to_owned()))?;
-
-            return Ok(directory.join("Quarantine"));
-        }
-
-        let base = std::env::var_os("LOCALAPPDATA")
-            .or_else(|| std::env::var_os("APPDATA"))
-            .ok_or_else(|| {
-                Error::Config("LOCALAPPDATA is not set; portable mode must be enabled".to_owned())
-            })?;
-
-        Ok(PathBuf::from(base).join("FreeSpace").join("Quarantine"))
+    /// Returns [`Error::Config`] when the executable location is unknown.
+    pub fn default_root() -> Result<PathBuf> {
+        Ok(freespace_core::settings::data_root()?.join("Quarantine"))
     }
 
     /// Moves `path` into quarantine and records it in the index.
@@ -550,9 +535,18 @@ mod tests {
     }
 
     #[test]
-    fn resolves_portable_quarantine_root() {
-        let root = Quarantine::default_root(true).expect("portable root");
+    fn resolves_an_application_owned_quarantine_root() {
+        let root = Quarantine::default_root().expect("quarantine root");
 
         assert!(root.ends_with("Quarantine"));
+        assert!(
+            root.starts_with(
+                env::current_exe()
+                    .expect("current exe")
+                    .parent()
+                    .expect("parent")
+                    .join(freespace_core::settings::DATA_DIR_NAME)
+            )
+        );
     }
 }

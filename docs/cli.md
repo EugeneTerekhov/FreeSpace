@@ -1,7 +1,7 @@
 # FreeSpace CLI contract
 
 **Contract version**: 1  
-**Applies to**: FreeSpace 1.0.x  
+**Applies to**: FreeSpace 1.1.x  
 **Source of truth**: `specs/001-freespace-disk-analyzer/contracts/cli.md`
 
 The CLI uses the same core crates as the GUI. Every GUI capability has a CLI
@@ -88,9 +88,14 @@ freespace config set <key> <value> [--json]
 ```
 
 Supported keys: `language`, `theme`, `units`, `duplicate_keep_rule`,
-`outdated_threshold_days`, `quarantine_retention_days`, `portable_mode`,
+`outdated_threshold_days`, `quarantine_retention_days`,
 `confirm_destructive_actions`, `monitor_threshold_bytes`,
-`monitor_interval_secs`, `exclusions`.
+`monitor_interval_secs`, `exclusions`, `context_menu_enabled`.
+
+`context_menu_enabled` is `false` by default. `config set context_menu_enabled true`
+registers the Explorer entries immediately; setting it to `false` removes them. In
+a portable build (`--no-default-features`) the key stays readable but cannot be
+enabled and the `context-menu` command does not exist.
 
 ### `scan`
 
@@ -354,24 +359,39 @@ USN journal tail (path hints). `--iterations 0` runs until interrupted;
 
 ```text
 freespace context-menu install [--machine] [--executable <path>]
-freespace context-menu uninstall [--machine]
+freespace context-menu uninstall [--machine] [--all]
 ```
 
 Installs *Analyze with FreeSpace* for files, folders and drives, plus *Unlock
-with FreeSpace* for files and folders. The default scope is the current user
-(`HKCU\Software\Classes`); `--machine` writes to `HKLM` and requires elevation.
+with FreeSpace* for files and folders. Entries are absent by default: no menu
+item is registered by the installer or by a fresh configuration. A current-user
+install or removal also updates `context_menu_enabled`, so the GUI settings
+screen stays in sync. The default scope is the current user
+(`HKCU\Software\Classes`); `--machine` writes to `HKLM`, requires elevation and
+is a separate administrator action that does not change the per-user setting;
+`--all` removes both scopes and disables the setting. Cleanup is idempotent and
+the uninstaller calls `context-menu uninstall --all`.
+
 Paths with spaces, Unicode characters and trailing separators are quoted for
 `CommandLineToArgvW`. A bare path passed to the executable is expanded to
-`scan <path>`.
+`scan <path>`. This command is compiled out of the portable build
+(`--no-default-features`).
 
 ## Parallel runs
 
-Every command takes an exclusive advisory lock on
-`%LOCALAPPDATA%\FreeSpace\cli.lock`. A second process queues for
-`--lock-timeout` seconds and then fails with `E_LOCKED` (exit code `10`). The
-lock is released automatically when the process exits, including after a crash.
-Read-only commands are also serialised, which keeps JSON logs and the cache
-consistent.
+Every command takes an exclusive advisory lock on `<exe_dir>\data\cli.lock`. A
+second process queues for `--lock-timeout` seconds and then fails with
+`E_LOCKED` (exit code `10`). The lock is released automatically when the process
+exits, including after a crash. Read-only commands are also serialised, which
+keeps JSON logs and the cache consistent.
+
+## Data storage
+
+Settings, the SQLite journal, quarantine, hash cache and the run lock live in
+`<exe_dir>\data`. FreeSpace never writes to `%APPDATA%`, `%LOCALAPPDATA%`,
+`%ProgramData%` or a temporary directory. When the folder is read-only, settings
+stay in memory for the session and the command reports an error instead of
+falling back to a system location.
 
 ## Stability
 

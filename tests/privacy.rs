@@ -102,6 +102,38 @@ fn production_sources_do_not_open_sockets_or_telemetry() {
 }
 
 #[test]
+fn production_sources_never_resolve_system_profile_directories() {
+    let root = workspace();
+    let mut sources = Vec::new();
+    for directory in ["crates", "apps"] {
+        rust_sources(&root.join(directory), &mut sources);
+    }
+
+    let forbidden = [
+        "var_os(\"APPDATA\")",
+        "var(\"APPDATA\")",
+        "var_os(\"LOCALAPPDATA\")",
+        "var(\"LOCALAPPDATA\")",
+        "var_os(\"ProgramData\")",
+        "var(\"ProgramData\")",
+        "env::temp_dir",
+        "std::env::temp_dir",
+    ];
+
+    for source in sources {
+        let text = std::fs::read_to_string(&source).expect("read source");
+        let production = text.split("#[cfg(test)]").next().unwrap_or(text.as_str());
+        for marker in forbidden {
+            assert!(
+                !production.contains(marker),
+                "{} resolves the system directory via `{marker}`",
+                source.display()
+            );
+        }
+    }
+}
+
+#[test]
 fn exports_and_documentation_contain_no_upload_endpoints() {
     let root = workspace();
     let mut sources = Vec::new();

@@ -18,11 +18,11 @@ pub struct JournalState {
 
 impl JournalState {
     /// Draws the screen.
-    pub fn ui(&mut self, ui: &mut egui::Ui, portable: bool, units: Units) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, units: Units) {
         ui.label(t!("journal.intro").to_string());
         ui.horizontal(|ui| {
             if ui.button(t!("journal.refresh").to_string()).clicked() || !self.loaded {
-                self.reload(portable);
+                self.reload();
             }
         });
 
@@ -61,24 +61,24 @@ impl JournalState {
             });
         }
         if let Some(operation_id) = undo_id {
-            self.undo(operation_id, portable);
+            self.undo(operation_id);
         }
     }
 
-    fn reload(&mut self, portable: bool) {
+    fn reload(&mut self) {
         self.error = None;
         self.loaded = true;
-        match open_store(portable).and_then(|store| store.journal_list(200)) {
+        match open_store().and_then(|store| store.journal_list(200)) {
             Ok(entries) => self.entries = entries,
             Err(error) => self.error = Some(error.to_string()),
         }
     }
 
-    fn undo(&mut self, operation_id: Uuid, portable: bool) {
+    fn undo(&mut self, operation_id: Uuid) {
         self.error = None;
         self.message = None;
-        let result = open_store(portable).and_then(|store| {
-            let root = Quarantine::default_root(portable)?;
+        let result = open_store().and_then(|store| {
+            let root = Quarantine::default_root()?;
             let quarantine = Quarantine::new(root)?;
             undo_operation(&store, &quarantine, operation_id)
         });
@@ -96,7 +96,7 @@ impl JournalState {
                 for error in outcome.errors {
                     self.error = Some(error);
                 }
-                self.reload(portable);
+                self.reload();
             }
             Err(error) => self.error = Some(error.to_string()),
         }
@@ -110,8 +110,8 @@ impl JournalState {
     }
 }
 
-fn open_store(portable: bool) -> freespace_core::Result<Store> {
-    let path = store::default_path_with(portable)?;
+fn open_store() -> freespace_core::Result<Store> {
+    let path = store::default_path()?;
 
     Store::open(&path)
 }

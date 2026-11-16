@@ -69,7 +69,7 @@ impl DashboardState {
             ui.add(
                 egui::TextEdit::singleline(&mut self.snapshots_dir)
                     .desired_width(320.0)
-                    .hint_text(r"%APPDATA%\FreeSpace\snapshots"),
+                    .hint_text(r"C:\FreeSpace\data\snapshots"),
             );
             if ui.button(t!("dashboard.trend").to_string()).clicked() {
                 self.refresh();

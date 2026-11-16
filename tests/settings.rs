@@ -1,16 +1,13 @@
-//! US23: settings, language switching and portable mode.
+//! US23: settings, language switching and the portable storage/build policy.
 
 mod common;
 
-use std::{
-    collections::BTreeSet,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeSet, path::Path};
 
 use freespace_core::{
     i18n::{self, Locale},
     settings::{
-        CONFIG_KEYS, PORTABLE_MARKER, SETTINGS_FILE_NAME, Settings, Theme, default_path,
+        CONFIG_KEYS, DATA_DIR_NAME, SETTINGS_FILE_NAME, Settings, Theme, data_root, default_path,
         settings_path,
     },
     size::Units,
@@ -61,8 +58,8 @@ fn round_trips_every_supported_key() {
         .set_value("quarantine_retention_days", "7")
         .expect("retention");
     settings
-        .set_value("portable_mode", "true")
-        .expect("portable");
+        .set_value("context_menu_enabled", "false")
+        .expect("context menu");
     settings
         .set_value("confirm_destructive_actions", "false")
         .expect("confirm");
@@ -88,50 +85,51 @@ fn round_trips_every_supported_key() {
 }
 
 #[test]
-fn portable_mode_keeps_files_next_to_the_executable() {
+fn application_data_stays_beside_the_executable() {
     let directory = tempfile::tempdir().expect("temp dir");
-    let exe_dir = directory.path().join("FreeSpace");
-    std::fs::create_dir_all(&exe_dir).expect("exe dir");
-    std::fs::write(exe_dir.join(PORTABLE_MARKER), b"").expect("marker");
-    let profile = directory.path().join("AppData");
-    std::fs::create_dir_all(&profile).expect("profile");
+    let data = directory.path().join(DATA_DIR_NAME);
+    let path = settings_path(&data);
 
-    let portable_path = settings_path(&exe_dir, Some(&profile), true);
-    assert_eq!(portable_path, exe_dir.join(SETTINGS_FILE_NAME));
+    assert_eq!(path, data.join(SETTINGS_FILE_NAME));
 
     let mut settings = Settings::default();
     settings.set_value("language", "ru").expect("language");
-    settings
-        .save(&portable_path)
-        .expect("save portable settings");
+    settings.save(&path).expect("save settings");
 
-    assert!(portable_path.is_file());
-    let profile_settings = profile.join("FreeSpace").join(SETTINGS_FILE_NAME);
+    assert!(path.is_file());
     assert!(
-        !profile_settings.exists(),
-        "portable mode must not write to the user profile"
+        !directory.path().join("AppData").exists(),
+        "no user-profile directory may be created"
     );
 }
 
 #[test]
-fn roaming_mode_uses_appdata() {
-    let exe = Path::new(r"C:\Tools\FreeSpace");
-    let app_data = Path::new(r"C:\Users\user\AppData\Roaming");
-    let path: PathBuf = settings_path(exe, Some(app_data), false);
+fn default_path_is_application_owned() {
+    let path = default_path().expect("default path");
+    let executable = std::env::current_exe().expect("current executable");
+    let expected = executable
+        .parent()
+        .expect("executable parent")
+        .join(DATA_DIR_NAME)
+        .join(SETTINGS_FILE_NAME);
 
+    assert_eq!(path, expected);
     assert_eq!(
-        path,
-        Path::new(r"C:\Users\user\AppData\Roaming\FreeSpace\settings.toml")
+        data_root().expect("data root"),
+        expected.parent().expect("parent")
     );
+    let text = path.to_string_lossy().to_ascii_lowercase();
+    for forbidden in ["appdata", "programdata", "\\temp"] {
+        assert!(
+            !text.contains(forbidden),
+            "settings must not use `{forbidden}`: {text}"
+        );
+    }
 }
 
 #[test]
-fn default_path_matches_an_existing_marker_or_profile() {
-    // The current process either has a portable marker beside the binary or an
-    // APPDATA variable; both cases must yield a path ending with settings.toml.
-    if let Ok(path) = default_path() {
-        assert!(path.ends_with(SETTINGS_FILE_NAME));
-    }
+fn context_menu_is_disabled_by_default() {
+    assert!(!Settings::default().context_menu_enabled);
 }
 
 #[test]

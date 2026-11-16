@@ -21,43 +21,16 @@ use crate::{
 /// Current schema version.
 pub const SCHEMA_VERSION: u32 = 1;
 
-/// Returns the default database location: `%LOCALAPPDATA%\FreeSpace\freespace.db`.
+/// Returns the default database location: `<exe_dir>\data\freespace.db`.
+///
+/// The journal, quarantine index and hash cache share this application-owned
+/// file. FreeSpace never resolves it through `%LOCALAPPDATA%`, `%APPDATA%`,
+/// `%ProgramData%` or a temporary directory (FR-093).
 ///
 /// # Errors
-/// Returns [`Error::Config`] when neither `LOCALAPPDATA` nor `APPDATA` is set.
+/// Returns [`Error::Config`] when the executable location is unknown.
 pub fn default_path() -> Result<PathBuf> {
-    let base = std::env::var_os("LOCALAPPDATA")
-        .or_else(|| std::env::var_os("APPDATA"))
-        .map(PathBuf::from)
-        .ok_or_else(|| Error::Config("LOCALAPPDATA and APPDATA are not set".to_owned()))?;
-
-    Ok(base.join("FreeSpace").join("freespace.db"))
-}
-
-/// Returns the database location for the selected storage mode.
-///
-/// Portable mode stores the journal, quarantine index and hash cache next to the
-/// executable so that removing the folder removes every trace from the machine
-/// (FR-093).
-///
-/// # Errors
-/// Returns [`Error::Config`] when portable mode is requested but the executable
-/// path is unknown, or when the roaming variables are missing.
-pub fn default_path_with(portable: bool) -> Result<PathBuf> {
-    if portable {
-        let executable = std::env::current_exe().map_err(|error| {
-            Error::Config(format!(
-                "cannot resolve the FreeSpace executable for portable mode: {error}"
-            ))
-        })?;
-        let directory = executable
-            .parent()
-            .ok_or_else(|| Error::Config("the executable has no parent folder".to_owned()))?;
-
-        return Ok(directory.join("freespace.db"));
-    }
-
-    default_path()
+    Ok(freespace_core::settings::data_root()?.join("freespace.db"))
 }
 
 const MIGRATION_1: &str = r"
@@ -702,13 +675,17 @@ mod tests {
     }
 
     #[test]
-    fn portable_storage_lives_next_to_the_executable() {
-        let path = super::default_path_with(true).expect("portable path");
+    fn storage_lives_in_the_application_data_directory() {
+        let path = super::default_path().expect("default path");
         let executable = std::env::current_exe().expect("current exe");
 
         assert_eq!(
             path,
-            executable.parent().expect("parent").join("freespace.db")
+            executable
+                .parent()
+                .expect("parent")
+                .join(freespace_core::settings::DATA_DIR_NAME)
+                .join("freespace.db")
         );
     }
 }

@@ -16,22 +16,24 @@ pub const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// Resolves the lock file path.
 ///
-/// The path lives beside `freespace.db`; temporary directories are the fallback
-/// when the profile directory is unavailable.
-#[must_use]
-pub fn default_lock_path() -> PathBuf {
-    freespace_ops::store::default_path()
-        .map(|path| path.with_file_name("cli.lock"))
-        .unwrap_or_else(|_| std::env::temp_dir().join("FreeSpace").join("cli.lock"))
+/// The lock lives beside `freespace.db` in the application-owned `data`
+/// directory. Temporary and system profile directories are never used.
+///
+/// # Errors
+/// Returns [`freespace_core::Error::Config`] when the application data root
+/// cannot be resolved.
+pub fn default_lock_path() -> Result<PathBuf> {
+    Ok(freespace_ops::store::default_path()?.with_file_name("cli.lock"))
 }
 
 /// Acquires the run lock, waiting up to `timeout_secs`.
 ///
 /// # Errors
 /// Returns [`freespace_core::Error::Locked`] when another process keeps the lock
-/// for longer than the timeout.
+/// for longer than the timeout, or [`freespace_core::Error::Config`] when the
+/// lock path cannot be resolved.
 pub fn acquire(timeout_secs: u64) -> Result<FileLock> {
-    acquire_at(&default_lock_path(), timeout_secs)
+    acquire_at(&default_lock_path()?, timeout_secs)
 }
 
 /// Acquires a lock at an explicit path; used by tests and embedding tools.
@@ -60,12 +62,18 @@ mod tests {
     use super::{acquire_at, default_lock_path};
 
     #[test]
-    fn lock_lives_beside_the_store_or_in_temp() {
-        let path = default_lock_path();
+    fn lock_lives_beside_the_store() {
+        let path = default_lock_path().expect("lock path");
 
         assert_eq!(
             path.file_name().and_then(|name| name.to_str()),
             Some("cli.lock")
+        );
+        assert_eq!(
+            path.parent(),
+            freespace_ops::store::default_path()
+                .expect("store path")
+                .parent()
         );
     }
 

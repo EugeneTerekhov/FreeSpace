@@ -26,7 +26,6 @@ pub fn run(
     mode: &str,
     confirmed: bool,
     store: &Store,
-    portable: bool,
     retention_days: u32,
     units: Units,
 ) -> Result<Outcome> {
@@ -37,7 +36,7 @@ pub fn run(
     })?;
 
     let quarantine = if mode == DeleteMode::Quarantine {
-        let root = Quarantine::default_root(portable)?;
+        let root = Quarantine::default_root()?;
         Some(Quarantine::new(root)?)
     } else {
         None
@@ -133,7 +132,6 @@ mod tests {
             DeleteMode::Permanent.as_str(),
             false,
             &store,
-            true,
             30,
             Units::Binary,
         )
@@ -155,7 +153,6 @@ mod tests {
             "permanent",
             true,
             &store,
-            true,
             30,
             Units::Binary,
         )
@@ -175,7 +172,6 @@ mod tests {
             "magic",
             true,
             &store,
-            true,
             30,
             Units::Binary,
         )

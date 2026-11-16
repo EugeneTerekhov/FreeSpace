@@ -311,8 +311,11 @@
 | `outdated_threshold_days` | u32 | Порог устаревания |
 | `monitor_threshold` | структура | Порог и интервал уведомлений |
 | `quarantine_retention_days` | u32 | Срок хранения карантина |
-| `portable_mode` | bool | Портативный режим |
+| `context_menu_enabled` | bool | Включить пункты Проводника (по умолчанию false) |
 | `confirm_destructive_actions` | bool | Всегда подтверждать (по умолчанию true) |
+
+Каталог данных не является настройкой: он всегда вычисляется как `<exe_dir>\data`, поэтому
+`%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` и временные каталоги не участвуют в модели.
 
 ## Связи между сущностями
 

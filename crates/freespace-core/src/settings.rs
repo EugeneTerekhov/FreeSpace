@@ -1,9 +1,13 @@
 //! Persistent application settings.
 //!
-//! Settings live in `settings.toml` either under `%APPDATA%\FreeSpace` or next
-//! to the executable when portable mode is active (a `portable.flag` marker
-//! beside the binary). The format is versionless on purpose: every field has a
-//! default, so old configuration files keep loading after upgrades.
+//! FreeSpace never writes to `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` or
+//! temporary directories. Settings, the journal, the quarantine and the hash
+//! cache all live in a `data` directory beside the executable. When that folder
+//! is read-only the application keeps settings in memory for the session and
+//! reports the failure instead of falling back to a system location.
+//!
+//! The format is versionless on purpose: every field has a default, so old
+//! configuration files keep loading after upgrades.
 
 use std::{
     fs,
@@ -21,8 +25,8 @@ use crate::{
 /// File name of the configuration file.
 pub const SETTINGS_FILE_NAME: &str = "settings.toml";
 
-/// Marker file that switches FreeSpace into portable mode.
-pub const PORTABLE_MARKER: &str = "portable.flag";
+/// Name of the application-owned storage directory beside the executable.
+pub const DATA_DIR_NAME: &str = "data";
 
 /// Keys exposed by `freespace config get/set`.
 pub const CONFIG_KEYS: [&str; 11] = [
@@ -32,11 +36,11 @@ pub const CONFIG_KEYS: [&str; 11] = [
     "duplicate_keep_rule",
     "outdated_threshold_days",
     "quarantine_retention_days",
-    "portable_mode",
     "confirm_destructive_actions",
     "monitor_threshold_bytes",
     "monitor_interval_secs",
     "exclusions",
+    "context_menu_enabled",
 ];
 
 /// Colour theme.
@@ -153,8 +157,8 @@ pub struct Settings {
     pub monitor_threshold: MonitorThreshold,
     /// How long quarantined objects are retained, in days.
     pub quarantine_retention_days: u32,
-    /// Store settings and journals next to the executable.
-    pub portable_mode: bool,
+    /// Register Explorer context-menu entries (disabled by default).
+    pub context_menu_enabled: bool,
     /// Always ask for confirmation before destructive actions.
     pub confirm_destructive_actions: bool,
 }
@@ -170,7 +174,7 @@ impl Default for Settings {
             outdated_threshold_days: 180,
             monitor_threshold: MonitorThreshold::default(),
             quarantine_retention_days: 30,
-            portable_mode: false,
+            context_menu_enabled: false,
             confirm_destructive_actions: true,
         }
     }
@@ -253,7 +257,7 @@ impl Settings {
             "duplicate_keep_rule" => Some(self.duplicate_keep_rule.as_str().to_owned()),
             "outdated_threshold_days" => Some(self.outdated_threshold_days.to_string()),
             "quarantine_retention_days" => Some(self.quarantine_retention_days.to_string()),
-            "portable_mode" => Some(self.portable_mode.to_string()),
+            "context_menu_enabled" => Some(self.context_menu_enabled.to_string()),
             "confirm_destructive_actions" => Some(self.confirm_destructive_actions.to_string()),
             "monitor_threshold_bytes" => Some(self.monitor_threshold.threshold_bytes.to_string()),
             "monitor_interval_secs" => Some(self.monitor_threshold.interval_secs.to_string()),
@@ -304,8 +308,8 @@ impl Settings {
             "quarantine_retention_days" => {
                 self.quarantine_retention_days = parse_u32(key, value)?;
             }
-            "portable_mode" => {
-                self.portable_mode = parse_bool(key, value)?;
+            "context_menu_enabled" => {
+                self.context_menu_enabled = parse_bool(key, value)?;
             }
             "confirm_destructive_actions" => {
                 self.confirm_destructive_actions = parse_bool(key, value)?;
@@ -362,42 +366,48 @@ fn parse_u64(key: &str, value: &str) -> Result<u64> {
     })
 }
 
-/// Resolves the settings file location.
-///
-/// Portable mode stores the file next to the executable; otherwise it lives in
-/// `%APPDATA%\FreeSpace`.
-#[must_use]
-pub fn settings_path(exe_dir: &Path, app_data: Option<&Path>, portable: bool) -> PathBuf {
-    if portable {
-        return exe_dir.join(SETTINGS_FILE_NAME);
-    }
-
-    app_data
-        .unwrap_or_else(|| Path::new("."))
-        .join("FreeSpace")
-        .join(SETTINGS_FILE_NAME)
-}
-
-/// Detects portable mode and resolves the default settings path.
+/// Resolves the directory that contains the running executable.
 ///
 /// # Errors
-/// Returns [`Error::Config`] when not in portable mode and `%APPDATA%` is not
-/// available.
+/// Returns [`Error::Config`] when the executable path cannot be resolved or has
+/// no parent directory.
+pub fn executable_directory() -> Result<PathBuf> {
+    let executable = std::env::current_exe().map_err(|error| {
+        Error::Config(format!(
+            "cannot resolve the FreeSpace executable path: {error}"
+        ))
+    })?;
+    executable
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| Error::Config("the executable has no parent folder".to_owned()))
+}
+
+/// Resolves the application-owned storage directory (`<exe_dir>\data`).
+///
+/// FreeSpace uses this directory for every persistent artefact: settings, the
+/// SQLite journal, quarantine objects, the hash cache and the CLI lock. The
+/// function never consults `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` or a
+/// temporary directory.
+///
+/// # Errors
+/// Returns [`Error::Config`] when the executable location is unknown.
+pub fn data_root() -> Result<PathBuf> {
+    Ok(executable_directory()?.join(DATA_DIR_NAME))
+}
+
+/// Joins the settings file to an application data directory.
+#[must_use]
+pub fn settings_path(data_root: &Path) -> PathBuf {
+    data_root.join(SETTINGS_FILE_NAME)
+}
+
+/// Resolves the default settings file (`<exe_dir>\data\settings.toml`).
+///
+/// # Errors
+/// Returns [`Error::Config`] when the executable location is unknown.
 pub fn default_path() -> Result<PathBuf> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|path| path.parent().map(Path::to_path_buf));
-    let exe_dir = exe_dir.unwrap_or_else(|| PathBuf::from("."));
-    let portable = exe_dir.join(PORTABLE_MARKER).is_file();
-    let app_data = std::env::var_os("APPDATA").map(PathBuf::from);
-
-    if !portable && app_data.is_none() {
-        return Err(Error::Config(
-            "APPDATA is not set and portable mode is not active".to_owned(),
-        ));
-    }
-
-    Ok(settings_path(&exe_dir, app_data.as_deref(), portable))
+    Ok(settings_path(&data_root()?))
 }
 
 #[cfg(test)]
@@ -415,7 +425,7 @@ mod tests {
         assert_eq!(settings.units, Units::Binary);
         assert_eq!(settings.duplicate_keep_rule, DuplicateKeepRule::Oldest);
         assert!(settings.confirm_destructive_actions);
-        assert!(!settings.portable_mode);
+        assert!(!settings.context_menu_enabled);
         assert_eq!(settings.outdated_threshold_days, 180);
         assert_eq!(settings.quarantine_retention_days, 30);
     }
@@ -477,8 +487,8 @@ mod tests {
             .set_value("duplicate_keep_rule", "shortest")
             .expect("rule");
         settings
-            .set_value("portable_mode", "yes")
-            .expect("portable");
+            .set_value("context_menu_enabled", "yes")
+            .expect("context menu");
         settings
             .set_value("confirm_destructive_actions", "off")
             .expect("confirm");
@@ -497,7 +507,7 @@ mod tests {
             settings.duplicate_keep_rule,
             DuplicateKeepRule::ShortestPath
         );
-        assert!(settings.portable_mode);
+        assert!(settings.context_menu_enabled);
         assert!(!settings.confirm_destructive_actions);
         assert_eq!(settings.monitor_threshold.threshold_bytes, 4_096);
         assert_eq!(settings.monitor_threshold.interval_secs, 15);
@@ -514,7 +524,7 @@ mod tests {
         assert!(settings.set_value("theme", "neon").is_err());
         assert!(settings.set_value("units", "bits").is_err());
         assert!(settings.set_value("outdated_threshold_days", "-1").is_err());
-        assert!(settings.set_value("portable_mode", "maybe").is_err());
+        assert!(settings.set_value("context_menu_enabled", "maybe").is_err());
     }
 
     #[test]
@@ -535,17 +545,33 @@ mod tests {
     }
 
     #[test]
-    fn resolves_portable_and_roaming_paths() {
-        let exe = Path::new(r"C:\Tools\FreeSpace");
-        let app_data = Path::new(r"C:\Users\user\AppData\Roaming");
+    fn keeps_settings_beside_the_executable() {
+        let data_root = Path::new(r"C:\Tools\FreeSpace\data");
 
         assert_eq!(
-            settings_path(exe, Some(app_data), true),
-            Path::new(r"C:\Tools\FreeSpace\settings.toml")
+            settings_path(data_root),
+            Path::new(r"C:\Tools\FreeSpace\data\settings.toml")
         );
+    }
+
+    #[test]
+    fn data_root_is_application_owned() {
+        let root = super::data_root().expect("data root");
+        let executable = std::env::current_exe().expect("current executable");
+
         assert_eq!(
-            settings_path(exe, Some(app_data), false),
-            Path::new(r"C:\Users\user\AppData\Roaming\FreeSpace\settings.toml")
+            root,
+            executable
+                .parent()
+                .expect("executable parent")
+                .join(super::DATA_DIR_NAME)
         );
+        let text = root.to_string_lossy().to_ascii_lowercase();
+        for forbidden in ["appdata", "programdata", "\\temp"] {
+            assert!(
+                !text.contains(forbidden),
+                "data root must not use `{forbidden}`: {text}"
+            );
+        }
     }
 }

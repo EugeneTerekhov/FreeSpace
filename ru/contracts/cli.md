@@ -211,12 +211,25 @@ freespace config get <key> [--json]
 freespace config set <key> <value> [--json]
 ```
 
+- Ключ `context_menu_enabled` (boolean, по умолчанию `false`) включает и выключает пункты
+  Проводника. `config set` применяет значение сразу и синхронизирует реестр.
+- Остальные ключи: `language`, `theme`, `units`, `duplicate_keep_rule`,
+  `outdated_threshold_days`, `quarantine_retention_days`, `confirm_destructive_actions`,
+  `monitor_threshold_bytes`, `monitor_interval_secs`, `exclusions`.
+
 ### `context-menu`
 
 ```text
 freespace context-menu install [--machine] [--executable <path>] [--yes]
-freespace context-menu uninstall [--machine] [--yes]
+freespace context-menu uninstall [--machine] [--all] [--yes]
 ```
+
+- Пункты отсутствуют по умолчанию и после установки. Установка или удаление записей текущего
+  пользователя включает и выключает настройку `context_menu_enabled`; `--machine` — отдельное
+  административное действие, не меняющее пользовательскую настройку.
+- `uninstall --all` удаляет записи текущего пользователя и машины и выключает настройку;
+  `--machine` — только машины. Команда идемпотентна и используется деинсталлятором.
+- В портативной сборке (`--no-default-features`) команда отсутствует.
 
 ### `schedule`
 
@@ -229,9 +242,16 @@ freespace schedule export <profile> --out <file.xml>
 
 ## Параллельные запуски
 
-Все команды берут эксклюзивную блокировку `%LOCALAPPDATA%\FreeSpace\cli.lock`.
-Второй процесс ждёт `--lock-timeout` секунд (по умолчанию 30) и затем завершается с кодом `10`
-(`E_LOCKED`). Блокировка снимается при завершении процесса, в том числе аварийном.
+Все команды берут эксклюзивную блокировку `<exe_dir>\data\cli.lock`. Второй процесс ждёт
+`--lock-timeout` секунд (по умолчанию 30) и затем завершается с кодом `10` (`E_LOCKED`).
+Блокировка снимается при завершении процесса, в том числе аварийном. Временные каталоги и
+`%LOCALAPPDATA%` не используются.
+
+## Хранение данных
+
+Настройки, SQLite-журнал, карантин, кеш хешей и блокировка находятся в `<exe_dir>\data`.
+`%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` и временные каталоги не используются. Если каталог
+доступен только для чтения, настройки остаются в памяти на сессию, а команда сообщает об ошибке.
 
 ## Коды возврата
 

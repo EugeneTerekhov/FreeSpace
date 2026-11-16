@@ -18,6 +18,13 @@
 - Q: How should "stale" files be determined if Windows does not maintain the last access date by default? → A: Use the maximum of the access date and the modification date, flagging the unreliability of the access date in the interface and the report.
 - Q: Are network locations and cloud storage within the scope of the first version? → A: No, only local and mounted volumes; network and cloud locations are out of scope for v1.
 
+### Session 2026-11-16
+
+- Q: Where does the application store settings, the journal, quarantine, cache and locks? → A: Only in the `data` directory next to the executable. `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary directories are not used; without write access the application reports an error and keeps settings in memory.
+- Q: How is the Explorer context-menu integration distributed? → A: Entries are disabled by default and after installation; they are enabled and disabled by the `context_menu_enabled` setting, and the portable build is produced without the context-menu component.
+- Q: What must happen when the application is uninstalled? → A: Its files, the `data` directory and the context-menu entries are removed; the CLI command `context-menu uninstall` removes the entries without uninstalling the application.
+- Q: Is a separate standard/portable storage mode needed? → A: No. Storage is always application-local; "portable" refers to the build without Explorer integration.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Fast volume scan and size tree (Priority: P1)
@@ -331,18 +338,20 @@ The user automates scanning, duplicate search, cleanup, export, and snapshots vi
 
 ### User Story 19 — Integration into the Windows context menu (Priority: P4)
 
-The user starts size analysis or file unlocking directly from the Explorer context menu, and also installs and removes this integration.
+The user starts size analysis or file unlocking directly from the Explorer context menu, and also enables, disables and removes this integration. By default and immediately after installation there are no entries; the portable build contains no integration at all.
 
 **Why this priority**: speeds up access to the main scenarios but does not affect the analysis functionality itself.
 
-**Independent Test**: install the integration, verify the menu items for a file, folder, and disk, then remove the integration.
+**Independent Test**: verify that no entries exist after installation, enable the integration through the setting, verify the menu items for a file, folder, and disk, disable the setting and remove the entries with the CLI command.
 
 **Acceptance Scenarios**:
 
-1. **Given** the integration is installed, **When** the user opens the context menu of a folder, **Then** they see an analysis item that launches the application with the selected path.
-2. **Given** a file is busy with a process, **When** the user selects the unlock item, **Then** the list of blocking processes opens.
-3. **Given** the integration is installed without administrator rights, **When** the user checks the context menu, **Then** the items are available for the current account.
-4. **Given** the integration is no longer needed, **When** the user removes it, **Then** the items disappear from the context menu.
+1. **Given** the application has just been installed or the setting is disabled, **When** the user opens the context menu, **Then** there are no FreeSpace items.
+2. **Given** `context_menu_enabled` is enabled, **When** the user opens the context menu of a folder, **Then** they see an analysis item that launches the application with the selected path.
+3. **Given** a file is busy with a process, **When** the user selects the unlock item, **Then** the list of blocking processes opens.
+4. **Given** the setting is disabled, **When** the user checks the context menu, **Then** the items disappear.
+5. **Given** the portable build is used, **When** the user checks the menu or the `context-menu` command, **Then** the integration and the command are absent.
+6. **Given** the application is uninstalled, **When** uninstall completes, **Then** the entries and the FreeSpace data directory are absent.
 
 ---
 
@@ -396,20 +405,22 @@ The application shows a summary of all volumes on the computer: total size, used
 
 ---
 
-### User Story 23 — Settings, localization, and portable mode (Priority: P4)
+### User Story 23 — Settings, localization, and the portable build (Priority: P4)
 
-The user configures units of measurement, exclusions, thresholds, the visual theme, and the interface language, and can also run the application in portable mode with settings and journals stored next to the executable file.
+The user configures units of measurement, exclusions, thresholds, the visual theme, the interface language and the Explorer context-menu integration. All application data is stored only in the `data` directory next to the executable; the portable build contains no Explorer integration.
 
 **Why this priority**: comfort and flexibility are important for regular use but do not affect the main analysis scenarios.
 
-**Independent Test**: switch the language and theme, set exclusions, run the portable build, and verify that no records are written to the user profile.
+**Independent Test**: switch the language and theme, set exclusions, run the application from a read-only folder, and verify that no records are written to system directories.
 
 **Acceptance Scenarios**:
 
 1. **Given** the application is running, **When** the user switches the interface language, **Then** all interface strings are displayed in the selected language, and the current state is not lost.
-2. **Given** portable mode, **When** the application is launched from removable media, **Then** settings and journals are stored in the application folder and are not written to the user profile.
-3. **Given** the user has set excluded paths, **When** the analysis is performed, **Then** excluded objects are not counted, and the fact of exclusion is reflected in the report.
-4. **Given** light and dark themes are available, **When** the user switches the theme, **Then** the interface and the map are redrawn correctly.
+2. **Given** the application runs from any location, **When** it saves settings or the journal, **Then** the data is in the `data` directory next to the executable, and `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary directories are not used.
+3. **Given** the application folder is read-only, **When** the user saves settings, **Then** a clear error is shown, the settings remain in memory for the session, and no write to a system directory is attempted.
+4. **Given** the user has set excluded paths, **When** the analysis is performed, **Then** excluded objects are not counted, and the fact of exclusion is reflected in the report.
+5. **Given** light and dark themes are available, **When** the user switches the theme, **Then** the interface and the map are redrawn correctly.
+6. **Given** the user enables or disables the context-menu setting, **When** settings are saved, **Then** the entries appear or disappear without restarting the application.
 
 ---
 
@@ -424,7 +435,7 @@ The user configures units of measurement, exclusions, thresholds, the visual the
 - How are password-protected archives, corrupted archives, and archives whose extraction requires disproportionate resources handled? The application MUST limit resources and report the problem without crashing.
 - What happens when names collide during restoration from quarantine or bulk rename? Conflicts MUST be detected before applying, and the resolution strategy MUST be predictable.
 - How are EFS-encrypted, compressed, and sparse files handled during shredder deletion? The application MUST warn about warranty limitations.
-- What happens if portable mode is launched from a folder without write permissions? Settings MUST be saved to a fallback location with a notification to the user.
+- What happens if the application is launched from a folder without write permissions? Settings MUST remain in memory for the session and the user MUST receive a clear notification; a fallback write to `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` or a temporary directory MUST NOT happen.
 - How are simultaneous launches of multiple application instances or conflicting scheduled tasks handled? Conflicting operations MUST be blocked or queued.
 - How are names with Unicode, emoji, and surrogate pairs handled? Display, search, and operations MUST work without data loss.
 - What happens when exporting a report with millions of rows? The export MUST be performed in a streaming manner and not lead to memory exhaustion.
@@ -568,8 +579,8 @@ The user configures units of measurement, exclusions, thresholds, the visual the
 
 **Context menu**
 
-- **FR-079**: The system MUST add size analysis and unlock items for files, folders, and volumes to the Explorer context menu.
-- **FR-080**: The system MUST support installing and removing the integration both for the current user and for all users when permissions are available.
+- **FR-079**: The system MUST NOT add Explorer context-menu items by default or during installation; size analysis and unlock items for files, folders, and volumes MUST be enabled and disabled by the `context_menu_enabled` setting. The portable build MUST NOT contain the context-menu component or the `context-menu` command.
+- **FR-080**: The system MUST support installing and removing the integration both for the current user and for all users when permissions are available. Uninstalling the application MUST remove its files, the data directory and the context-menu entries; the CLI MUST provide a command for removing the entries.
 - **FR-081**: Passing paths from the context menu MUST work correctly with spaces, Unicode, and long paths.
 
 **Real-time monitoring**
@@ -594,9 +605,10 @@ The user configures units of measurement, exclusions, thresholds, the visual the
 
 - **FR-091**: The user MUST be able to configure units of measurement, exclusions, thresholds, the visual theme, and the interface language.
 - **FR-092**: The interface MUST be fully localized into Russian and English; switching the language MUST NOT cause loss of the current state.
-- **FR-093**: The system MUST support portable mode with settings and journals stored next to the executable file and MUST work correctly when there are no write permissions for that folder.
+- **FR-093**: The system MUST store settings, the journal, quarantine, the hash cache and locks only in the `data` directory next to the executable. `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary directories MUST NOT be used. Without write access the system MUST keep settings in memory for the session, report the failure and MUST NOT choose a fallback system directory.
 - **FR-094**: The application MUST NOT send telemetry and MUST NOT perform network requests by default.
 - **FR-095**: All application features MUST be available without a network connection.
+- **FR-096**: The portable build MUST be produced without the context-menu component; the installer MUST NOT register menu entries, and the uninstaller MUST remove the data directory and menu entries.
 
 ### Key Entities *(including data, if applicable)*
 
@@ -619,7 +631,7 @@ The user configures units of measurement, exclusions, thresholds, the visual the
 - **Metadata (MetadataRecord)**: file type, tags and values (EXIF, audio, video, executable version).
 - **Owner summary (OwnerSummary)**: owner, total size, number of files.
 - **Archive entry (ArchiveEntry)**: path inside the archive, size, compressed size, share.
-- **Settings**: units of measurement, exclusions, thresholds, theme, language, storage mode (standard/portable).
+- **Settings**: units of measurement, exclusions, thresholds, theme, language, context-menu enablement (disabled by default). The only storage mode is the `data` directory next to the executable.
 
 ## Success Criteria *(mandatory)*
 
@@ -637,10 +649,12 @@ The user configures units of measurement, exclusions, thresholds, the visual the
 - **SC-010**: 100% of graphical interface capabilities are available from the command line; machine-readable output passes validation against the documented schema.
 - **SC-011**: On the prepared control set, a typical cleanup scenario allows freeing at least 10 GB in no more than 10 minutes, including confirmation of operations.
 - **SC-012**: 100% of interface strings have translations into Russian and English; switching the language does not cause loss of state data.
-- **SC-013**: In portable mode, 100% of settings and journals are located in the application folder and no records are created in the user profile.
+- **SC-013**: 100% of settings, journals, quarantine, cache and locks are located in the `data` directory next to the executable; no records are created in `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` or a temporary directory.
 - **SC-014**: A disk write event is displayed in monitoring no later than 2 seconds after the write starts, and idle overhead does not exceed 2% of CPU.
 - **SC-015**: At least 80% of testing participants find the largest file on the volume without instructions in less than 1 minute after starting the analysis.
 - **SC-016**: Starting the analysis of the selected object from the context menu opens the application with the required path in no more than 2 seconds.
+- **SC-017**: After installation and with default settings there is not a single FreeSpace context-menu entry; after uninstalling the application neither entries nor the data directory remain.
+- **SC-018**: The portable build contains no `context-menu` command and creates no Explorer registry entries.
 
 ## Assumptions
 

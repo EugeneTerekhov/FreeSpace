@@ -197,14 +197,21 @@ Expected: valid JSON, documented exit codes, the XML task is accepted by Task Sc
 ### 18. Context menu (US19)
 
 ```powershell
-cargo run -p freespace-cli -- context-menu install --yes
+cargo run -p freespace-cli -- config get context_menu_enabled
+cargo run -p freespace-cli -- config set context_menu_enabled true
 ```
 
-Verify the menu items for a file, folder, and drive; then:
+Verify the menu items for a file, folder, and drive; then disable and clean both scopes:
 
 ```powershell
-cargo run -p freespace-cli -- context-menu uninstall --yes
+cargo run -p freespace-cli -- config set context_menu_enabled false
+cargo run -p freespace-cli -- context-menu uninstall --all --yes
 ```
+
+Expected: no entries exist after installation; enabling the setting adds them and disabling removes
+them; `uninstall --all` is idempotent. The portable build
+(`cargo build --release --no-default-features -p freespace-cli -p freespace-gui`) contains no
+`context-menu` command.
 
 ### 19. Monitoring (US20)
 
@@ -227,7 +234,10 @@ cargo run -p freespace-cli -- config set language ru
 cargo run -p freespace-cli -- config set language en
 ```
 
-Expected: all volumes in the summary; full localization; portable mode does not write to the profile.
+Expected: all volumes in the summary; full localization; settings, journal and quarantine are in
+`<application folder>\data`, and `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary
+directories are not created. Verify uninstall: after removal the `data` directory and menu entries
+are absent.
 
 ## Release Readiness Criteria
 

@@ -342,7 +342,7 @@ impl DuplicatesState {
             self.error = Some("cannot open the journal".to_owned());
             return;
         };
-        let Ok(root) = Quarantine::default_root(false) else {
+        let Ok(root) = Quarantine::default_root() else {
             self.error = Some("cannot resolve the quarantine directory".to_owned());
             return;
         };

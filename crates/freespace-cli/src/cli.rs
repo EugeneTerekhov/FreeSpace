@@ -324,6 +324,7 @@ pub enum Command {
     },
 
     /// Install or remove Explorer context-menu entries.
+    #[cfg(feature = "context-menu")]
     ContextMenu {
         /// Integration action.
         #[command(subcommand)]
@@ -363,6 +364,7 @@ impl Command {
             Self::Export { .. } => "export",
             Self::Archives { .. } => "archives",
             Self::Monitor { .. } => "monitor",
+            #[cfg(feature = "context-menu")]
             Self::ContextMenu { .. } => "context-menu",
             Self::Schedule { .. } => "schedule",
         }
@@ -444,6 +446,9 @@ pub enum ContextMenuAction {
         /// Remove the machine-wide integration.
         #[arg(long)]
         machine: bool,
+        /// Remove both the current-user and machine-wide integrations.
+        #[arg(long)]
+        all: bool,
     },
 }
 

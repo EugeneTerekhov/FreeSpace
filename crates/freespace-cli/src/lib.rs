@@ -245,7 +245,7 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             keep_rule,
         } => {
             let settings = load_settings(cli)?;
-            let cache = freespace_ops::store::default_path_with(settings.portable_mode)
+            let cache = freespace_ops::store::default_path()
                 .ok()
                 .and_then(|path| freespace_analysis::HashCache::open(&path).ok());
             commands::duplicates::run(
@@ -317,14 +317,13 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                     "`--mode recycle|quarantine|permanent` is required".to_owned(),
                 )
             })?;
-            let path = freespace_ops::store::default_path_with(settings.portable_mode)?;
+            let path = freespace_ops::store::default_path()?;
             let store = freespace_ops::Store::open(&path)?;
             commands::delete::run(
                 targets,
                 mode,
                 cli.yes,
                 &store,
-                settings.portable_mode,
                 settings.quarantine_retention_days,
                 settings.units,
             )
@@ -441,12 +440,15 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                 },
             )
         }
-        Command::ContextMenu { action } => commands::context_menu::run(action, None),
+        #[cfg(feature = "context-menu")]
+        Command::ContextMenu { action } => {
+            commands::context_menu::run(action, None, cli.config.as_deref())
+        }
     }
 }
 
-fn open_store(settings: &Settings) -> Option<freespace_ops::Store> {
-    freespace_ops::store::default_path_with(settings.portable_mode)
+fn open_store(_settings: &Settings) -> Option<freespace_ops::Store> {
+    freespace_ops::store::default_path()
         .ok()
         .and_then(|path| freespace_ops::Store::open(&path).ok())
 }

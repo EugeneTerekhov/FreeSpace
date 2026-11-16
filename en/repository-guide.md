@@ -42,14 +42,14 @@ FreeSpace/
 │   └── memory/constitution.md         # project constitution (mandatory)
 ├── .opencode/commands/                # /speckit.* commands for OpenCode
 ├── specs/001-freespace-disk-analyzer/ # canonical artifacts (Russian)
-│   ├── spec.md                        # specification: 23 stories, 95 FRs, 16 SCs
+│   ├── spec.md                        # specification: 23 stories, 96 FRs, 18 SCs
 │   ├── plan.md                        # plan: stack, architecture, Constitution Check
 │   ├── research.md                    # 22 technical decisions and alternatives
 │   ├── data-model.md                  # 20 entities and integrity rules
 │   ├── quickstart.md                  # end-to-end validation scenarios
 │   ├── contracts/                     # CLI, report formats, snapshot format
 │   ├── checklists/                    # requirements quality checklists
-│   └── tasks.md                       # 161 tasks across 26 phases
+│   └── tasks.md                       # 169 tasks across 27 phases
 ├── ru/                                # Russian documentation mirrors
 ├── en/                                # English documentation translations
 ├── AGENTS.md                          # rules for AI agents

@@ -144,6 +144,8 @@ pub struct FreeSpaceApp {
     settings: Settings,
     settings_path: Option<PathBuf>,
     settings_saved: bool,
+    #[cfg(feature = "context-menu")]
+    last_context_menu_enabled: bool,
     last_error: Option<String>,
     scan: ScanState,
     scan_result: Option<Arc<freespace_scan::ScanResult>>,
@@ -185,7 +187,18 @@ impl FreeSpaceApp {
             .egui_ctx
             .send_viewport_cmd(egui::ViewportCommand::Title(window_title()));
 
-        Self::with_settings(settings, settings_path)
+        // `mut` is only needed when the optional context-menu feature is on.
+        #[allow(unused_mut)]
+        let mut app = Self::with_settings(settings, settings_path);
+
+        #[cfg(feature = "context-menu")]
+        if app.settings.context_menu_enabled {
+            if let Err(error) = freespace_platform::context_menu::ContextMenu::set_enabled(true) {
+                app.last_error = Some(format!("cannot restore the context menu: {error}"));
+            }
+        }
+
+        app
     }
 
     /// Creates the shell from explicit settings; used by tests.
@@ -196,6 +209,8 @@ impl FreeSpaceApp {
 
         Self {
             page: Page::default(),
+            #[cfg(feature = "context-menu")]
+            last_context_menu_enabled: settings.context_menu_enabled,
             settings,
             settings_path,
             settings_saved: false,
@@ -269,20 +284,36 @@ impl FreeSpaceApp {
             return false;
         };
 
-        match self.settings.save(&path) {
-            Ok(()) => {
-                self.settings_path = Some(path.clone());
-                self.settings_state.set_path(Some(&path));
-                self.settings_saved = true;
-                self.last_error = None;
-                true
-            }
-            Err(error) => {
-                self.settings_saved = false;
-                self.last_error = Some(error.to_string());
-                false
+        if let Err(error) = self.settings.save(&path) {
+            self.settings_saved = false;
+            self.last_error = Some(error.to_string());
+
+            return false;
+        }
+
+        self.settings_path = Some(path.clone());
+        self.settings_state.set_path(Some(&path));
+        self.settings_saved = true;
+        self.last_error = None;
+
+        #[cfg(feature = "context-menu")]
+        if self.settings.context_menu_enabled != self.last_context_menu_enabled {
+            match freespace_platform::context_menu::ContextMenu::set_enabled(
+                self.settings.context_menu_enabled,
+            ) {
+                Ok(_) => {
+                    self.last_context_menu_enabled = self.settings.context_menu_enabled;
+                }
+                Err(error) => {
+                    self.last_error = Some(format!(
+                        "settings saved, but the context menu failed: {error}"
+                    ));
+                    self.settings_saved = false;
+                }
             }
         }
+
+        self.settings_saved
     }
 
     fn top_bar(&mut self, context: &egui::Context) {
@@ -401,9 +432,7 @@ impl FreeSpaceApp {
                 self.snapshots
                     .ui(ui, self.scan_result.as_deref(), self.settings.units);
             }
-            Page::Journal => self
-                .journal
-                .ui(ui, self.settings.portable_mode, self.settings.units),
+            Page::Journal => self.journal.ui(ui, self.settings.units),
             Page::SizeDetails => self.size_details.ui(ui, self.settings.units),
             Page::LongPaths => self.long_paths.ui(ui, self.settings.units),
             Page::Rename => self.rename.ui(ui),
@@ -557,9 +586,12 @@ mod tests {
     }
 
     #[test]
-    fn portable_settings_path_is_used() {
-        let path = settings_path(std::path::Path::new(r"C:\Tools\FreeSpace"), None, true);
+    fn settings_live_in_the_application_data_directory() {
+        let path = settings_path(std::path::Path::new(r"C:\Tools\FreeSpace\data"));
 
-        assert!(path.ends_with("settings.toml"));
+        assert_eq!(
+            path,
+            std::path::Path::new(r"C:\Tools\FreeSpace\data\settings.toml")
+        );
     }
 }

@@ -6,6 +6,7 @@ pub mod archives;
 pub mod attrs;
 pub mod cleanup;
 pub mod config;
+#[cfg(feature = "context-menu")]
 pub mod context_menu;
 pub mod delete;
 pub mod drives;

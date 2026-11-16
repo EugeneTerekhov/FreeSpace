@@ -4,6 +4,31 @@ All notable changes to FreeSpace are documented in this file. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-11-16
+
+### Added
+
+- `context_menu_enabled` setting (disabled by default) and a portable build
+  produced with `--no-default-features` that contains no Explorer integration.
+- `freespace context-menu uninstall --all` for idempotent cleanup of both user
+  and machine registry scopes.
+- Regression tests that production sources never resolve `%APPDATA%`,
+  `%LOCALAPPDATA%`, `%ProgramData%` or temporary directories.
+
+### Changed
+
+- All persistent data now lives in `<exe_dir>\data`; settings, journal,
+  quarantine, hash cache and the CLI lock no longer use the user profile.
+- The Inno Setup installer registers no context-menu entries and the uninstaller
+  removes `{app}\data` plus both registry scopes.
+- The CLI binary is built as `freespace.exe`, matching the installer and portable
+  archive layout.
+
+### Removed
+
+- `portable_mode` setting and `portable.flag` marker; storage is always
+  application-local.
+
 ## [1.0.0] — 2026-11-16
 
 ### Added

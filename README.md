@@ -22,12 +22,13 @@ automates cleanup via CLI.
 путей, массовое переименование с предпросмотром и откатом, пакетная смена атрибутов, владельца и
 прав NTFS, метаданные EXIF/аудио/видео/PE с фильтрацией, отчёт по владельцам, просмотр ZIP/7z/
 TAR/GZ/ISO без распаковки, экспорт CSV/XML/HTML/XLSX и автоматизация CLI с блокировкой
-параллельных запусков и экспортом задания Планировщика, контекстное меню Проводника, мониторинг
-записи на диск с ETW и резервным режимом по счётчикам, повышение прав по требованию, дашборд всех
-дисков и портативный режим. CLI: `scan`, `tree`, `top`, `types`,
+параллельных запусков и экспортом задания Планировщика, контекстное меню Проводника (выключено по
+умолчанию), мониторинг записи на диск с ETW и резервным режимом по счётчикам, повышение прав по
+требованию, дашборд всех дисков и локальное хранение в папке `data` рядом с исполняемым файлом.
+CLI: `scan`, `tree`, `top`, `types`,
 `filter`, `duplicates`, `owners`, `cleanup`, `unlock`, `shred`, `snapshot`, `delete`, `rename`,
 `attrs`, `acl`, `archives`, `export`, `schedule`, `drives`, `config`, `monitor` и `context-menu`
-(T026–T159).
+(T026–T169).
 Phases 3–20 (US1–US18) are complete: NTFS scanning through the MFT and the USN journal, the
 directory-walk fallback, the size tree with search and sorting, the interactive treemap with zoom
 and legend, file unlocking through the Restart Manager and deletion on reboot, top files and type
@@ -38,11 +39,23 @@ accounting for hard links, reparse points, compression, sparse files and ADS, th
 manager, bulk rename with preview and rollback, batch attribute, owner and NTFS permission changes,
 EXIF/audio/video/PE metadata with filtering, per-owner reports, ZIP/7z/TAR/GZ/ISO inspection
 without unpacking, CSV/XML/HTML/XLSX export, CLI automation with parallel-run locking and Task
-Scheduler export, Explorer context-menu integration, real-time write monitoring through ETW with a
-counter-based fallback, on-demand elevation, the all-drive dashboard and portable mode. CLI: `scan`,
+Scheduler export, Explorer context-menu integration (disabled by default), real-time write monitoring
+through ETW with a counter-based fallback, on-demand elevation, the all-drive dashboard and
+application-local storage in the `data` folder next to the executable. CLI: `scan`,
 `tree`, `top`, `types`, `filter`, `duplicates`, `owners`, `cleanup`, `unlock`, `shred`, `snapshot`,
 `delete`, `rename`, `attrs`, `acl`, `archives`, `export`, `schedule`, `drives`, `config`, `monitor`
-and `context-menu` (T026–T159).
+and `context-menu` (T026–T169).
+
+## Хранение и контекстное меню / Storage and context menu
+
+Все данные — `settings.toml`, `freespace.db`, карантин, кеш хешей и блокировка CLI — находятся в
+папке `data` рядом с исполняемым файлом. `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` и временные
+каталоги не используются. Пункты контекстного меню отсутствуют по умолчанию и включаются настройкой
+`context_menu_enabled`; портативная сборка собирается с `--no-default-features` без этого компонента.
+All data lives in the `data` folder next to the executable; `%APPDATA%`, `%LOCALAPPDATA%`,
+`%ProgramData%` and temporary directories are never used. Explorer entries are disabled by default
+and are controlled by `context_menu_enabled`; the portable build is produced with
+`--no-default-features` and contains no context-menu component.
 
 ## Документация / Documentation
 

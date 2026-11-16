@@ -1630,7 +1630,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-analysis"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "criterion",
  "flate2",
@@ -1657,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-cli"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "clap",
  "freespace-analysis",
@@ -1676,7 +1676,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-core"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "globset",
  "rust-i18n",
@@ -1692,7 +1692,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-gui"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "criterion",
  "eframe",
@@ -1709,7 +1709,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-ops"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "freespace-core",
  "freespace-platform",
@@ -1726,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-platform"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ferrisetw",
  "freespace-core",
@@ -1739,7 +1739,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-report"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ciborium",
  "csv",
@@ -1758,7 +1758,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-scan"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "criterion",
  "freespace-core",
@@ -1773,7 +1773,7 @@ dependencies = [
 
 [[package]]
 name = "freespace-tests"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "clap",
  "csv",

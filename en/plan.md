@@ -44,8 +44,10 @@ archives), and automation (reports, scheduling, context menu, monitoring).
   feature so large XLSX exports stream to a temporary file.
 - CLI locks use the existing `windows` crate (`LockFileEx`); no new dependency is required.
 
-**Storage**: SQLite (operations journal, quarantine index, automation settings); snapshot files
-`.fssnap` (CBOR + zstd, versioned schema); TOML/JSON configuration
+**Storage**: only the `data` directory next to the executable. SQLite (operations journal, quarantine
+index, hash cache), TOML settings, quarantine and the CLI lock live there; snapshot files `.fssnap`
+(CBOR + zstd, versioned schema). `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary
+directories are not used.
 
 **Testing**: `cargo test` (unit + integration), `assert_cmd`/`predicates` (CLI), `tempfile` and
 `assert_fs` (file system fixtures), `criterion` (benchmarks), administrative tests on NTFS/VHD —
@@ -69,8 +71,12 @@ only behind an explicit environment flag
 - UAC elevation on demand; correct degradation without administrator permissions
 - All destructive operations — only after confirmation and with journaling
 - GUI and CLI use the shared core crates; feature parity is mandatory
+- No writes to `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` or temporary directories; without
+  write access the application works in memory with a notification and no system fallback
+- The context menu is disabled by default and controlled by `context_menu_enabled`; the portable
+  build is produced with `--no-default-features` and no `context-menu` component
 
-**Scale/Scope**: up to 10 million files per volume, volumes up to 8 TB, 23 user stories, 95
+**Scale/Scope**: up to 10 million files per volume, volumes up to 8 TB, 23 user stories, 96
 functional requirements; 8 core/utility crates + GUI application
 
 ## Constitution Check
@@ -83,11 +89,25 @@ functional requirements; 8 core/utility crates + GUI application
 | II. Accuracy of space accounting | PASS | `SizeMetrics` (logical/on disk/physical), hard link deduplication by FRN, ADS, sparse/compressed |
 | III. Performance at large scale | PASS | MFT + USN, `rayon`, streaming result delivery, Treemap LOD, table virtualization |
 | IV. Native Windows accuracy | PASS | `windows` crate, verbatim paths, Restart Manager, ACL API, TRIM, registry, ETW |
-| V. Test-first approach | PASS | File system fixtures, integration tests, benchmarks, administrative tests behind a flag |
-| VI. CLI and GUI parity | PASS | Shared core crates, CLI on `clap` with JSON output and documented return codes |
-| VII. Privacy and offline | PASS | No network dependencies or telemetry; all data is local |
+| V. Test-first approach | PASS | File system fixtures, integration tests, system-directory regression, administrative tests behind a flag |
+| VI. CLI and GUI parity | PASS | Shared core crates, CLI on `clap` with JSON output, `context-menu uninstall` and documented return codes |
+| VII. Privacy and offline | PASS | No network dependencies or telemetry; all data is local in the application directory |
 
 There are no violations requiring justification in Complexity Tracking.
+
+## Amendment 2026-11-16 — Storage and context-menu policy
+
+- `freespace-core::settings::data_root()` is the single source of the data directory:
+  `<exe_dir>\data`. Settings, `freespace.db`, `Quarantine` and `cli.lock` are resolved through it;
+  `portable_mode` and `portable.flag` are removed.
+- `context_menu_enabled` (default `false`) controls Explorer entries. CLI
+  `config set context_menu_enabled` and the GUI apply it immediately; `context-menu install` and
+  `uninstall` synchronize the setting.
+- `freespace-platform` gained an optional `context-menu` Cargo feature (enabled by default). The
+  portable build uses `--no-default-features`, so it contains no `winreg`, no `context-menu`
+  command and no menu entries.
+- The Inno Setup installer no longer registers entries; the uninstaller calls
+  `context-menu uninstall` for both scopes and removes `{app}\data`.
 
 ## Project Structure
 
