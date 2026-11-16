@@ -99,12 +99,14 @@ Canonical Spec Kit artifacts live in [specs/001-freespace-disk-analyzer/](specs/
 ## Интерфейс / UI
 
 Нативное приложение — `apps/freespace-desktop` (Tauri 2 + React): один GUI, 24 экрана и общие
-дизайн-токены. Интерактивный макет языка интерфейса остался в [web/](web/) как визуальный
-референс; он не входит в поставку. Визуальные эталоны и галерея для ревью —
+дизайн-токены. Интерактивный макет языка интерфейса вынесен в отдельный проект
+FreeSpace-Page (GitHub Pages) как визуальный референс; он не входит в поставку. Визуальные
+эталоны и галерея для ревью —
 [apps/freespace-desktop/ui/tests/visual/gallery/](apps/freespace-desktop/ui/tests/visual/gallery/).
 The native client lives in `apps/freespace-desktop` (Tauri 2 + React): one GUI, 24 screens and
-shared design tokens. The interactive UI-language mock remains in [web/](web/) as a visual
-reference and is not part of the distribution. The visual baselines and the review gallery are in
+shared design tokens. The interactive UI-language mock now lives in the separate FreeSpace-Page
+GitHub Pages project as a visual reference and is not part of the distribution. The visual
+baselines and the review gallery are in
 [apps/freespace-desktop/ui/tests/visual/gallery/](apps/freespace-desktop/ui/tests/visual/gallery/).
 
 ## Процесс / Process

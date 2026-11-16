@@ -28,9 +28,6 @@ lcov.info
 # Packaging output
 /dist/
 
-# Product site build
-/web/dist/
-
 # Desktop client build and test artifacts
 /apps/freespace-desktop/src-tauri/gen/
 /apps/freespace-desktop/ui/dist/
