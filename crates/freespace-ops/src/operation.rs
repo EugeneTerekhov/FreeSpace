@@ -326,6 +326,17 @@ impl Operation {
         operation
     }
 
+    /// Creates a planned operation with an explicit identifier.
+    ///
+    /// Used when the interface already assigned the operation identifier at
+    /// confirmation time; the journal must keep that identifier.
+    #[must_use]
+    pub fn with_id(kind: OperationKind, targets: Vec<OperationTarget>, id: Uuid) -> Self {
+        let mut operation = Self::new(kind, targets);
+        operation.id = id;
+        operation
+    }
+
     /// Sets the deletion mode.
     ///
     /// # Errors

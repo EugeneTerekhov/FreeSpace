@@ -1,0 +1,112 @@
+.table {
+  position: relative;
+  overflow: auto;
+  border: var(--fs-border);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface);
+  outline-offset: -2px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--fs-z-sticky);
+  display: grid;
+  align-items: center;
+  min-height: 34px;
+  border-bottom: var(--fs-border);
+  background: var(--fs-surface-raised);
+  color: var(--fs-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.headerCell {
+  padding: 0 var(--fs-space-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sortButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+
+.body {
+  position: relative;
+}
+
+.row.staticRow {
+  position: relative;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--fs-line);
+  color: var(--fs-text);
+  font-size: 13px;
+  cursor: default;
+}
+
+.row:focus {
+  outline: none;
+}
+
+.row:focus-visible,
+.row[data-focus-visible='true']:focus {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: -2px;
+}
+
+.selectedMark {
+  margin-right: var(--fs-space-1);
+  color: var(--fs-accent-strong);
+}
+
+.row:hover {
+  background: var(--fs-surface-overlay);
+}
+
+.selected,
+.selected:hover {
+  background: var(--fs-selection);
+}
+
+.cell {
+  padding: 0 var(--fs-space-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alignEnd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: var(--fs-space-6);
+  color: var(--fs-text-subtle);
+  font-size: 13px;
+}
+
+.statusRow {
+  padding: var(--fs-space-3) var(--fs-space-4);
+  border-bottom: var(--fs-border);
+  font-size: 12px;
+}

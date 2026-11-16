@@ -224,6 +224,10 @@ impl Settings {
     /// Saves settings atomically enough for a single-user desktop app:
     /// parent directories are created, then the file is replaced.
     ///
+    /// Unknown sections written by the desktop client (for example `[ui]`) and
+    /// any future keys are preserved: only the known core keys are replaced.
+    /// This keeps `freespace config set` from erasing interface settings.
+    ///
     /// # Errors
     /// Returns an error when the directory cannot be created or the file cannot
     /// be written.
@@ -234,12 +238,32 @@ impl Settings {
             }
         }
 
-        let text = self.to_toml_string()?;
+        let text = self.merged_toml(path)?;
         let temporary = path.with_extension("toml.tmp");
         fs::write(&temporary, text)?;
         fs::rename(&temporary, path)?;
 
         Ok(())
+    }
+
+    /// Serialises the settings on top of the existing document.
+    fn merged_toml(&self, path: &Path) -> Result<String> {
+        let existing = fs::read_to_string(path)
+            .ok()
+            .and_then(|text| toml::from_str::<toml::Value>(&text).ok());
+        let Some(mut document) = existing else {
+            return self.to_toml_string();
+        };
+
+        let own = toml::Value::try_from(self).map_err(|error| Error::Config(error.to_string()))?;
+        let (Some(target), toml::Value::Table(source)) = (document.as_table_mut(), own) else {
+            return self.to_toml_string();
+        };
+        for (key, value) in source {
+            target.insert(key, value);
+        }
+
+        toml::to_string_pretty(&document).map_err(|error| Error::Config(error.to_string()))
     }
 
     /// Applies the configured language to the runtime translation backend.
@@ -542,6 +566,38 @@ mod tests {
             Settings::load(&directory.path().join("missing.toml")).expect("default"),
             Settings::default()
         );
+    }
+
+    #[test]
+    fn save_preserves_unknown_sections_written_by_the_desktop() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("settings.toml");
+        let original = r#"
+language = "en"
+theme = "dark"
+future_key = "keep me"
+
+[ui]
+theme = "light"
+density = "compact"
+
+[ui.saved_filters]
+dashboard = []
+"#;
+        std::fs::write(&path, original).expect("seed");
+
+        let mut settings = Settings::load(&path).expect("load");
+        settings.set_value("language", "ru").expect("language");
+        settings.save(&path).expect("save");
+
+        let text = std::fs::read_to_string(&path).expect("read");
+        let document: toml::Value = toml::from_str(&text).expect("toml");
+        assert_eq!(document["language"].as_str(), Some("ru"));
+        assert_eq!(document["theme"].as_str(), Some("dark"));
+        assert_eq!(document["future_key"].as_str(), Some("keep me"));
+        assert_eq!(document["ui"]["theme"].as_str(), Some("light"));
+        assert_eq!(document["ui"]["density"].as_str(), Some("compact"));
+        assert!(document["ui"]["saved_filters"].is_table());
     }
 
     #[test]

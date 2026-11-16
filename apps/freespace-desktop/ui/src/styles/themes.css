@@ -1,0 +1,92 @@
+/*
+ * Colour themes. `boot.js` sets data-theme before the first paint; the React
+ * runtime only updates it on an explicit change. Both palettes are part of the
+ * AA contrast test in tests/unit/tokens.test.ts.
+ */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --fs-bg: #07060c;
+  --fs-surface: #110e1b;
+  --fs-surface-raised: #171327;
+  --fs-surface-overlay: #1f1930;
+
+  --fs-line: rgb(255 255 255 / 7.5%);
+  --fs-line-strong: rgb(255 255 255 / 14%);
+
+  --fs-text: #f4efe9;
+  --fs-text-muted: #b3aabf;
+  --fs-text-subtle: #8f8799;
+
+  --fs-accent: #ff8a3d;
+  --fs-accent-strong: #ffb56b;
+  --fs-accent-ink: #1a1208;
+  --fs-violet: #a06bff;
+  --fs-success: #7ee8a9;
+  --fs-danger: #f87171;
+  --fs-warning: #fbbf24;
+  --fs-info: #7dd3fc;
+  --fs-focus: #ffb56b;
+  --fs-selection: rgb(255 138 61 / 16%);
+
+  /* Treemap categories */
+  --fs-tm-1: #ff8a3d;
+  --fs-tm-2: #a06bff;
+  --fs-tm-3: #7dd3fc;
+  --fs-tm-4: #7ee8a9;
+  --fs-tm-5: #fbbf24;
+  --fs-tm-6: #f87171;
+  --fs-tm-7: #67e8f9;
+  --fs-tm-8: #c084fc;
+  --fs-tm-9: #fda4af;
+  --fs-tm-10: #a3e635;
+
+  /* Treemap label ink: one of the two has AA contrast on every tile. */
+  --fs-tile-ink: #1a1208;
+  --fs-tile-ink-alt: #fffdfa;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --fs-bg: #f6f2ec;
+  --fs-surface: #ffffff;
+  --fs-surface-raised: #fffdfa;
+  --fs-surface-overlay: #f1eae2;
+
+  --fs-line: rgb(17 14 27 / 12%);
+  --fs-line-strong: rgb(17 14 27 / 22%);
+
+  --fs-text: #1b1626;
+  --fs-text-muted: #5a5364;
+  --fs-text-subtle: #776f81;
+
+  --fs-accent: #e06a1c;
+  --fs-accent-strong: #a8430a;
+  --fs-accent-ink: #1a1208;
+  --fs-violet: #6d3fd1;
+  --fs-success: #1f7a4d;
+  --fs-danger: #b42318;
+  --fs-warning: #8a5a00;
+  --fs-info: #0b6a8a;
+  --fs-focus: #a8430a;
+  --fs-selection: rgb(224 106 28 / 14%);
+
+  /* Treemap categories */
+  --fs-tm-1: #d0601a;
+  --fs-tm-2: #6d3fd1;
+  --fs-tm-3: #0b6a8a;
+  --fs-tm-4: #1f7a4d;
+  --fs-tm-5: #8a5a00;
+  --fs-tm-6: #b42318;
+  --fs-tm-7: #0e7490;
+  --fs-tm-8: #7e22ce;
+  --fs-tm-9: #be123c;
+  --fs-tm-10: #4d7c0f;
+
+  /* Treemap label ink: one of the two has AA contrast on every tile. */
+  --fs-tile-ink: #1a1208;
+  --fs-tile-ink-alt: #fffdfa;
+}

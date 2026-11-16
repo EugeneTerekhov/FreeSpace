@@ -8,6 +8,7 @@ use std::{
     collections::HashMap,
     fs, io,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use freespace_core::{Error, Result, Uuid};
@@ -71,6 +72,10 @@ pub struct DeletedItem {
 /// Aggregate result of a deletion.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeleteOutcome {
+    /// Identifier of the executed operation.
+    pub operation_id: Uuid,
+    /// Terminal state of the operation.
+    pub status: OperationStatus,
     /// Per-object results.
     pub items: Vec<DeletedItem>,
     /// Summary of the underlying operation.
@@ -104,6 +109,38 @@ pub fn delete_paths(
     options: &DeleteOptions,
     confirmed: bool,
 ) -> Result<DeleteOutcome> {
+    delete_paths_cancellable(
+        store,
+        quarantine,
+        targets,
+        options,
+        confirmed,
+        Uuid::new_v4(),
+        None,
+        &mut |_, _, _| {},
+    )
+}
+
+/// Deletes `targets`, stopping between objects when `cancel` is set.
+///
+/// The observer receives `(processed, total, path)` after every target, before
+/// the next one starts. Cancellation is cooperative: the object in flight is
+/// finished, the remaining targets stay pending and the operation ends as
+/// `cancelled` with the actual partial result journalled.
+///
+/// # Errors
+/// Returns the same errors as [`delete_paths`].
+#[allow(clippy::too_many_arguments)]
+pub fn delete_paths_cancellable(
+    store: &Store,
+    quarantine: Option<&Quarantine>,
+    targets: &[PathBuf],
+    options: &DeleteOptions,
+    confirmed: bool,
+    operation_id: Uuid,
+    cancel: Option<&AtomicBool>,
+    observer: &mut dyn FnMut(usize, usize, &Path),
+) -> Result<DeleteOutcome> {
     require_confirmation(confirmed)?;
     if targets.is_empty() {
         return Err(Error::InvalidArgument(
@@ -134,8 +171,8 @@ pub fn delete_paths(
         .iter()
         .map(|path| OperationTarget::new(path.clone(), sizes.get(path).copied().unwrap_or(0)))
         .collect();
-    let mut operation =
-        Operation::new(OperationKind::Delete, operation_targets).with_delete_mode(options.mode)?;
+    let mut operation = Operation::with_id(OperationKind::Delete, operation_targets, operation_id)
+        .with_delete_mode(options.mode)?;
     operation.requires_elevation = options.allow_protected;
     operation.confirm()?;
     operation.begin()?;
@@ -143,17 +180,23 @@ pub fn delete_paths(
     let mut items = Vec::with_capacity(targets.len());
     let mut quarantine_ids = Vec::new();
     let mut first_error: Option<Error> = None;
+    let mut cancelled = false;
 
     for (index, path) in targets.iter().enumerate() {
+        if cancel.is_some_and(|flag| flag.load(Ordering::Relaxed)) {
+            cancelled = true;
+            break;
+        }
         let size = sizes.get(path).copied().unwrap_or(0);
-        match delete_one(
+        let result = delete_one(
             store,
             quarantine,
             path,
             options.mode,
             &options.reason,
             options.retention_days,
-        ) {
+        );
+        match result {
             Ok(quarantine_id) => {
                 if let Some(id) = quarantine_id {
                     quarantine_ids.push(id.to_string());
@@ -180,10 +223,13 @@ pub fn delete_paths(
                 });
             }
         }
+        observer(index + 1, targets.len(), path);
     }
 
     let succeeded = items.iter().filter(|item| item.error.is_none()).count();
-    let status = if succeeded == items.len() {
+    let status = if cancelled {
+        OperationStatus::Cancelled
+    } else if succeeded == items.len() {
         OperationStatus::Completed
     } else if succeeded == 0 {
         OperationStatus::Failed
@@ -211,15 +257,21 @@ pub fn delete_paths(
             "reason".to_owned(),
             serde_json::Value::String(options.reason.clone()),
         );
+        details.insert(
+            "status".to_owned(),
+            serde_json::Value::String(operation.status.as_str().to_owned()),
+        );
     }
     let journal_id = store.journal_append(&entry).ok();
 
-    if succeeded == 0 {
+    if !cancelled && succeeded == 0 {
         return Err(first_error
             .unwrap_or_else(|| Error::Operation("no object could be deleted".to_owned())));
     }
 
     Ok(DeleteOutcome {
+        operation_id: operation.id,
+        status: operation.status,
         items,
         summary: operation.result_summary.unwrap_or_default(),
         journal_id,

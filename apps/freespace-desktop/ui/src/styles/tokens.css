@@ -1,0 +1,98 @@
+/*
+ * Design tokens shared by both themes.
+ *
+ * Components use only var(--fs-*). Colours live in themes.css so the palette can
+ * be swapped without touching this file. `npm run check:tokens` rejects hard-coded
+ * colours outside the two stylesheets.
+ */
+
+:root {
+  /* Typography */
+  --fs-font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fs-font-display: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --fs-font-mono: "Cascadia Mono", "Consolas", monospace;
+
+  --fs-text-xs: 11px/16px;
+  --fs-text-sm: 12px/18px;
+  --fs-text-base: 13px/20px;
+  --fs-text-md: 14px/22px;
+  --fs-text-lg: 16px/24px;
+  --fs-text-xl: 20px/28px;
+  --fs-text-2xl: 24px/32px;
+  --fs-text-3xl: 32px/40px;
+  --fs-text-4xl: 40px/48px;
+
+  --fs-weight-regular: 400;
+  --fs-weight-medium: 500;
+  --fs-weight-semibold: 600;
+  --fs-weight-bold: 700;
+
+  /* Space */
+  --fs-space-1: 4px;
+  --fs-space-2: 8px;
+  --fs-space-3: 12px;
+  --fs-space-4: 16px;
+  --fs-space-5: 20px;
+  --fs-space-6: 24px;
+  --fs-space-8: 32px;
+  --fs-space-10: 40px;
+
+  /* Radius */
+  --fs-radius-sm: 6px;
+  --fs-radius-md: 8px;
+  --fs-radius-lg: 10px;
+  --fs-radius-xl: 14px;
+  --fs-radius-2xl: 20px;
+  --fs-radius-pill: 999px;
+
+  /* Borders */
+  --fs-border: 1px solid var(--fs-line);
+  --fs-border-strong: 1px solid var(--fs-line-strong);
+
+  /* Shadows */
+  --fs-shadow-1: 0 1px 2px rgb(0 0 0 / 24%);
+  --fs-shadow-2: 0 8px 24px rgb(0 0 0 / 32%);
+  --fs-overlay-backdrop: rgb(0 0 0 / 55%);
+
+  /* Layers */
+  --fs-z-sticky: 10;
+  --fs-z-dropdown: 100;
+  --fs-z-overlay: 200;
+  --fs-z-dialog: 300;
+  --fs-z-toast: 400;
+  --fs-z-tooltip: 500;
+
+  /* Density and chrome */
+  --fs-row-comfortable: 36px;
+  --fs-row-compact: 30px;
+  --fs-row-height: var(--fs-row-comfortable);
+  --fs-header: 56px;
+  --fs-sidebar: 240px;
+  --fs-sidebar-collapsed: 64px;
+  --fs-status: 28px;
+
+  /* Motion */
+  --fs-motion-hover: 120ms;
+  --fs-motion-panel: 180ms;
+  --fs-motion-dialog: 240ms;
+  --fs-motion-reduced: 0ms;
+  --fs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root[data-density="compact"] {
+  --fs-row-height: var(--fs-row-compact);
+}
+
+:root[data-reduced-motion="true"] {
+  --fs-motion-hover: var(--fs-motion-reduced);
+  --fs-motion-panel: var(--fs-motion-reduced);
+  --fs-motion-dialog: var(--fs-motion-reduced);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fs-motion-hover: var(--fs-motion-reduced);
+    --fs-motion-panel: var(--fs-motion-reduced);
+    --fs-motion-dialog: var(--fs-motion-reduced);
+  }
+}

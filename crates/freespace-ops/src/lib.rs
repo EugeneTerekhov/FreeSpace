@@ -50,7 +50,9 @@ pub use confirm::{
     Preview, PreviewItem, PreviewItemKind, SpaceShortage, is_protected_path, preview_delete,
     require_confirmation,
 };
-pub use delete::{DeleteOptions, DeleteOutcome, DeletedItem, delete_paths};
+pub use delete::{
+    DeleteOptions, DeleteOutcome, DeletedItem, delete_paths, delete_paths_cancellable,
+};
 pub use guarded::{GuardReport, enforce as enforce_guard, inspect as inspect_guard};
 pub use long_path_ops::{LongPathOperation, LongPathOutcome};
 pub use operation::{

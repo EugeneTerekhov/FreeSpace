@@ -1,8 +1,9 @@
 [workspace]
 resolver = "3"
 members = [
-    "apps/freespace-gui",
+    "apps/freespace-desktop/src-tauri",
     "crates/freespace-analysis",
+    "crates/freespace-app",
     "crates/freespace-cli",
     "crates/freespace-core",
     "crates/freespace-ops",
@@ -11,10 +12,10 @@ members = [
     "crates/freespace-scan",
     "tests",
 ]
-default-members = ["apps/freespace-gui", "crates/freespace-cli"]
+default-members = ["apps/freespace-desktop/src-tauri", "crates/freespace-cli"]
 
 [workspace.package]
-version = "1.1.0"
+version = "1.2.0"
 edition = "2024"
 rust-version = "1.85"
 
@@ -71,7 +72,8 @@ ferrisetw = "1.2"
 
 # Frontends
 clap = { version = "4.6", features = ["derive"] }
-eframe = "0.32"
+tauri = { version = "2" }
+tauri-build = { version = "2" }
 
 # Test and benchmark support
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
@@ -83,6 +85,7 @@ freespace-platform = { path = "crates/freespace-platform", default-features = fa
 freespace-scan = { path = "crates/freespace-scan" }
 freespace-ops = { path = "crates/freespace-ops" }
 freespace-analysis = { path = "crates/freespace-analysis" }
+freespace-app = { path = "crates/freespace-app" }
 freespace-report = { path = "crates/freespace-report" }
 freespace-cli = { path = "crates/freespace-cli" }
 

@@ -11,6 +11,7 @@ clap = { workspace = true }
 csv = { workspace = true }
 flate2 = { workspace = true }
 freespace-analysis = { workspace = true }
+freespace-app = { workspace = true }
 freespace-core = { workspace = true }
 freespace-cli = { workspace = true }
 freespace-ops = { workspace = true }
@@ -23,6 +24,7 @@ sevenz-rust = { workspace = true }
 tar = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }
+uuid = { workspace = true }
 zip = { workspace = true }
 
 [[test]]
@@ -124,6 +126,34 @@ path = "settings.rs"
 [[test]]
 name = "privacy"
 path = "privacy.rs"
+
+[[test]]
+name = "contract_fixtures"
+path = "contract/contract_fixtures.rs"
+
+[[test]]
+name = "core_commands"
+path = "contract/core_commands.rs"
+
+[[test]]
+name = "analysis_commands"
+path = "contract/analysis_commands.rs"
+
+[[test]]
+name = "operations_commands"
+path = "contract/operations_commands.rs"
+
+[[test]]
+name = "filesystem_commands"
+path = "contract/filesystem_commands.rs"
+
+[[test]]
+name = "inspection_commands"
+path = "contract/inspection_commands.rs"
+
+[[test]]
+name = "settings_commands"
+path = "contract/settings_commands.rs"
 
 [lints]
 workspace = true

@@ -1,0 +1,31 @@
+[package]
+name = "freespace-app"
+description = "Application services, DTOs and view-model helpers for the FreeSpace desktop client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+freespace-analysis = { workspace = true }
+freespace-core = { workspace = true }
+freespace-ops = { workspace = true }
+freespace-platform = { workspace = true }
+freespace-report = { workspace = true }
+freespace-scan = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+tempfile = { workspace = true }
+
+[[bench]]
+name = "treemap"
+path = "../../benches/treemap.rs"
+harness = false
+
+[lints]
+workspace = true

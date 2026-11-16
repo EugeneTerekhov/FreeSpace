@@ -1,0 +1,142 @@
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--fs-space-2);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--fs-space-3);
+  align-items: end;
+}
+
+.composition {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fs-space-3);
+  margin: var(--fs-space-3) 0 0;
+  padding: 0;
+  border: none;
+}
+
+.composition legend {
+  width: 100%;
+  margin-bottom: var(--fs-space-2);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-sm);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+}
+
+.tags {
+  display: block;
+  overflow: hidden;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path {
+  display: block;
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2);
+}
+
+.sid {
+  color: var(--fs-text-muted);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.archiveName {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fs-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  padding: var(--fs-space-1) var(--fs-space-2);
+  color: var(--fs-text-muted);
+  background: var(--fs-surface-overlay);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-pill);
+  font-size: var(--fs-text-xs);
+}
+
+.warnings {
+  margin: var(--fs-space-2) 0 0;
+  padding-inline-start: var(--fs-space-4);
+  color: var(--fs-warning);
+  font-size: var(--fs-text-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.table th {
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  font-weight: var(--fs-weight-medium);
+}
+
+.numeric {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -1,0 +1,178 @@
+/* Shared layout for the filesystem batch (size details, long paths, rename,
+   permissions and the journal filters). Colours come from design tokens only. */
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.4fr);
+  gap: var(--fs-space-3);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--fs-space-3);
+  align-items: end;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: var(--fs-space-2) var(--fs-space-2);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  font: inherit;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-sm);
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--fs-space-2) var(--fs-space-4);
+  margin: 0;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-1);
+  padding: var(--fs-space-2);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-surface);
+}
+
+.metricLabel {
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+}
+
+.metricValue {
+  color: var(--fs-text);
+  font-size: var(--fs-text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.metricNote {
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-xs);
+}
+
+.mono {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.pathText {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2);
+}
+
+.actionsEnd {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--fs-space-2);
+}
+
+.note {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-sm);
+}
+
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  font-weight: var(--fs-weight-medium);
+}
+
+.numeric {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.conflictRow td {
+  background: var(--fs-surface-overlay);
+  box-shadow: inset 3px 0 0 var(--fs-danger);
+}
+
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--fs-space-2);
+}
+
+.warnings {
+  margin: 0;
+  padding-inline-start: var(--fs-space-4);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-sm);
+}
+
+.changeValue {
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-sm);
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,278 @@
+.shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr var(--fs-status);
+  grid-template-areas:
+    "sidebar main"
+    "status status";
+  height: 100%;
+  background: var(--fs-bg);
+}
+
+.skipLink {
+  position: absolute;
+  top: var(--fs-space-2);
+  left: var(--fs-space-2);
+  z-index: var(--fs-z-toast);
+  padding: var(--fs-space-2) var(--fs-space-4);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-accent);
+  color: var(--fs-accent-ink);
+  font-size: 13px;
+  font-weight: var(--fs-weight-semibold);
+  text-decoration: none;
+  transform: translateY(-300%);
+  transition: transform var(--fs-motion-hover) var(--fs-ease);
+}
+
+.skipLink:focus,
+.skipLink:focus-visible {
+  transform: none;
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  width: var(--fs-sidebar);
+  min-width: var(--fs-sidebar);
+  border-right: var(--fs-border);
+  background: var(--fs-surface);
+  transition: width var(--fs-motion-panel) var(--fs-ease);
+}
+
+.sidebarCollapsed {
+  width: var(--fs-sidebar-collapsed);
+  min-width: var(--fs-sidebar-collapsed);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  height: var(--fs-header);
+  padding: 0 var(--fs-space-3);
+  border-bottom: var(--fs-border);
+  font-family: var(--fs-font-display);
+  font-size: 15px;
+  font-weight: var(--fs-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.navList {
+  flex: 1;
+  margin: 0;
+  padding: var(--fs-space-2);
+  list-style: none;
+  overflow: auto;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--fs-space-2);
+  border: 0;
+  border-radius: var(--fs-radius-md);
+  background: transparent;
+  color: var(--fs-text-muted);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.navItem:hover {
+  background: var(--fs-surface-overlay);
+  color: var(--fs-text);
+}
+
+.navItemActive {
+  background: var(--fs-selection);
+  color: var(--fs-text);
+}
+
+.navIcon {
+  display: inline-flex;
+  width: 18px;
+  justify-content: center;
+  flex: none;
+}
+
+.navLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collapsed .navLabel,
+.collapsed .brandText,
+.collapsed .navBadge,
+.sidebarCollapsed .navLabel,
+.sidebarCollapsed .brandText,
+.sidebarCollapsed .navBadge {
+  display: none;
+}
+
+.navBadge {
+  font-size: 11px;
+  color: var(--fs-text-subtle);
+}
+
+.sidebarFooter {
+  padding: var(--fs-space-2);
+  border-top: var(--fs-border);
+}
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  min-height: var(--fs-header);
+  padding: 0 var(--fs-space-5);
+  border-bottom: var(--fs-border);
+  background: var(--fs-surface);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--fs-font-display);
+  font-size: 18px;
+  font-weight: var(--fs-weight-semibold);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  color: var(--fs-text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  margin-left: auto;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--fs-space-5);
+}
+
+.statusBar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  padding: 0 var(--fs-space-3);
+  border-top: var(--fs-border);
+  background: var(--fs-surface);
+  color: var(--fs-text-subtle);
+  font-size: 11px;
+}
+
+.statusContent {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.statusSpacer {
+  margin-left: auto;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--fs-text-muted);
+}
+
+.crumbButton {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 2px 4px;
+  border-radius: var(--fs-radius-sm);
+}
+
+.crumbButton:hover {
+  background: var(--fs-surface-overlay);
+  color: var(--fs-text);
+}
+
+.crumbSeparator {
+  color: var(--fs-text-subtle);
+}
+
+.split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.splitPane {
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.splitHandle {
+  width: 6px;
+  cursor: col-resize;
+  background: var(--fs-line);
+  border: 0;
+  padding: 0;
+}
+
+.splitHandle:hover,
+.splitHandle:focus-visible {
+  background: var(--fs-accent);
+}
+
+/* High DPI shrinks the CSS viewport: keep the navigation compact instead of
+ * letting the shell squeeze the content. */
+@media (max-width: 900px) {
+  .sidebar {
+    width: var(--fs-sidebar-collapsed);
+    min-width: var(--fs-sidebar-collapsed);
+  }
+
+  .brandText,
+  .navLabel {
+    display: none;
+  }
+}
