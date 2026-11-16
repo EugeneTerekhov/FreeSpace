@@ -43,6 +43,7 @@ archives), and automation (reports, scheduling, context menu, monitoring).
 - Reports: `csv 1.4`, `quick-xml 0.42`, `rust_xlsxwriter 0.102` with the `constant_memory`
   feature so large XLSX exports stream to a temporary file.
 - CLI locks use the existing `windows` crate (`LockFileEx`); no new dependency is required.
+- Visual identity: `image 0.25` with the `png` feature decodes the embedded splash artwork and window icon; the `embed-resource 3` build dependency embeds `icon.ico` into the executable. `image` is already in the `eframe` dependency tree, so no new runtime crate is added.
 
 **Storage**: only the `data` directory next to the executable. SQLite (operations journal, quarantine
 index, hash cache), TOML settings, quarantine and the CLI lock live there; snapshot files `.fssnap`

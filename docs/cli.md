@@ -1,7 +1,7 @@
 # FreeSpace CLI contract
 
 **Contract version**: 1  
-**Applies to**: FreeSpace 1.1.x  
+**Applies to**: FreeSpace 1.2.x  
 **Source of truth**: `specs/001-freespace-disk-analyzer/contracts/cli.md`
 
 The CLI uses the same core crates as the GUI. Every GUI capability has a CLI

@@ -13,8 +13,8 @@ instructions conflict, precedence is: constitution → specification → plan �
 
 ### Контекст
 
-FreeSpace — нативная утилита для Windows (Rust + egui/eframe) для анализа и освобождения дискового
-пространства. Репозиторий сейчас содержит только SDD-документацию; исходного кода ещё нет.
+FreeSpace — нативная утилита для Windows (Rust + Tauri 2/React) для анализа и освобождения дискового
+пространства. Исходный код, тесты и SDD-документация находятся в репозитории.
 
 ### Обязательный порядок чтения
 
@@ -50,7 +50,7 @@ FreeSpace — нативная утилита для Windows (Rust + egui/eframe
 
 ### Технические правила
 
-- Rust stable 1.85+, edition 2024; workspace из `crates/*` и `apps/freespace-gui`.
+- Rust stable 1.85+, edition 2024; workspace из `crates/*` и `apps/freespace-desktop`.
 - Все вызовы WinAPI — только в `crates/freespace-platform`. Остальные крейты не используют
   `windows` напрямую.
 - Разрушающие операции — только через `crates/freespace-ops`: предпросмотр, подтверждение,
@@ -105,8 +105,8 @@ cargo fmt --all -- --check
 
 ### Context
 
-FreeSpace is a native Windows utility (Rust + egui/eframe) for analyzing and reclaiming disk space.
-The repository currently contains only the SDD documentation; there is no source code yet.
+FreeSpace is a native Windows utility (Rust + Tauri 2/React) for analyzing and reclaiming disk space.
+The repository contains the source code, tests and the SDD documentation.
 
 ### Mandatory reading order
 
@@ -141,7 +141,7 @@ constitution without explicit user approval and a version bump.
 
 ### Technical rules
 
-- Rust stable 1.85+, edition 2024; workspace of `crates/*` plus `apps/freespace-gui`.
+- Rust stable 1.85+, edition 2024; workspace of `crates/*` plus `apps/freespace-desktop`.
 - All WinAPI calls live in `crates/freespace-platform` only. Other crates must not use `windows`
   directly.
 - Destructive operations go through `crates/freespace-ops` only: preview, confirmation, deletion

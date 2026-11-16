@@ -1,4 +1,4 @@
-# FreeSpace User Guide 1.1
+# FreeSpace User Guide 1.2
 
 FreeSpace is a native Windows 10/11 utility that analyses disk usage, shows trees and maps, finds
 duplicates, helps reclaim space safely, and works completely offline.
@@ -8,8 +8,11 @@ duplicates, helps reclaim space safely, and works completely offline.
 - Portable build: unpack the ZIP into any folder and run `freespace-gui.exe`. The archive contains
   no Explorer integration; settings, the journal, cache and quarantine live in the `data` folder
   next to the executable.
-- Installer: run `freespace-setup.exe`. No context-menu entries are created during installation.
-  All application data lives in `data` next to the executable.
+- Installer: run `FreeSpace_1.2.0_x64-setup.exe` (the name contains the version). The Tauri NSIS
+  installer installs a compatible WebView2 offline and creates no context-menu entries. All
+  application data lives in `data` next to the executable.
+- A portable build without a bundled `webview2` folder uses the system WebView2; for a fully
+  self-contained run, place an extracted fixed runtime into the `webview2` folder.
 - `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` and temporary directories are never used. If the
   application folder is read-only, settings apply until the application closes and saving reports
   an error; the application never falls back to a system location.
@@ -44,6 +47,19 @@ duplicates, helps reclaim space safely, and works completely offline.
 - **Settings** — language, theme, units, exclusions, thresholds, quarantine and the context-menu
   toggle (disabled by default).
 
+## Interface and accessibility
+
+- All 24 screens are reachable from the sidebar, the command palette (`Ctrl+K`) and deep links; the
+  last screen is restored after a restart.
+- Dark, light and system themes switch without a restart, and Windows theme changes are followed
+  live. DPI 100/125/150/200% and reduced motion are supported.
+- Everything is keyboard-operable: skip link, arrow keys in the tree and the map, `Enter` to open,
+  `Esc` to go back, and focus returns after dialogs. Narrator receives headings, progress and errors
+  through `aria-live`.
+- RU/EN switches in the settings without losing state; numbers, dates and sizes use the formatting
+  rules of the selected language.
+- Status is never conveyed by colour alone: every state has text and an icon.
+
 ## Safety
 
 - Deletion always goes through a preview and confirmation, and the deletion mode is explicit:
@@ -58,9 +74,9 @@ duplicates, helps reclaim space safely, and works completely offline.
 - No FreeSpace entries exist after installation. Enable them in **Settings** or with
   `freespace config set context_menu_enabled true`, and disable them with the reverse command.
 - Remove the entries without uninstalling: `freespace context-menu uninstall --all`.
-- The uninstaller removes the executables, the `data` directory and the menu entries for the current
-  user and all users. The portable build contains no `context-menu` command and creates no registry
-  entries.
+- The Tauri NSIS uninstaller removes the executables, the `data` directory, the WebView2 profile and
+  the menu entries for the current user. The portable build contains no `context-menu` command and
+  creates no registry entries.
 
 ## Command line
 
@@ -96,3 +112,9 @@ machine. The regression test `tests/privacy.rs` verifies this at source and depe
   `%LOCALAPPDATA%` or `%ProgramData%`.
 - **No context-menu entries**: enable `context_menu_enabled` in the settings; the portable build does
   not support the context menu.
+
+## Reports and checks
+
+- Visual references and the review gallery: `apps/freespace-desktop/ui/tests/visual/gallery/index.html`, regenerated with `npm run gallery`.
+- Performance: [performance-002.md](performance-002.md). Accessibility: [accessibility-002.md](accessibility-002.md).
+- Release acceptance and offline checks: [release-validation-002.md](release-validation-002.md).

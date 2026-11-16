@@ -253,3 +253,18 @@ alternatives".
   runs it in CI.
 - **Alternatives considered**: duplicating fixtures per crate (drift); tests on real disks
   (forbidden by the constitution).
+
+## 25. Startup splash and application icon
+
+- **Decision**: `free-space-image.png` in the repository root is the source of the visual identity.
+  `apps/freespace-gui/assets/splash.png` (720×720), `icon.png` (256×256) and a multi-size
+  `icon.ico` (16–256 px) are prepared from it. The PNGs are embedded with `include_bytes!`; the
+  ICO is embedded through `freespace-gui.rc`.
+- **Rationale**: the splash covers the settings load, and the same artwork identifies the window,
+  the taskbar, Explorer and the installer. Preparing the sizes up front avoids decoding the
+  original 2048×2048 image on every start and keeps the memory budget.
+- **Dependencies**: `image 0.25` (PNG only) decodes the embedded PNGs; `embed-resource 3` is a
+  build dependency that compiles the `.rc` file and embeds the icon into the `.exe`. `image` is
+  already in the `eframe` dependency tree, so no new runtime crate is added.
+- **Alternatives considered**: `egui_extras` image loaders (an extra dependency and disk access);
+  separate `.png` files next to the `.exe` (breaks the single-file portable build).

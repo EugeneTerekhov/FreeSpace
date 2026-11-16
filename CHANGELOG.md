@@ -4,6 +4,41 @@ All notable changes to FreeSpace are documented in this file. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-11-16
+
+### Added
+
+- Native Tauri 2 + React interface with 24 screens, dark/light/system themes,
+  100–200% DPI support, reduced-motion and high-contrast handling, full keyboard
+  navigation, Narrator announcements and a command palette.
+- Virtualized tree and data tables, a Canvas treemap with spatial keyboard
+  navigation, synchronized selection and a details panel.
+- Shared safe-operation flow for every destructive action: preview, explicit
+  deletion mode, confirmation token, progress, journal entry, undo and restore.
+- Tauri commands with a typed TypeScript client, a mock transport for tests, and
+  golden contract fixtures for every command.
+- Russian and English localization generated from `locales/*.toml`, `Intl`
+  formatting and a missing-key/cyrillic regression test.
+- Visual regression matrix (24 screens × 2 themes × 4 DPI × 2 languages), a
+  pull-request subset, axe accessibility matrix and storage/offline checks.
+- NSIS installer hooks that keep Explorer entries disabled, create `data` and
+  delete it on uninstall, plus an optional fixed WebView2 runtime for portable
+  builds.
+
+### Changed
+
+- The desktop client is built from `apps/freespace-desktop` (Tauri) instead of
+  the egui application; the CLI stays byte-compatible and keeps its JSON
+  envelopes.
+- The installer is Tauri NSIS with the offline WebView2 installer and a minimum
+  runtime version; Inno Setup is withdrawn from the distribution.
+- WebView2 profiles, settings, the journal, quarantine, snapshots and caches live
+  only in `<exe_dir>\data`.
+
+### Removed
+
+- The egui/eframe client, its side-by-side UI and the Inno Setup script.
+
 ## [1.1.0] — 2026-11-16
 
 ### Added

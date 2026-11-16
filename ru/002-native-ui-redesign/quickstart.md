@@ -69,7 +69,7 @@ cargo build --release -p freespace-desktop
 
 Артефакты:
 
-- `apps/freespace-desktop/target/release/freespace-gui.exe` (имя сохраняется);
+- `target/release/freespace-gui.exe` (имя сохраняется);
 - frontend-ассеты внутри Tauri-бандла;
 - установщик и portable ZIP — командой `npm run tauri build` (см. сценарий 11).
 

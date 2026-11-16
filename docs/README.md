@@ -8,6 +8,10 @@ User-facing documentation is maintained in both project languages. / Польз�
 - Контракт CLI и коды возврата: [cli.md](cli.md)
 - CLI contract and exit codes: [cli.md](cli.md)
 - Результаты валидации релиза: [release-validation.md](release-validation.md)
+- Приёмка интерфейса 002: [release-validation-002.md](release-validation-002.md), доступность: [accessibility-002.md](accessibility-002.md), производительность: [performance-002.md](performance-002.md)
+- UI acceptance 002: [release-validation-002.md](release-validation-002.md), accessibility: [accessibility-002.md](accessibility-002.md), performance: [performance-002.md](performance-002.md)
+- Галерея визуальных эталонов: [../apps/freespace-desktop/ui/tests/visual/gallery/index.html](../apps/freespace-desktop/ui/tests/visual/gallery/index.html)
+- Visual baseline gallery: [../apps/freespace-desktop/ui/tests/visual/gallery/index.html](../apps/freespace-desktop/ui/tests/visual/gallery/index.html)
 - Archive list and report formats are documented in
   [../specs/001-freespace-disk-analyzer/contracts/report-formats.md](../specs/001-freespace-disk-analyzer/contracts/report-formats.md).
 - Portable and installer packaging live in [../installer/](../installer/).

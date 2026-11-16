@@ -1,8 +1,9 @@
 # План: интерфейс FreeSpace на Tauri + React
 
-**Статус:** pre-spec план и передача в следующую сессию. Решения по стеку
-зафиксированы. Это не Spec Kit артефакт; фича 002 создаётся отдельно через
-`/speckit.specify` → `spec → clarify → plan → tasks`.
+**Статус:** **реализовано** в фиче 002 (`specs/002-native-ui-redesign/`). Итоговая приёмка —
+[docs/release-validation-002.md](release-validation-002.md); матрица экранов и CLI —
+[contracts/parity.md](../specs/002-native-ui-redesign/contracts/parity.md). Стек и решения ниже
+сохранены как история планирования; актуальные требования — в спецификации 002.
 
 **Дата:** 2026-11-16
 

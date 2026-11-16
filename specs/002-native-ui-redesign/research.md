@@ -161,6 +161,11 @@
   удаление следов.
 - **Alternatives considered**: оставить профиль по умолчанию (нарушение); отключить профиль
   полностью (невозможно для WebView2); переносить профиль после старта (поздно и рискованно).
+- **Результат spike (T031)**: Tauri 2.11.6 предоставляет `WebviewWindowBuilder::data_directory`
+  и `additional_browser_args`, поэтому переменная окружения не нужна: окно создаётся в
+  `setup`, профиль размещается в `data/webview2`, а фоновые компоненты Edge отключаются
+  аргументами. Проверено сборкой и тестами `freespace-desktop`; запись профиля проверяется
+  при первом запуске окна.
 
 ## 13. Настройки и миграция без localStorage
 
@@ -329,6 +334,8 @@
 | `@playwright/test` (dev) | UI/визуальные тесты | Кросс-браузерность, скриншоты, трассировка | Cypress (хуже WebView2) |
 | `@axe-core/playwright` (dev) | Доступность | Автоматические проверки AA | Ручной аудит (не масштабируется) |
 | `tauri-driver`, `webdriverio` (dev) | Tauri E2E | Реальный WebView2 и IPC | Playwright напрямую (не управляет WebView2) |
+| `freespace-ops` (workspace) | Preview, журнал, карантин и undo в `freespace-app` | Слой операций должен вызывать нативную безопасную реализацию, а не дублировать её; `freespace-app` остаётся UI-агностичным | Держать операции в Tauri-командах (нарушает принцип I) |
+| `freespace-report` (workspace) | Создание и сравнение `.fssnap` в `freespace-app` | Экран «Снимки» работает с существующим форматом и diff-алгоритмом без второй реализации | Свой формат снимков в GUI (несовместим с CLI и 001) |
 
 ## 27. Закрытые открытые решения
 
@@ -344,3 +351,24 @@
 | Профиль WebView2 | `data/webview2`, не `%LOCALAPPDATA%` |
 | Тема по умолчанию | Системная |
 | Заголовок окна | Нативный Windows |
+
+## 28. Аудит зависимостей (T185)
+
+Проверено 2026-11-16 на `package.json`/`package-lock.json` и `Cargo.lock`.
+
+- **Runtime frontend (6)**: `react`, `react-dom`, `zustand` (состояние), `@tanstack/react-table` и
+  `@tanstack/react-virtual` (таблицы и виртуализация), `@tauri-apps/api` (IPC), `lucide-react`
+  (иконки). Сетевых библиотек, аналитики и UI-фреймворков с телеметрией нет.
+- **Dev/test**: Vite, TypeScript, ESLint, Vitest + Testing Library + jsdom, Playwright +
+  `@axe-core/playwright`, WebdriverIO + `edgedriver` для Tauri E2E, `smol-toml` для генератора
+  локализации. Всё используется в скриптах `package.json`.
+- **Rust**: состав зафиксирован в `plan.md` (раздел зависимостей); `cargo tree --duplicates`
+  показывает только транзитивные дубликаты экосистемы (`base64`, `bitflags`, `digest`, `flate2`);
+  прямых дублей в workspace-крейтах нет.
+- Ограничения: `@tauri-apps/cli` и `tauri-build` не входят в рантайм; `withGlobalTauri: false`, а
+  `check:network` запрещает `fs`/`shell`/`http`-permissions и удалённые URL.
+- Все лицензии разрешительные (MIT/Apache-2.0/BSD); экран «О программе» перечисляет ключевые
+  компоненты офлайн, без обращения к сети.
+- Версии Tauri выровнены: Rust-крейт `tauri 2.12.5` и `@tauri-apps/api 2.12.4`; CLI проверяет
+  совпадение major/minor при сборке. Обновление `tauri`/`wry` (2.11.6 → 2.12.5 / 0.55.1 → 0.57.2)
+  сделано ради этой проверки и подтверждено `npm run tauri -- build --debug --no-bundle`.

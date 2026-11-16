@@ -69,7 +69,7 @@ cargo build --release -p freespace-desktop
 
 Artifacts:
 
-- `apps/freespace-desktop/target/release/freespace-gui.exe` (the name is preserved);
+- `target/release/freespace-gui.exe` (the name is preserved);
 - frontend assets inside the Tauri bundle;
 - installer and portable ZIP — via the `npm run tauri build` command (see scenario 11).
 

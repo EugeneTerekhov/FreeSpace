@@ -12,6 +12,15 @@ automates cleanup via CLI.
 
 ## Статус / Status
 
+**1.2.0**: интерфейс полностью переведён на нативный Tauri 2 + React. 24 экрана, тёмная и
+светлая темы, DPI 100–200%, reduced motion, клавиатура и Narrator, RU/EN, безопасные операции,
+визуальная регрессия и офлайн-установщик с WebView2. Старый egui-клиент удалён; собран ровно один
+GUI. Подробности — [docs/release-validation-002.md](docs/release-validation-002.md).
+**1.2.0**: the interface has moved to a native Tauri 2 + React client: 24 screens, dark and light
+themes, DPI 100–200%, reduced motion, keyboard and Narrator support, RU/EN, safe operations, visual
+regression and an offline installer with WebView2. The egui client is gone; exactly one GUI ships.
+See [docs/release-validation-002.md](docs/release-validation-002.md).
+
 Фазы 3–20 (US1–US18) завершены: сканирование NTFS через MFT и USN-журнал, fallback-обход
 каталогов, дерево размеров с поиском и сортировкой, интерактивная Treemap-карта с зумом и
 легендой, разблокировка файлов через Restart Manager и удаление при перезагрузке, топ файлов и
@@ -74,13 +83,29 @@ and are controlled by `context_menu_enabled`; the portable build is produced wit
 | Руководство пользователя / User guide | [ru/user-guide.md](ru/user-guide.md) | [en/user-guide.md](en/user-guide.md) |
 | Контракт CLI / CLI contract | [docs/cli.md](docs/cli.md) | [docs/cli.md](docs/cli.md) |
 | Валидация релиза / Release validation | [docs/release-validation.md](docs/release-validation.md) | [docs/release-validation.md](docs/release-validation.md) |
+| Приёмка интерфейса 002 / UI acceptance 002 | [docs/release-validation-002.md](docs/release-validation-002.md) | [docs/release-validation-002.md](docs/release-validation-002.md) |
+| Доступность / Accessibility | [docs/accessibility-002.md](docs/accessibility-002.md) | [docs/accessibility-002.md](docs/accessibility-002.md) |
+| Галерея эталонов / Baseline gallery | [apps/freespace-desktop/ui/tests/visual/gallery/index.html](apps/freespace-desktop/ui/tests/visual/gallery/index.html) | same |
 | Упаковка / Packaging | [installer/](installer/) | [installer/](installer/) |
+| План редизайна UI / UI redesign plan | [docs/ui-redesign-plan.md](docs/ui-redesign-plan.md) | [docs/ui-redesign-plan.md](docs/ui-redesign-plan.md) |
+| Производительность UI / UI performance | [docs/performance-002.md](docs/performance-002.md) | [docs/performance-002.md](docs/performance-002.md) |
 
 Правила для AI-агентов описаны в [AGENTS.md](AGENTS.md).
 Rules for AI agents are described in [AGENTS.md](AGENTS.md).
 
-Канонические артефакты Spec Kit находятся в [specs/001-freespace-disk-analyzer/](specs/001-freespace-disk-analyzer/).
-Canonical Spec Kit artifacts live in [specs/001-freespace-disk-analyzer/](specs/001-freespace-disk-analyzer/).
+Канонические артефакты Spec Kit находятся в [specs/001-freespace-disk-analyzer/](specs/001-freespace-disk-analyzer/) и [specs/002-native-ui-redesign/](specs/002-native-ui-redesign/).
+Canonical Spec Kit artifacts live in [specs/001-freespace-disk-analyzer/](specs/001-freespace-disk-analyzer/) and [specs/002-native-ui-redesign/](specs/002-native-ui-redesign/).
+
+## Интерфейс / UI
+
+Нативное приложение — `apps/freespace-desktop` (Tauri 2 + React): один GUI, 24 экрана и общие
+дизайн-токены. Интерактивный макет языка интерфейса остался в [web/](web/) как визуальный
+референс; он не входит в поставку. Визуальные эталоны и галерея для ревью —
+[apps/freespace-desktop/ui/tests/visual/gallery/](apps/freespace-desktop/ui/tests/visual/gallery/).
+The native client lives in `apps/freespace-desktop` (Tauri 2 + React): one GUI, 24 screens and
+shared design tokens. The interactive UI-language mock remains in [web/](web/) as a visual
+reference and is not part of the distribution. The visual baselines and the review gallery are in
+[apps/freespace-desktop/ui/tests/visual/gallery/](apps/freespace-desktop/ui/tests/visual/gallery/).
 
 ## Процесс / Process
 
@@ -96,8 +121,21 @@ cargo build --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
-cargo run -p freespace-gui
 ```
+
+Приложение / Desktop client (Tauri 2 + React):
+
+```powershell
+cd apps/freespace-desktop/ui
+npm ci
+npm run tauri dev
+```
+
+Приложению нужны Rust stable 1.85+ и Node 20.19+; фронтенд-тесты —
+`npm run test:unit`, `npm run test:e2e`, `npm run test:a11y` и `npm run test:visual`.
+The client needs Rust stable 1.85+ and Node 20.19+; frontend checks are
+`npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run test:e2e`, `npm run test:a11y`
+and `npm run test:visual`.
 
 Требования / Requirements: Rust stable 1.85+ (edition 2024), Windows 10 21H2+ / Windows 11 x64.
 Тулчейн фиксируется в [rust-toolchain.toml](rust-toolchain.toml), линты и профили сборки — в

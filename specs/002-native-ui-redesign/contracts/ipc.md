@@ -130,6 +130,10 @@
 событиями. `cleanup_candidates` и `cleanup_empty_dirs_page` только читают данные; удаление
 идёт через `operation_preview`.
 
+`types_summary` принимает необязательный `group_by` (`extension` по умолчанию или
+`category`); поля `extension`/`category` в ответе заполняются соответственно. `journal_page`
+принимает необязательный `filter` (`text`, `kinds`, `results`); фильтрация выполняется Rust.
+
 ## 7. Журнал, карантин и файловые операции
 
 | Команда | Вход | Выход | Ошибки |

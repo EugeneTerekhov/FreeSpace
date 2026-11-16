@@ -161,6 +161,11 @@ rationale — alternatives". Dependency versions are pinned in `Cargo.lock` and
   trace removal.
 - **Alternatives considered**: keep the default profile (violation); disable the profile
   entirely (impossible for WebView2); move the profile after startup (too late and risky).
+- **Spike result (T031)**: Tauri 2.11.6 exposes `WebviewWindowBuilder::data_directory` and
+  `additional_browser_args`, so no environment variable is needed: the window is created in
+  `setup`, the profile lives in `data/webview2`, and background Edge components are disabled
+  by arguments. Verified by building and testing `freespace-desktop`; profile creation is
+  checked on the first window launch.
 
 ## 13. Settings and migration without localStorage
 
@@ -329,6 +334,8 @@ rationale — alternatives". Dependency versions are pinned in `Cargo.lock` and
 | `@playwright/test` (dev) | UI/visual tests | Cross-browser support, screenshots, tracing | Cypress (worse WebView2) |
 | `@axe-core/playwright` (dev) | Accessibility | Automated AA checks | Manual audit (does not scale) |
 | `tauri-driver`, `webdriverio` (dev) | Tauri E2E | Real WebView2 and IPC | Playwright directly (does not control WebView2) |
+| `freespace-ops` (workspace) | Preview, journal, quarantine and undo in `freespace-app` | The operation layer must call the native safe implementation instead of duplicating it; `freespace-app` stays UI-agnostic | Keep operations in Tauri commands (violates principle I) |
+| `freespace-report` (workspace) | Create and compare `.fssnap` in `freespace-app` | The Snapshots screen reuses the existing format and diff algorithm instead of a second implementation | A GUI-only snapshot format (incompatible with the CLI and 001) |
 
 ## 27. Closed open decisions
 
@@ -344,3 +351,24 @@ rationale — alternatives". Dependency versions are pinned in `Cargo.lock` and
 | WebView2 profile | `data/webview2`, not `%LOCALAPPDATA%` |
 | Default theme | System |
 | Window title bar | Native Windows |
+
+## 28. Dependency audit (T185)
+
+Checked on 2026-11-16 against `package.json`/`package-lock.json` and `Cargo.lock`.
+
+- **Frontend runtime (6)**: `react`, `react-dom`, `zustand` (state), `@tanstack/react-table` and
+  `@tanstack/react-virtual` (tables and virtualization), `@tauri-apps/api` (IPC), `lucide-react`
+  (icons). There are no network libraries, analytics or telemetry-bearing UI frameworks.
+- **Dev/test**: Vite, TypeScript, ESLint, Vitest + Testing Library + jsdom, Playwright +
+  `@axe-core/playwright`, WebdriverIO + `edgedriver` for Tauri E2E, `smol-toml` for the
+  localization generator. Every package is used by a `package.json` script.
+- **Rust**: the dependency set is recorded in `plan.md`; `cargo tree --duplicates` reports only
+  transitive ecosystem duplicates (`base64`, `bitflags`, `digest`, `flate2`); there are no direct
+  duplicates between workspace crates.
+- Constraints: `@tauri-apps/cli` and `tauri-build` are build-time only; `withGlobalTauri: false`,
+  and `check:network` rejects `fs`/`shell`/`http` permissions and remote URLs.
+- All licences are permissive (MIT/Apache-2.0/BSD); the About screen lists the key components
+  offline and never opens a remote page.
+- Tauri versions are aligned: the Rust crate `tauri 2.12.5` with `@tauri-apps/api 2.12.4`; the CLI
+  enforces the same major/minor at build time. Bumping `tauri`/`wry` (2.11.6 → 2.12.5 / 0.55.1 →
+  0.57.2) was required for that check and is verified by `npm run tauri -- build --debug --no-bundle`.

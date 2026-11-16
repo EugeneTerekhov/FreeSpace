@@ -130,6 +130,10 @@ Rules: `duplicates_start` and `snapshots_compare` do not block the UI; their pro
 events. `cleanup_candidates` and `cleanup_empty_dirs_page` only read data; deletion goes through
 `operation_preview`.
 
+`types_summary` accepts an optional `group_by` (`extension` by default or `category`); the
+`extension`/`category` fields in the response are filled accordingly. `journal_page` accepts an
+optional `filter` (`text`, `kinds`, `results`); filtering runs in Rust.
+
 ## 7. Journal, quarantine and file operations
 
 | Command | Input | Output | Errors |
