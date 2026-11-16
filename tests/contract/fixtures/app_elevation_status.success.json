@@ -1,0 +1,10 @@
+{
+  "command": "app_elevation_status",
+  "input": {},
+  "result": {
+    "elevated": false,
+    "can_elevate": true,
+    "reason_key": "elevation.reason.mft"
+  },
+  "error": null
+}

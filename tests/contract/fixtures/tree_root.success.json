@@ -1,0 +1,22 @@
+{
+  "command": "tree_root",
+  "input": {
+    "generation": 1,
+    "metric": "on_disk",
+    "sort": { "key": "size", "descending": true },
+    "page_size": 500,
+    "cursor": null
+  },
+  "result": {
+    "generation": 1,
+    "parent_id": null,
+    "cursor": null,
+    "next_cursor": null,
+    "rows": [],
+    "total_estimate": 0,
+    "metric": "on_disk",
+    "sort": { "key": "size", "descending": true },
+    "stale_cursor": false
+  },
+  "error": null
+}

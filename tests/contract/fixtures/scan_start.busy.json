@@ -1,0 +1,18 @@
+{
+  "command": "scan_start",
+  "input": {
+    "request": {
+      "path": "C:\\"
+    }
+  },
+  "result": null,
+  "error": {
+    "code": "E_BUSY",
+    "category": "operation",
+    "message_key": "error.busy",
+    "details": "volume already has the scan task 00000000-0000-4000-8000-000000000001",
+    "retryable": true,
+    "task_id": null,
+    "journal_entry_id": null
+  }
+}

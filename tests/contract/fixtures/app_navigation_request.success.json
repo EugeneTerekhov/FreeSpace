@@ -1,0 +1,12 @@
+{
+  "command": "app_navigation_request",
+  "input": {
+    "request": {
+      "screen": "tree",
+      "node_id": 0,
+      "path": "C:\\"
+    }
+  },
+  "result": {},
+  "error": null
+}

@@ -1,0 +1,9 @@
+{
+  "command": "tree_path",
+  "input": {
+    "generation": 1,
+    "node_id": 0
+  },
+  "result": [],
+  "error": null
+}

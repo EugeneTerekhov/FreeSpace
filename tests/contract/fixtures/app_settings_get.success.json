@@ -1,0 +1,17 @@
+{
+  "command": "app_settings_get",
+  "input": {},
+  "result": {
+    "theme": "system",
+    "language": "ru",
+    "density": "comfortable",
+    "units": "binary",
+    "reduced_motion": "system",
+    "last_screen": "dashboard",
+    "sidebar_collapsed": false,
+    "column_layouts": {},
+    "saved_filters": {},
+    "schema_version": 1
+  },
+  "error": null
+}

@@ -1,0 +1,20 @@
+{
+  "command": "scan_sessions",
+  "input": {},
+  "result": [
+    {
+      "session_id": "00000000-0000-4000-8000-000000000002",
+      "volume_id": "11111111-1111-1111-1111-111111111111",
+      "method": "directory-walk",
+      "started_at": 1763222400000,
+      "finished_at": 1763222402400,
+      "status": "completed",
+      "nodes_count": 180000,
+      "roots": [
+        "C:\\"
+      ],
+      "issues_count": 0
+    }
+  ],
+  "error": null
+}

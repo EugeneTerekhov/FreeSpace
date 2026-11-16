@@ -1,0 +1,18 @@
+{
+  "command": "app_settings_set",
+  "input": {
+    "patch": {
+      "theme": "neon"
+    }
+  },
+  "result": null,
+  "error": {
+    "code": "E_VALIDATION",
+    "category": "validation",
+    "message_key": "error.validation",
+    "details": "unsupported ui schema version 99",
+    "retryable": false,
+    "task_id": null,
+    "journal_entry_id": null
+  }
+}
