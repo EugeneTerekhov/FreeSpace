@@ -69,6 +69,54 @@ impl Timestamp {
         format!("{date}T{time}Z")
     }
 
+    /// Parses an ISO 8601 UTC instant written by [`Self::format_iso8601`].
+    ///
+    /// Fractional seconds and a numeric offset are accepted; an offset is
+    /// normalised to UTC. Returns `None` for malformed values.
+    #[must_use]
+    pub fn parse_iso8601(value: &str) -> Option<Self> {
+        let value = value.trim();
+        let (date, rest) = value.split_once('T')?;
+        let (time, offset_seconds) = split_offset(rest)?;
+
+        let mut date_parts = date.split('-');
+        let year: i64 = date_parts.next()?.parse().ok()?;
+        let month: u32 = date_parts.next()?.parse().ok()?;
+        let day: u32 = date_parts.next()?.parse().ok()?;
+        if date_parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+            return None;
+        }
+
+        let mut time_parts = time.split(':');
+        let hour: i64 = time_parts.next()?.parse().ok()?;
+        let minute: i64 = time_parts.next()?.parse().ok()?;
+        let seconds_text = time_parts.next()?;
+        if time_parts.next().is_some() {
+            return None;
+        }
+        let (second_text, millis) = match seconds_text.split_once('.') {
+            Some((seconds, fraction)) => {
+                let digits: String = fraction.chars().take(3).collect();
+                let millis = format!("{digits:0<3}").parse::<i64>().ok()?;
+                (seconds, millis)
+            }
+            None => (seconds_text, 0),
+        };
+        let second: i64 = second_text.parse().ok()?;
+        if hour > 23 || minute > 59 || second > 60 {
+            return None;
+        }
+
+        let days = days_from_civil(year, month, day);
+        let millis_of_day = ((hour * 60 + minute) * 60 + second) * 1_000 + millis;
+        let total = days
+            .saturating_mul(MILLIS_PER_DAY)
+            .saturating_add(millis_of_day)
+            .saturating_sub(offset_seconds.saturating_mul(1_000));
+
+        Some(Self(total))
+    }
+
     fn format_parts(self) -> (String, String) {
         let days = self.0.div_euclid(MILLIS_PER_DAY);
         let millis_of_day = self.0.rem_euclid(MILLIS_PER_DAY);
@@ -103,6 +151,35 @@ impl From<SystemTime> for Timestamp {
 
 fn clamp_millis(millis: u128) -> i64 {
     i64::try_from(millis).unwrap_or(i64::MAX)
+}
+
+/// Splits the time part of an ISO 8601 instant into the clock and the offset.
+fn split_offset(value: &str) -> Option<(&str, i64)> {
+    if let Some(time) = value.strip_suffix('Z') {
+        return Some((time, 0));
+    }
+
+    let index = value.rfind(['+', '-'])?;
+    let (time, offset) = value.split_at(index);
+    let sign = if offset.starts_with('-') { -1 } else { 1 };
+    let offset = offset.get(1..)?;
+    let (hours, minutes) = offset.split_once(':')?;
+    let hours: i64 = hours.parse().ok()?;
+    let minutes: i64 = minutes.parse().ok()?;
+
+    Some((time, sign * (hours * 3_600 + minutes * 60)))
+}
+
+/// Converts a proleptic Gregorian date into days since 1970-01-01.
+fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    let year = if month <= 2 { year - 1 } else { year };
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let year_of_era = year - era * 400;
+    let month = i64::from(month);
+    let day_of_year = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + i64::from(day) - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+
+    era * 146_097 + day_of_era - 719_468
 }
 
 /// Converts a count of days since the Unix epoch into a civil date.
@@ -196,5 +273,29 @@ mod tests {
             serde_json::from_str::<Timestamp>(&json).expect("deserialise timestamp"),
             timestamp
         );
+    }
+
+    #[test]
+    fn parses_iso8601_instants() {
+        let timestamp = Timestamp::from_millis(1_763_164_800_000);
+
+        assert_eq!(
+            Timestamp::parse_iso8601(&timestamp.format_iso8601()),
+            Some(timestamp)
+        );
+        assert_eq!(
+            Timestamp::parse_iso8601("2000-03-01T00:00:00Z").map(Timestamp::as_millis),
+            Some(951_868_800_000)
+        );
+        assert_eq!(
+            Timestamp::parse_iso8601("2000-03-01T03:00:00+03:00").map(Timestamp::as_millis),
+            Some(951_868_800_000)
+        );
+        assert_eq!(
+            Timestamp::parse_iso8601("1969-12-31T23:59:59.999Z").map(Timestamp::as_millis),
+            Some(-1)
+        );
+        assert_eq!(Timestamp::parse_iso8601("not a date"), None);
+        assert_eq!(Timestamp::parse_iso8601("2000-13-01T00:00:00Z"), None);
     }
 }

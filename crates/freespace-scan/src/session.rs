@@ -272,6 +272,7 @@ pub fn scan(request: &ScanRequest, observer: &mut dyn ScanObserver) -> Result<Sc
     observer.progress(&ScanProgress::new(ScanPhase::Aggregating, 0.9));
     tree.recompute_totals();
     tree.validate()?;
+    tree.compact();
 
     for issue in &outcome.issues {
         session.record_issue(issue.clone());

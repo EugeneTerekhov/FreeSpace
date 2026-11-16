@@ -11,6 +11,7 @@ extern crate rust_i18n;
 i18n!("../../locales", fallback = "en");
 
 pub mod category;
+pub mod dashboard;
 pub mod error;
 pub mod i18n;
 pub mod logging;

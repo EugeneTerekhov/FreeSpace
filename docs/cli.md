@@ -1,7 +1,7 @@
 # FreeSpace CLI contract
 
 **Contract version**: 1  
-**Applies to**: FreeSpace 0.1.x  
+**Applies to**: FreeSpace 1.0.x  
 **Source of truth**: `specs/001-freespace-disk-analyzer/contracts/cli.md`
 
 The CLI uses the same core crates as the GUI. Every GUI capability has a CLI
@@ -28,7 +28,8 @@ Global options:
 | `--lock-timeout <seconds>` | Wait for another FreeSpace process (default 30) |
 
 Human-readable text goes to stdout and warnings/errors to stderr. With
-`--json`, stdout contains only one valid UTF-8 JSON document.
+`--json`, stdout contains only one valid UTF-8 JSON document, except for
+`monitor`, which streams JSON Lines as documented below.
 
 ## JSON envelope
 
@@ -75,7 +76,9 @@ command exits with code `5` and changes nothing.
 freespace drives [--json]
 ```
 
-`data`: `{ "items": [{ "letter", "label", "filesystem", "total_bytes", "free_bytes", "status" }] }`.
+`data`: `{ "items": [{ "mount_point", "label", "file_system", "total_bytes", "free_bytes", "used_bytes", "cluster_size", "serial_number", "drive_type", "is_removable", "status" }] }`.
+
+Inaccessible volumes are reported with `"status": "inaccessible"` instead of being dropped.
 
 ### `config`
 
@@ -327,10 +330,39 @@ schtasks /create /tn "FreeSpace daily scan" /xml daily-scan.xml /f
 
 Profiles are validated before export. Unknown profiles return `E_NOT_FOUND`.
 
-### `monitor`, `drives`, `context-menu`
+### `monitor`
 
-`monitor` is reserved for US20 and currently returns `E_UNSUPPORTED`.
-`context-menu` is reserved for US19.
+```text
+freespace monitor [--threshold <bytes>] [--interval <seconds>]
+                  [--iterations <n>] [--root <path>] [--no-etw] [--json]
+```
+
+Streams JSON Lines instead of the usual single envelope. Each line is one object:
+
+```json
+{"type":"write","timestamp_ms":1700000000000,"pid":1234,"process":"backup.exe","bytes":8388608,"paths":["\\Device\\HarddiskVolume3\\data\\video.mkv"],"threshold_exceeded":false}
+{"type":"notification","timestamp_ms":1700000000000,"bytes":2147483648,"window_ms":60000,"threshold_bytes":1073741824}
+{"type":"usn","timestamp_ms":1700000000000,"file_ref":42,"parent_ref":5,"name":"changed.bin"}
+```
+
+The Kernel-File ETW session (process + path) needs administrator rights. Without
+them the command falls back to `GetProcessIoCounters` (process + bytes) and the
+USN journal tail (path hints). `--iterations 0` runs until interrupted;
+`--interval 0` polls as fast as the platform allows (100 ms).
+
+### `context-menu`
+
+```text
+freespace context-menu install [--machine] [--executable <path>]
+freespace context-menu uninstall [--machine]
+```
+
+Installs *Analyze with FreeSpace* for files, folders and drives, plus *Unlock
+with FreeSpace* for files and folders. The default scope is the current user
+(`HKCU\Software\Classes`); `--machine` writes to `HKLM` and requires elevation.
+Paths with spaces, Unicode characters and trailing separators are quoted for
+`CommandLineToArgvW`. A bare path passed to the executable is expanded to
+`scan <path>`.
 
 ## Parallel runs
 

@@ -14,14 +14,22 @@
 //! * [`allocated`] — exact allocated size and allocated ranges;
 //! * [`ads`] — alternate data stream enumeration;
 //! * [`security`] — file attributes, ownership and ACL operations;
-//! * [`file_lock`] — cross-process advisory locks for CLI runs.
+//! * [`file_lock`] — cross-process advisory locks for CLI runs;
+//! * [`context_menu`] — Explorer context-menu registration;
+//! * [`etw`] — real-time write attribution through ETW;
+//! * [`process_io`] — per-process I/O counters for the monitor fallback;
+//! * [`elevation`] — elevation state and on-demand UAC relaunch.
 
 pub mod ads;
 pub mod allocated;
+pub mod context_menu;
+pub mod elevation;
+pub mod etw;
 pub mod file_lock;
 pub mod locks;
 pub mod mft;
 pub mod paths;
+pub mod process_io;
 pub mod recycle;
 pub mod reparse;
 pub mod security;

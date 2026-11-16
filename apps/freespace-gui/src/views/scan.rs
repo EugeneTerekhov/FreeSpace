@@ -106,6 +106,13 @@ impl ScanState {
         self.result.as_ref()
     }
 
+    /// Starts a scan for `path` immediately; used by the dashboard shortcut.
+    pub fn begin(&mut self, path: &std::path::Path) {
+        self.path = paths::display(path);
+
+        self.start();
+    }
+
     fn start(&mut self) {
         if self.running {
             return;

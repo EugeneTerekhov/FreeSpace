@@ -211,7 +211,7 @@ pub fn scan(
                 outcome.issues.push(ScanIssue {
                     path: path.clone(),
                     kind: ScanIssueKind::AccessDenied,
-                    message: error.to_string(),
+                    message: format!("{} ({error})", crate::access::denial_message(&path)),
                 });
                 let spec = NodeSpec {
                     name: name.clone(),

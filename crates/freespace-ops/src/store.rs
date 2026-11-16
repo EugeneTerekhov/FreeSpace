@@ -34,6 +34,32 @@ pub fn default_path() -> Result<PathBuf> {
     Ok(base.join("FreeSpace").join("freespace.db"))
 }
 
+/// Returns the database location for the selected storage mode.
+///
+/// Portable mode stores the journal, quarantine index and hash cache next to the
+/// executable so that removing the folder removes every trace from the machine
+/// (FR-093).
+///
+/// # Errors
+/// Returns [`Error::Config`] when portable mode is requested but the executable
+/// path is unknown, or when the roaming variables are missing.
+pub fn default_path_with(portable: bool) -> Result<PathBuf> {
+    if portable {
+        let executable = std::env::current_exe().map_err(|error| {
+            Error::Config(format!(
+                "cannot resolve the FreeSpace executable for portable mode: {error}"
+            ))
+        })?;
+        let directory = executable
+            .parent()
+            .ok_or_else(|| Error::Config("the executable has no parent folder".to_owned()))?;
+
+        return Ok(directory.join("freespace.db"));
+    }
+
+    default_path()
+}
+
 const MIGRATION_1: &str = r"
 CREATE TABLE journal (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -673,5 +699,16 @@ mod tests {
 
         let store = Store::open(&path).expect("reopen store");
         assert_eq!(store.journal_list(10).expect("list").len(), 1);
+    }
+
+    #[test]
+    fn portable_storage_lives_next_to_the_executable() {
+        let path = super::default_path_with(true).expect("portable path");
+        let executable = std::env::current_exe().expect("current exe");
+
+        assert_eq!(
+            path,
+            executable.parent().expect("parent").join("freespace.db")
+        );
     }
 }

@@ -22,6 +22,7 @@ serde_json = { workspace = true }
 sevenz-rust = { workspace = true }
 tar = { workspace = true }
 tempfile = { workspace = true }
+toml = { workspace = true }
 zip = { workspace = true }
 
 [[test]]
@@ -99,6 +100,30 @@ path = "export.rs"
 [[test]]
 name = "cli_contract"
 path = "cli_contract.rs"
+
+[[test]]
+name = "context_menu"
+path = "context_menu.rs"
+
+[[test]]
+name = "monitor"
+path = "monitor.rs"
+
+[[test]]
+name = "elevation"
+path = "elevation.rs"
+
+[[test]]
+name = "dashboard"
+path = "dashboard.rs"
+
+[[test]]
+name = "settings"
+path = "settings.rs"
+
+[[test]]
+name = "privacy"
+path = "privacy.rs"
 
 [lints]
 workspace = true

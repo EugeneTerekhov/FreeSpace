@@ -341,6 +341,24 @@ impl FsTree {
         self.names.len()
     }
 
+    /// Releases unused capacity after a scan has finished.
+    ///
+    /// Scans over-allocate to avoid rehashing while nodes are appended; once the
+    /// tree is immutable the arena can shrink to its exact size, which keeps the
+    /// memory budget for ten million nodes within the documented limit
+    /// (principle III, T155).
+    pub fn compact(&mut self) {
+        self.nodes.shrink_to_fit();
+        self.names.shrink_to_fit();
+        self.roots.shrink_to_fit();
+    }
+
+    /// Allocated capacity of the node arena, in nodes.
+    #[must_use]
+    pub fn node_capacity(&self) -> usize {
+        self.nodes.capacity()
+    }
+
     /// Appends a node and links it as the last child of `parent`.
     ///
     /// # Errors
@@ -1002,5 +1020,23 @@ mod tests {
 
         assert_eq!(tree.name(node), "новое имя.txt");
         assert!(tree.set_name(node, "").is_err());
+    }
+
+    #[test]
+    fn compacting_releases_unused_capacity() {
+        let mut tree = FsTree::with_capacity(1_000, 32_768);
+        let root = tree.add_node(None, directory("root")).expect("root");
+        for index in 0..10 {
+            tree.add_node(Some(root), file(&format!("file-{index}.bin"), 1))
+                .expect("file");
+        }
+
+        assert!(tree.node_capacity() >= 1_000);
+        tree.compact();
+
+        assert_eq!(tree.node_capacity(), tree.len());
+        assert_eq!(tree.len(), 11);
+        tree.recompute_totals();
+        tree.validate().expect("compaction preserves the tree");
     }
 }

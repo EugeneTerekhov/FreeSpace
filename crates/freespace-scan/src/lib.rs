@@ -7,10 +7,14 @@
 //! * [`walk`] — parallel directory walk for non-NTFS, unprivileged and
 //!   sub-directory scans;
 //! * [`usn`] — incremental updates from the USN change journal;
+//! * [`monitor_fallback`] — process I/O counters and USN tail for the monitor;
+//! * [`access`] — protected system directories and degraded access;
 //! * [`empty_dirs`] — empty-directory discovery over a finished tree.
 
+pub mod access;
 pub mod empty_dirs;
 pub mod mft_scan;
+pub mod monitor_fallback;
 pub mod session;
 pub mod usn;
 pub mod walk;

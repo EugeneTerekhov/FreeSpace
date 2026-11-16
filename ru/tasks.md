@@ -1,4 +1,4 @@
-# Задачи: FreeSpace — анализатор и менеджер дискового пространства Windows
+﻿# Задачи: FreeSpace — анализатор и менеджер дискового пространства Windows
 
 **Input**: Документы проектирования из `/specs/001-freespace-disk-analyzer/`
 
@@ -349,10 +349,10 @@
 
 **Independent Test**: установить интеграцию, проверить пункты для файла/папки/диска, удалить интеграцию
 
-- [ ] T131 [P] [US19] Тест установки и удаления записей реестра в HKCU в `tests/context_menu.rs`
-- [ ] T132 [US19] Реализовать установку/удаление контекстного меню (`winreg`) в `crates/freespace-platform/src/context_menu.rs`
-- [ ] T133 [US19] Реализовать корректную передачу путей (Unicode, пробелы, длинные пути) в `crates/freespace-cli/src/main.rs`
-- [ ] T134 [US19] Реализовать CLI `context-menu install/uninstall` в `crates/freespace-cli/src/commands/context_menu.rs`
+- [x] T131 [P] [US19] Тест установки и удаления записей реестра в HKCU в `tests/context_menu.rs`
+- [x] T132 [US19] Реализовать установку/удаление контекстного меню (`winreg`) в `crates/freespace-platform/src/context_menu.rs`
+- [x] T133 [US19] Реализовать корректную передачу путей (Unicode, пробелы, длинные пути) в `crates/freespace-cli/src/main.rs`
+- [x] T134 [US19] Реализовать CLI `context-menu install/uninstall` в `crates/freespace-cli/src/commands/context_menu.rs`
 
 ---
 
@@ -362,11 +362,11 @@
 
 **Independent Test**: запустить тестовую запись известного объёма и проверить событие, скорость и уведомление
 
-- [ ] T135 [P] [US20] Тест ETW-парсера и fallback на счётчики ввода-вывода в `tests/monitor.rs`
-- [ ] T136 [US20] Реализовать ETW-сессию `Microsoft-Windows-Kernel-File` (`ferrisetw`) в `crates/freespace-platform/src/etw.rs`
-- [ ] T137 [US20] Реализовать fallback `GetProcessIoCounters` и хвост USN в `crates/freespace-scan/src/monitor_fallback.rs`
-- [ ] T138 [US20] Реализовать пороги, исключения процессов и путей, историю и уведомления в `crates/freespace-analysis/src/monitor.rs`
-- [ ] T139 [US20] Реализовать CLI `monitor` (JSON Lines) и UI мониторинга с работой в области уведомлений в `crates/freespace-cli/src/commands/monitor.rs` и `apps/freespace-gui/src/views/monitor.rs`
+- [x] T135 [P] [US20] Тест ETW-парсера и fallback на счётчики ввода-вывода в `tests/monitor.rs`
+- [x] T136 [US20] Реализовать ETW-сессию `Microsoft-Windows-Kernel-File` (`ferrisetw`) в `crates/freespace-platform/src/etw.rs`
+- [x] T137 [US20] Реализовать fallback `GetProcessIoCounters` и хвост USN в `crates/freespace-scan/src/monitor_fallback.rs`
+- [x] T138 [US20] Реализовать пороги, исключения процессов и путей, историю и уведомления в `crates/freespace-analysis/src/monitor.rs`
+- [x] T139 [US20] Реализовать CLI `monitor` (JSON Lines) и UI мониторинга с работой в области уведомлений в `crates/freespace-cli/src/commands/monitor.rs` и `apps/freespace-gui/src/views/monitor.rs`
 
 ---
 
@@ -376,10 +376,10 @@
 
 **Independent Test**: проверить работу без прав и с правами, доступ к `System Volume Information`, отказ от повышения
 
-- [ ] T140 [P] [US21] Тест повышения прав и доступа к системным каталогам (admin) в `tests/elevation.rs`
-- [ ] T141 [US21] Реализовать UAC-elevation по требованию (`ShellExecute` runas) в `crates/freespace-platform/src/elevation.rs`
-- [ ] T142 [US21] Реализовать доступ к защищённым каталогам и пометку недоступности в `crates/freespace-scan/src/access.rs`
-- [ ] T143 [US21] Реализовать UI запроса повышения прав в `apps/freespace-gui/src/views/elevation.rs`
+- [x] T140 [P] [US21] Тест повышения прав и доступа к системным каталогам (admin) в `tests/elevation.rs`
+- [x] T141 [US21] Реализовать UAC-elevation по требованию (`ShellExecute` runas) в `crates/freespace-platform/src/elevation.rs`
+- [x] T142 [US21] Реализовать доступ к защищённым каталогам и пометку недоступности в `crates/freespace-scan/src/access.rs`
+- [x] T143 [US21] Реализовать UI запроса повышения прав в `apps/freespace-gui/src/views/elevation.rs`
 
 ---
 
@@ -389,10 +389,10 @@
 
 **Independent Test**: проверить отображение всех томов, корректность цифр и переход к анализу
 
-- [ ] T144 [P] [US22] Тест сводки по томам и динамики снимков в `tests/dashboard.rs`
-- [ ] T145 [US22] Реализовать типы и сбор сводки по томам в `crates/freespace-core/src/dashboard.rs` и `crates/freespace-platform/src/volumes.rs`
-- [ ] T146 [US22] Реализовать экран дашборда и быстрый запуск анализа в `apps/freespace-gui/src/views/dashboard.rs`
-- [ ] T147 [US22] Реализовать CLI `drives` в `crates/freespace-cli/src/commands/drives.rs`
+- [x] T144 [P] [US22] Тест сводки по томам и динамики снимков в `tests/dashboard.rs`
+- [x] T145 [US22] Реализовать типы и сбор сводки по томам в `crates/freespace-core/src/dashboard.rs` и `crates/freespace-platform/src/volumes.rs`
+- [x] T146 [US22] Реализовать экран дашборда и быстрый запуск анализа в `apps/freespace-gui/src/views/dashboard.rs`
+- [x] T147 [US22] Реализовать CLI `drives` в `crates/freespace-cli/src/commands/drives.rs`
 
 ---
 
@@ -402,12 +402,12 @@
 
 **Independent Test**: переключить язык и тему, задать исключения, запустить портативную сборку и проверить отсутствие записей в профиль
 
-- [ ] T148 [P] [US23] Тест переключения языка, настроек и портативного режима в `tests/settings.rs`
-- [ ] T149 [US23] Заполнить полные локали `locales/ru.toml` и `locales/en.toml`
-- [ ] T150 [US23] Реализовать экран настроек в GUI в `apps/freespace-gui/src/views/settings.rs`
-- [ ] T151 [US23] Реализовать портативный режим и fallback хранения настроек в `crates/freespace-core/src/settings.rs`
-- [ ] T152 [US23] Реализовать CLI `config get/set` в `crates/freespace-cli/src/commands/config.rs`
-- [ ] T153 [US23] Реализовать регрессионный тест отсутствия сетевых вызовов и телеметрии в `tests/privacy.rs`
+- [x] T148 [P] [US23] Тест переключения языка, настроек и портативного режима в `tests/settings.rs`
+- [x] T149 [US23] Заполнить полные локали `locales/ru.toml` и `locales/en.toml`
+- [x] T150 [US23] Реализовать экран настроек в GUI в `apps/freespace-gui/src/views/settings.rs`
+- [x] T151 [US23] Реализовать портативный режим и fallback хранения настроек в `crates/freespace-core/src/settings.rs`
+- [x] T152 [US23] Реализовать CLI `config get/set` в `crates/freespace-cli/src/commands/config.rs`
+- [x] T153 [US23] Реализовать регрессионный тест отсутствия сетевых вызовов и телеметрии в `tests/privacy.rs`
 
 ---
 
@@ -415,14 +415,14 @@
 
 **Purpose**: производительность, документация, упаковка и финальная валидация
 
-- [ ] T154 [P] Оптимизировать MFT-скан по результатам бенчмарков в `crates/freespace-scan/src/mft_scan.rs`
-- [ ] T155 [P] Оптимизировать память дерева и арены в `crates/freespace-core/src/tree.rs`
-- [ ] T156 [P] Прогнать `cargo fmt --check` и `cargo clippy -D warnings`, устранить предупреждения
-- [ ] T157 [P] Подготовить пользовательскую документацию RU/EN в `docs/`, `ru/`, `en/`
-- [ ] T158 [P] Подготовить портативный ZIP и установщик Inno Setup в `installer/freespace.iss`
-- [ ] T159 [P] Создать `CHANGELOG.md` и зафиксировать версию 1.0.0
+- [x] T154 [P] Оптимизировать MFT-скан по результатам бенчмарков в `crates/freespace-scan/src/mft_scan.rs`
+- [x] T155 [P] Оптимизировать память дерева и арены в `crates/freespace-core/src/tree.rs`
+- [x] T156 [P] Прогнать `cargo fmt --check` и `cargo clippy -D warnings`, устранить предупреждения
+- [x] T157 [P] Подготовить пользовательскую документацию RU/EN в `docs/`, `ru/`, `en/`
+- [x] T158 [P] Подготовить портативный ZIP и установщик Inno Setup в `installer/freespace.iss`
+- [x] T159 [P] Создать `CHANGELOG.md` и зафиксировать версию 1.0.0
 - [ ] T160 Прогнать все сценарии `quickstart.md` на Windows 10 и Windows 11 и зафиксировать результаты в `docs/release-validation.md`
-- [ ] T161 Синхронизировать зеркала документации в `ru/` и `en/` и проверить соответствие конституции
+- [x] T161 Синхронизировать зеркала документации в `ru/` и `en/` и проверить соответствие конституции
 
 ---
 

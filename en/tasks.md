@@ -1,4 +1,4 @@
-# Tasks: FreeSpace — Windows Disk Space Analyzer and Manager
+﻿# Tasks: FreeSpace — Windows Disk Space Analyzer and Manager
 
 **Input**: Design documents from `/specs/001-freespace-disk-analyzer/`
 
@@ -349,10 +349,10 @@ verified independently.
 
 **Independent Test**: install the integration, verify the entries for file/folder/drive, uninstall the integration
 
-- [ ] T131 [P] [US19] Test installation and removal of registry entries in HKCU in `tests/context_menu.rs`
-- [ ] T132 [US19] Implement context menu install/uninstall (`winreg`) in `crates/freespace-platform/src/context_menu.rs`
-- [ ] T133 [US19] Implement correct path passing (Unicode, spaces, long paths) in `crates/freespace-cli/src/main.rs`
-- [ ] T134 [US19] Implement CLI `context-menu install/uninstall` in `crates/freespace-cli/src/commands/context_menu.rs`
+- [x] T131 [P] [US19] Test installation and removal of registry entries in HKCU in `tests/context_menu.rs`
+- [x] T132 [US19] Implement context menu install/uninstall (`winreg`) in `crates/freespace-platform/src/context_menu.rs`
+- [x] T133 [US19] Implement correct path passing (Unicode, spaces, long paths) in `crates/freespace-cli/src/main.rs`
+- [x] T134 [US19] Implement CLI `context-menu install/uninstall` in `crates/freespace-cli/src/commands/context_menu.rs`
 
 ---
 
@@ -362,11 +362,11 @@ verified independently.
 
 **Independent Test**: run a test write of a known volume and verify the event, speed and notification
 
-- [ ] T135 [P] [US20] Test the ETW parser and the fallback to I/O counters in `tests/monitor.rs`
-- [ ] T136 [US20] Implement the `Microsoft-Windows-Kernel-File` ETW session (`ferrisetw`) in `crates/freespace-platform/src/etw.rs`
-- [ ] T137 [US20] Implement the `GetProcessIoCounters` fallback and the USN tail in `crates/freespace-scan/src/monitor_fallback.rs`
-- [ ] T138 [US20] Implement thresholds, process and path exclusions, history and notifications in `crates/freespace-analysis/src/monitor.rs`
-- [ ] T139 [US20] Implement CLI `monitor` (JSON Lines) and the monitoring UI with notification-area support in `crates/freespace-cli/src/commands/monitor.rs` and `apps/freespace-gui/src/views/monitor.rs`
+- [x] T135 [P] [US20] Test the ETW parser and the fallback to I/O counters in `tests/monitor.rs`
+- [x] T136 [US20] Implement the `Microsoft-Windows-Kernel-File` ETW session (`ferrisetw`) in `crates/freespace-platform/src/etw.rs`
+- [x] T137 [US20] Implement the `GetProcessIoCounters` fallback and the USN tail in `crates/freespace-scan/src/monitor_fallback.rs`
+- [x] T138 [US20] Implement thresholds, process and path exclusions, history and notifications in `crates/freespace-analysis/src/monitor.rs`
+- [x] T139 [US20] Implement CLI `monitor` (JSON Lines) and the monitoring UI with notification-area support in `crates/freespace-cli/src/commands/monitor.rs` and `apps/freespace-gui/src/views/monitor.rs`
 
 ---
 
@@ -376,10 +376,10 @@ verified independently.
 
 **Independent Test**: verify operation without and with privileges, access to `System Volume Information`, and refusal of elevation
 
-- [ ] T140 [P] [US21] Test privilege elevation and access to system directories (admin) in `tests/elevation.rs`
-- [ ] T141 [US21] Implement UAC elevation on demand (`ShellExecute` runas) in `crates/freespace-platform/src/elevation.rs`
-- [ ] T142 [US21] Implement access to protected directories and marking of inaccessibility in `crates/freespace-scan/src/access.rs`
-- [ ] T143 [US21] Implement the privilege elevation request UI in `apps/freespace-gui/src/views/elevation.rs`
+- [x] T140 [P] [US21] Test privilege elevation and access to system directories (admin) in `tests/elevation.rs`
+- [x] T141 [US21] Implement UAC elevation on demand (`ShellExecute` runas) in `crates/freespace-platform/src/elevation.rs`
+- [x] T142 [US21] Implement access to protected directories and marking of inaccessibility in `crates/freespace-scan/src/access.rs`
+- [x] T143 [US21] Implement the privilege elevation request UI in `apps/freespace-gui/src/views/elevation.rs`
 
 ---
 
@@ -389,10 +389,10 @@ verified independently.
 
 **Independent Test**: verify the display of all volumes, the correctness of the numbers and navigation to analysis
 
-- [ ] T144 [P] [US22] Test the volume summary and snapshot dynamics in `tests/dashboard.rs`
-- [ ] T145 [US22] Implement types and collection of the volume summary in `crates/freespace-core/src/dashboard.rs` and `crates/freespace-platform/src/volumes.rs`
-- [ ] T146 [US22] Implement the dashboard screen and quick scan launch in `apps/freespace-gui/src/views/dashboard.rs`
-- [ ] T147 [US22] Implement CLI `drives` in `crates/freespace-cli/src/commands/drives.rs`
+- [x] T144 [P] [US22] Test the volume summary and snapshot dynamics in `tests/dashboard.rs`
+- [x] T145 [US22] Implement types and collection of the volume summary in `crates/freespace-core/src/dashboard.rs` and `crates/freespace-platform/src/volumes.rs`
+- [x] T146 [US22] Implement the dashboard screen and quick scan launch in `apps/freespace-gui/src/views/dashboard.rs`
+- [x] T147 [US22] Implement CLI `drives` in `crates/freespace-cli/src/commands/drives.rs`
 
 ---
 
@@ -402,12 +402,12 @@ verified independently.
 
 **Independent Test**: switch language and theme, set exclusions, run the portable build and verify that nothing is written to the profile
 
-- [ ] T148 [P] [US23] Test language switching, settings and portable mode in `tests/settings.rs`
-- [ ] T149 [US23] Fill in the complete locales `locales/ru.toml` and `locales/en.toml`
-- [ ] T150 [US23] Implement the settings screen in the GUI in `apps/freespace-gui/src/views/settings.rs`
-- [ ] T151 [US23] Implement portable mode and the settings storage fallback in `crates/freespace-core/src/settings.rs`
-- [ ] T152 [US23] Implement CLI `config get/set` in `crates/freespace-cli/src/commands/config.rs`
-- [ ] T153 [US23] Implement a regression test ensuring no network calls or telemetry in `tests/privacy.rs`
+- [x] T148 [P] [US23] Test language switching, settings and portable mode in `tests/settings.rs`
+- [x] T149 [US23] Fill in the complete locales `locales/ru.toml` and `locales/en.toml`
+- [x] T150 [US23] Implement the settings screen in the GUI in `apps/freespace-gui/src/views/settings.rs`
+- [x] T151 [US23] Implement portable mode and the settings storage fallback in `crates/freespace-core/src/settings.rs`
+- [x] T152 [US23] Implement CLI `config get/set` in `crates/freespace-cli/src/commands/config.rs`
+- [x] T153 [US23] Implement a regression test ensuring no network calls or telemetry in `tests/privacy.rs`
 
 ---
 
@@ -415,14 +415,14 @@ verified independently.
 
 **Purpose**: performance, documentation, packaging and final validation
 
-- [ ] T154 [P] Optimize the MFT scan based on benchmark results in `crates/freespace-scan/src/mft_scan.rs`
-- [ ] T155 [P] Optimize tree and arena memory in `crates/freespace-core/src/tree.rs`
-- [ ] T156 [P] Run `cargo fmt --check` and `cargo clippy -D warnings`, eliminate warnings
-- [ ] T157 [P] Prepare RU/EN user documentation in `docs/`, `ru/`, `en/`
-- [ ] T158 [P] Prepare the portable ZIP and the Inno Setup installer in `installer/freespace.iss`
-- [ ] T159 [P] Create `CHANGELOG.md` and pin version 1.0.0
+- [x] T154 [P] Optimize the MFT scan based on benchmark results in `crates/freespace-scan/src/mft_scan.rs`
+- [x] T155 [P] Optimize tree and arena memory in `crates/freespace-core/src/tree.rs`
+- [x] T156 [P] Run `cargo fmt --check` and `cargo clippy -D warnings`, eliminate warnings
+- [x] T157 [P] Prepare RU/EN user documentation in `docs/`, `ru/`, `en/`
+- [x] T158 [P] Prepare the portable ZIP and the Inno Setup installer in `installer/freespace.iss`
+- [x] T159 [P] Create `CHANGELOG.md` and pin version 1.0.0
 - [ ] T160 Run all `quickstart.md` scenarios on Windows 10 and Windows 11 and record the results in `docs/release-validation.md`
-- [ ] T161 Synchronize the documentation mirrors in `ru/` and `en/` and verify compliance with the constitution
+- [x] T161 Synchronize the documentation mirrors in `ru/` and `en/` and verify compliance with the constitution
 
 ---
 

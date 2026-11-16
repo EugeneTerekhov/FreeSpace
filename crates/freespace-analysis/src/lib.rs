@@ -12,7 +12,8 @@
 //! * [`accounting`] — exact logical, allocated and physical size accounting;
 //! * [`metadata`] — EXIF, audio, video and PE version metadata;
 //! * [`owners`] — SID interning and per-owner summaries;
-//! * [`archives`] — archive contents without unpacking.
+//! * [`archives`] — archive contents without unpacking;
+//! * [`monitor`] — write-monitor policy, history and notifications.
 
 pub mod accounting;
 pub mod archives;
@@ -21,6 +22,7 @@ pub mod duplicates;
 pub mod hash;
 pub mod hash_cache;
 pub mod metadata;
+pub mod monitor;
 pub mod owners;
 pub mod recommend;
 pub mod top;
@@ -52,6 +54,10 @@ pub use duplicates::{
 };
 pub use hash::{FileHash, HashAlgorithm, files_equal, full_digest, hex, partial_digest};
 pub use hash_cache::HashCache;
+pub use monitor::{
+    DEFAULT_HISTORY_CAPACITY, MonitorConfig, MonitorEvent, MonitorHistory, Notification,
+    ProcessSummary, wildcard_match,
+};
 pub use top::{TopFile, top_files};
 pub use types::{
     CategoryTotal, FileCategory, TypeGroup, category_for, category_for_extension,

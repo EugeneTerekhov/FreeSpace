@@ -11,7 +11,9 @@ pub mod lock;
 pub mod output;
 
 use std::{
+    ffi::OsString,
     io::{self, Write},
+    path::Path,
     sync::Mutex,
     time::Instant,
 };
@@ -36,7 +38,22 @@ static PROCESS_LOCK: Mutex<()> = Mutex::new(());
 /// Returns the process exit code.
 #[must_use]
 pub fn main_entry() -> u8 {
-    let cli = match Cli::try_parse() {
+    main_entry_from(std::env::args_os())
+}
+
+/// Parses an explicit argument list, initialises logging and runs the command.
+///
+/// Splitting the entry point from [`main_entry`] keeps the Explorer path
+/// handling testable and lets the binary forward Unicode paths unchanged
+/// (FR-081).
+#[must_use]
+pub fn main_entry_from<I, T>(args: I) -> u8
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString>,
+{
+    let args = normalize_arguments(args.into_iter().map(Into::into));
+    let cli = match Cli::try_parse_from(args) {
         Ok(cli) => cli,
         Err(error) => {
             let code = error.exit_code();
@@ -97,6 +114,41 @@ pub fn run(cli: Cli, stdout: &mut dyn Write, stderr: &mut dyn Write) -> u8 {
             error.exit_code()
         }
     }
+}
+
+/// Expands the bare-path form used by Explorer menu entries.
+///
+/// `freespace "D:\some folder"` is treated as `freespace scan "D:\some folder"`,
+/// which lets the registry command stay simple. Arguments that are options or
+/// known subcommands are left untouched, and Unicode characters are preserved
+/// because the values stay [`OsString`] instances (FR-081).
+#[must_use]
+pub fn normalize_arguments(args: impl IntoIterator<Item = OsString>) -> Vec<OsString> {
+    let mut args: Vec<OsString> = args.into_iter().collect();
+
+    if args.len() != 2 {
+        return args;
+    }
+
+    let candidate = &args[1];
+    let text = candidate.to_string_lossy();
+    if text.starts_with('-') {
+        return args;
+    }
+
+    let path = Path::new(candidate);
+    let looks_like_path = path.is_absolute()
+        || path
+            .components()
+            .next()
+            .is_some_and(|component| matches!(component, std::path::Component::Prefix(_)))
+        || text.contains(['\\', '/'])
+        || path.exists();
+    if looks_like_path {
+        args.insert(1, OsString::from("scan"));
+    }
+
+    args
 }
 
 fn execute(cli: &Cli) -> Result<Outcome> {
@@ -193,7 +245,7 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             keep_rule,
         } => {
             let settings = load_settings(cli)?;
-            let cache = freespace_ops::store::default_path()
+            let cache = freespace_ops::store::default_path_with(settings.portable_mode)
                 .ok()
                 .and_then(|path| freespace_analysis::HashCache::open(&path).ok());
             commands::duplicates::run(
@@ -265,7 +317,7 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                     "`--mode recycle|quarantine|permanent` is required".to_owned(),
                 )
             })?;
-            let path = freespace_ops::store::default_path()?;
+            let path = freespace_ops::store::default_path_with(settings.portable_mode)?;
             let store = freespace_ops::Store::open(&path)?;
             commands::delete::run(
                 targets,
@@ -283,9 +335,7 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             pattern,
         } => {
             let settings = load_settings(cli)?;
-            let store = freespace_ops::store::default_path()
-                .ok()
-                .and_then(|path| freespace_ops::Store::open(&path).ok());
+            let store = open_store(&settings);
             commands::shred::run(
                 paths,
                 *passes,
@@ -302,10 +352,9 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             case,
             preview,
         } => {
+            let settings = load_settings(cli)?;
             let store = if cli.yes && !*preview {
-                freespace_ops::store::default_path()
-                    .ok()
-                    .and_then(|path| freespace_ops::Store::open(&path).ok())
+                open_store(&settings)
             } else {
                 None
             };
@@ -324,9 +373,8 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             set,
             clear,
         } => {
-            let store = freespace_ops::store::default_path()
-                .ok()
-                .and_then(|path| freespace_ops::Store::open(&path).ok());
+            let settings = load_settings(cli)?;
+            let store = open_store(&settings);
             commands::attrs::run_attrs(
                 targets,
                 set.as_deref(),
@@ -341,9 +389,8 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             reset,
             copy_from,
         } => {
-            let store = freespace_ops::store::default_path()
-                .ok()
-                .and_then(|path| freespace_ops::Store::open(&path).ok());
+            let settings = load_settings(cli)?;
+            let store = open_store(&settings);
             commands::attrs::run_acl(
                 targets,
                 owner.as_deref(),
@@ -366,20 +413,42 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             } else {
                 None
             };
+            let settings = load_settings(cli)?;
             let store = if mode.is_some() {
-                freespace_ops::store::default_path()
-                    .ok()
-                    .and_then(|path| freespace_ops::Store::open(&path).ok())
+                open_store(&settings)
             } else {
                 None
             };
             commands::unlock::run(path, mode, cli.yes, store.as_ref())
         }
-        command => Err(Error::Unsupported(format!(
-            "`{}` is not implemented yet",
-            command.name()
-        ))),
+        Command::Monitor {
+            threshold,
+            interval,
+            iterations,
+            root,
+            no_etw,
+        } => {
+            let settings = load_settings(cli)?;
+            commands::monitor::run(
+                &settings,
+                commands::monitor::MonitorArgs {
+                    threshold: *threshold,
+                    interval: *interval,
+                    iterations: *iterations,
+                    root: root.as_deref(),
+                    no_etw: *no_etw,
+                    json: cli.json,
+                },
+            )
+        }
+        Command::ContextMenu { action } => commands::context_menu::run(action, None),
     }
+}
+
+fn open_store(settings: &Settings) -> Option<freespace_ops::Store> {
+    freespace_ops::store::default_path_with(settings.portable_mode)
+        .ok()
+        .and_then(|path| freespace_ops::Store::open(&path).ok())
 }
 
 fn load_settings(cli: &Cli) -> Result<Settings> {
@@ -400,7 +469,12 @@ fn emit_success(
     stdout: &mut dyn Write,
     stderr: &mut dyn Write,
 ) {
-    if cli.json {
+    if let Some(raw) = &outcome.raw {
+        let _ = write!(stdout, "{raw}");
+        if !raw.ends_with('\n') {
+            let _ = writeln!(stdout);
+        }
+    } else if cli.json {
         let value = envelope(
             command,
             Status::Ok,
@@ -472,6 +546,7 @@ fn run_args(args: &[&str]) -> (u8, String, String) {
 mod tests {
     use clap::Parser;
     use serde_json::Value;
+    use std::ffi::OsString;
 
     use super::run_args;
 
@@ -544,14 +619,24 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_commands_return_exit_code_8() {
-        let (code, stdout, stderr) = run_args(&["freespace", "monitor", "--json"]);
+    fn monitor_runs_a_bounded_fallback_session() {
+        let (code, stdout, stderr) = run_args(&[
+            "freespace",
+            "monitor",
+            "--iterations",
+            "1",
+            "--interval",
+            "0",
+            "--no-etw",
+            "--json",
+        ]);
 
-        assert_eq!(code, 8);
+        assert_eq!(code, 0);
         assert!(stderr.is_empty());
-        let value: Value = serde_json::from_str(&stdout).expect("valid JSON");
-        assert_eq!(value["status"], "error");
-        assert_eq!(value["errors"][0]["code"], "E_UNSUPPORTED");
+        for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
+            let value: Value = serde_json::from_str(line).expect("JSON line");
+            assert!(value["type"].is_string());
+        }
     }
 
     #[test]
@@ -600,5 +685,40 @@ mod tests {
 
         assert!(parsed.json);
         assert!(parsed.yes);
+    }
+
+    #[test]
+    fn expands_the_bare_path_form_for_explorer() {
+        let args = super::normalize_arguments([
+            OsString::from("freespace"),
+            OsString::from(r"D:\Some Folder\Тест"),
+        ]);
+
+        assert_eq!(args[1], OsString::from("scan"));
+        assert_eq!(args[2], OsString::from(r"D:\Some Folder\Тест"));
+    }
+
+    #[test]
+    fn keeps_known_subcommands_and_options_untouched() {
+        for invocation in [
+            vec!["freespace", "drives"],
+            vec!["freespace", "--json"],
+            vec!["freespace", "scan"],
+            vec!["freespace", "drives", "--json"],
+        ] {
+            let expected: Vec<OsString> = invocation.iter().map(OsString::from).collect();
+            let args = super::normalize_arguments(expected.clone());
+            assert_eq!(args, expected, "unexpected rewrite");
+        }
+    }
+
+    #[test]
+    fn expands_relative_paths_containing_a_separator() {
+        let args = super::normalize_arguments([
+            OsString::from("freespace"),
+            OsString::from(r"fixtures\long path"),
+        ]);
+
+        assert_eq!(args[1], OsString::from("scan"));
     }
 }

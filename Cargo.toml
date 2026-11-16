@@ -14,7 +14,7 @@ members = [
 default-members = ["apps/freespace-gui", "crates/freespace-cli"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 
@@ -66,6 +66,8 @@ rust_xlsxwriter = { version = "0.102", features = ["constant_memory"] }
 
 # Windows platform layer
 windows = "0.62"
+winreg = "0.56"
+ferrisetw = "1.2"
 
 # Frontends
 clap = { version = "4.6", features = ["derive"] }

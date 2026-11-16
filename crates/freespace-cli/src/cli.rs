@@ -312,6 +312,15 @@ pub enum Command {
         /// Polling interval in seconds.
         #[arg(long)]
         interval: Option<u64>,
+        /// Number of batches to report; `0` runs until interrupted.
+        #[arg(long, default_value_t = 0)]
+        iterations: u32,
+        /// Volume or directory whose USN journal supplies path hints.
+        #[arg(long)]
+        root: Option<PathBuf>,
+        /// Skip the ETW session and use process counters only.
+        #[arg(long = "no-etw")]
+        no_etw: bool,
     },
 
     /// Install or remove Explorer context-menu entries.
@@ -426,6 +435,9 @@ pub enum ContextMenuAction {
         /// Install for all users (requires elevation).
         #[arg(long)]
         machine: bool,
+        /// Executable registered in the menu; defaults to the running binary.
+        #[arg(long, value_name = "PATH")]
+        executable: Option<PathBuf>,
     },
     /// Remove the integration.
     Uninstall {

@@ -191,10 +191,12 @@ freespace archives <path> [--export <file.csv|json|xml|html>] [--json]
 ### `monitor`
 
 ```text
-freespace monitor [--threshold <bytes>] [--interval <seconds>] [--json]
+freespace monitor [--threshold <bytes>] [--interval <seconds>] [--iterations <n>]
+                  [--root <path>] [--no-etw] [--json]
 ```
 
 - Streaming JSON Lines: one `DiskEvent` object per line.
+- `--iterations 0` runs until interrupted; `--no-etw` forces the counter fallback.
 
 ### `drives`
 
@@ -212,7 +214,7 @@ freespace config set <key> <value> [--json]
 ### `context-menu`
 
 ```text
-freespace context-menu install [--machine] [--yes]
+freespace context-menu install [--machine] [--executable <path>] [--yes]
 freespace context-menu uninstall [--machine] [--yes]
 ```
 

@@ -22,9 +22,12 @@ automates cleanup via CLI.
 путей, массовое переименование с предпросмотром и откатом, пакетная смена атрибутов, владельца и
 прав NTFS, метаданные EXIF/аудио/видео/PE с фильтрацией, отчёт по владельцам, просмотр ZIP/7z/
 TAR/GZ/ISO без распаковки, экспорт CSV/XML/HTML/XLSX и автоматизация CLI с блокировкой
-параллельных запусков и экспортом задания Планировщика. CLI: `scan`, `tree`, `top`, `types`,
+параллельных запусков и экспортом задания Планировщика, контекстное меню Проводника, мониторинг
+записи на диск с ETW и резервным режимом по счётчикам, повышение прав по требованию, дашборд всех
+дисков и портативный режим. CLI: `scan`, `tree`, `top`, `types`,
 `filter`, `duplicates`, `owners`, `cleanup`, `unlock`, `shred`, `snapshot`, `delete`, `rename`,
-`attrs`, `acl`, `archives`, `export` и `schedule` (T026–T130).
+`attrs`, `acl`, `archives`, `export`, `schedule`, `drives`, `config`, `monitor` и `context-menu`
+(T026–T159).
 Phases 3–20 (US1–US18) are complete: NTFS scanning through the MFT and the USN journal, the
 directory-walk fallback, the size tree with search and sorting, the interactive treemap with zoom
 and legend, file unlocking through the Restart Manager and deletion on reboot, top files and type
@@ -34,10 +37,12 @@ comparison, safe operations with the Recycle Bin, quarantine, journal and undo, 
 accounting for hard links, reparse points, compression, sparse files and ADS, the long-path file
 manager, bulk rename with preview and rollback, batch attribute, owner and NTFS permission changes,
 EXIF/audio/video/PE metadata with filtering, per-owner reports, ZIP/7z/TAR/GZ/ISO inspection
-without unpacking, CSV/XML/HTML/XLSX export, and CLI automation with parallel-run locking and Task
-Scheduler export. CLI: `scan`, `tree`, `top`, `types`, `filter`, `duplicates`, `owners`, `cleanup`,
-`unlock`, `shred`, `snapshot`, `delete`, `rename`, `attrs`, `acl`, `archives`, `export` and
-`schedule` (T026–T130).
+without unpacking, CSV/XML/HTML/XLSX export, CLI automation with parallel-run locking and Task
+Scheduler export, Explorer context-menu integration, real-time write monitoring through ETW with a
+counter-based fallback, on-demand elevation, the all-drive dashboard and portable mode. CLI: `scan`,
+`tree`, `top`, `types`, `filter`, `duplicates`, `owners`, `cleanup`, `unlock`, `shred`, `snapshot`,
+`delete`, `rename`, `attrs`, `acl`, `archives`, `export`, `schedule`, `drives`, `config`, `monitor`
+and `context-menu` (T026–T159).
 
 ## Документация / Documentation
 
@@ -53,6 +58,10 @@ Scheduler export. CLI: `scan`, `tree`, `top`, `types`, `filter`, `duplicates`, `
 | Контракты / Contracts | [ru/contracts/](ru/contracts/) | [en/contracts/](en/contracts/) |
 | Чек-листы / Checklists | [ru/checklists/](ru/checklists/) | [en/checklists/](en/checklists/) |
 | Как пользоваться репозиторием / Repository guide | [ru/repository-guide.md](ru/repository-guide.md) | [en/repository-guide.md](en/repository-guide.md) |
+| Руководство пользователя / User guide | [ru/user-guide.md](ru/user-guide.md) | [en/user-guide.md](en/user-guide.md) |
+| Контракт CLI / CLI contract | [docs/cli.md](docs/cli.md) | [docs/cli.md](docs/cli.md) |
+| Валидация релиза / Release validation | [docs/release-validation.md](docs/release-validation.md) | [docs/release-validation.md](docs/release-validation.md) |
+| Упаковка / Packaging | [installer/](installer/) | [installer/](installer/) |
 
 Правила для AI-агентов описаны в [AGENTS.md](AGENTS.md).
 Rules for AI agents are described in [AGENTS.md](AGENTS.md).

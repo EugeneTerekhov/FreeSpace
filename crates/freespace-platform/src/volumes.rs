@@ -7,6 +7,7 @@ use std::{
 
 use freespace_core::{
     Error, Result,
+    dashboard::Dashboard,
     model::{FileSystem, Volume, VolumeStatus},
 };
 use windows::{
@@ -171,6 +172,19 @@ pub fn list_volumes() -> Result<Vec<VolumeInfo>> {
     Ok(volumes)
 }
 
+/// Builds the dashboard summary for every logical drive.
+///
+/// # Errors
+/// Returns an error only when the drive list cannot be obtained.
+pub fn dashboard() -> Result<Dashboard> {
+    let volumes = list_volumes()?
+        .into_iter()
+        .map(VolumeInfo::into_volume)
+        .collect();
+
+    Ok(Dashboard::from_volumes(volumes))
+}
+
 /// Queries the volume that contains `path`.
 ///
 /// # Errors
@@ -332,5 +346,17 @@ mod tests {
         assert_eq!(DriveType::from_raw(99), DriveType::Unknown);
         assert!(DriveType::Removable.is_removable());
         assert!(!DriveType::Fixed.is_removable());
+    }
+
+    #[test]
+    fn builds_a_dashboard_summary() {
+        let dashboard = super::dashboard().expect("dashboard");
+
+        assert!(!dashboard.volumes.is_empty());
+        assert!(dashboard.totals().volumes >= dashboard.totals().available);
+        for summary in &dashboard.volumes {
+            assert!(summary.volume.free_bytes <= summary.volume.total_bytes);
+            assert!(summary.used_percent <= 100);
+        }
     }
 }

@@ -77,7 +77,6 @@ pub fn scan(
     let root_id = tree.add_node(None, root_spec)?;
     let mut nodes: HashMap<u64, NodeId> = HashMap::new();
     nodes.insert(ROOT_FILE_REF, root_id);
-
     observer.progress(&ScanProgress::new(ScanPhase::Enumerating, 0.1));
 
     let cancelled = || observer.is_cancelled();
@@ -97,12 +96,13 @@ pub fn scan(
 
     observer.progress(&ScanProgress::new(ScanPhase::Building, 0.6));
 
-    let index: HashMap<u64, usize> = records
-        .iter()
-        .enumerate()
-        .map(|(position, record)| (record.file_ref, position))
-        .collect();
-    let mut depths: HashMap<u64, Option<u32>> = HashMap::new();
+    let mut index: HashMap<u64, usize> = HashMap::with_capacity(records.len());
+    for (position, record) in records.iter().enumerate() {
+        index.insert(record.file_ref, position);
+    }
+    // Depth memoisation is keyed by file reference; pre-sizing both maps avoids
+    // rehashing a multi-million-entry table while the tree is built (T154).
+    let mut depths: HashMap<u64, Option<u32>> = HashMap::with_capacity(records.len());
     let mut ordered: Vec<(u32, usize)> = Vec::with_capacity(records.len());
 
     for (position, record) in records.iter().enumerate() {

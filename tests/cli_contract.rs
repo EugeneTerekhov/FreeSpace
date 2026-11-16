@@ -165,14 +165,27 @@ fn destructive_commands_require_confirmation_and_return_code_5() {
 }
 
 #[test]
-fn invalid_arguments_and_unsupported_commands_use_documented_codes() {
+fn invalid_arguments_use_documented_codes() {
     let (code, value) = json(&["freespace", "config", "get", "unknown", "--json"]);
     assert_eq!(code, 2);
     assert_eq!(value["errors"][0]["code"], "E_INVALID_ARGUMENT");
 
-    let (code, value) = json(&["freespace", "monitor", "--json"]);
-    assert_eq!(code, 8);
-    assert_eq!(value["errors"][0]["code"], "E_UNSUPPORTED");
+    let (code, stdout, stderr) = run(&[
+        "freespace",
+        "monitor",
+        "--iterations",
+        "1",
+        "--interval",
+        "0",
+        "--no-etw",
+        "--json",
+    ]);
+    assert_eq!(code, 0);
+    assert!(stderr.is_empty());
+    for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
+        let value: Value = serde_json::from_str(line).expect("every monitor line is JSON");
+        assert!(value["type"].is_string());
+    }
 
     let (code, value) = json(&[
         "freespace",

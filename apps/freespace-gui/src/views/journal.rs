@@ -22,7 +22,7 @@ impl JournalState {
         ui.label(t!("journal.intro").to_string());
         ui.horizontal(|ui| {
             if ui.button(t!("journal.refresh").to_string()).clicked() || !self.loaded {
-                self.reload();
+                self.reload(portable);
             }
         });
 
@@ -65,10 +65,10 @@ impl JournalState {
         }
     }
 
-    fn reload(&mut self) {
+    fn reload(&mut self, portable: bool) {
         self.error = None;
         self.loaded = true;
-        match open_store().and_then(|store| store.journal_list(200)) {
+        match open_store(portable).and_then(|store| store.journal_list(200)) {
             Ok(entries) => self.entries = entries,
             Err(error) => self.error = Some(error.to_string()),
         }
@@ -77,7 +77,7 @@ impl JournalState {
     fn undo(&mut self, operation_id: Uuid, portable: bool) {
         self.error = None;
         self.message = None;
-        let result = open_store().and_then(|store| {
+        let result = open_store(portable).and_then(|store| {
             let root = Quarantine::default_root(portable)?;
             let quarantine = Quarantine::new(root)?;
             undo_operation(&store, &quarantine, operation_id)
@@ -96,7 +96,7 @@ impl JournalState {
                 for error in outcome.errors {
                     self.error = Some(error);
                 }
-                self.reload();
+                self.reload(portable);
             }
             Err(error) => self.error = Some(error.to_string()),
         }
@@ -110,8 +110,8 @@ impl JournalState {
     }
 }
 
-fn open_store() -> freespace_core::Result<Store> {
-    let path = store::default_path()?;
+fn open_store(portable: bool) -> freespace_core::Result<Store> {
+    let path = store::default_path_with(portable)?;
 
     Store::open(&path)
 }
