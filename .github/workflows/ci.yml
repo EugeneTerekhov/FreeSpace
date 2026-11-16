@@ -10,16 +10,33 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  FREESPACE_ADMIN_TESTS: "0"
+  UI_DIR: apps/freespace-desktop/ui
 
 jobs:
-  check:
+  rust:
     name: fmt, clippy and tests
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.UI_DIR }}
+        run: npm ci
+
+      - name: Build the frontend for the Tauri context
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run build
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -40,3 +57,144 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace
+
+  frontend:
+    name: typecheck, lint and unit tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.UI_DIR }}
+        run: npm ci
+
+      - name: Check generated localization catalogues
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run check:i18n
+
+      - name: Check for hard-coded colours
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run check:tokens
+
+      - name: Check the network guard
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run check:network
+
+      - name: Typecheck
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:unit
+
+  ui-e2e:
+    name: Playwright, accessibility and visual regression
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.UI_DIR }}
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: ${{ env.UI_DIR }}
+        run: npx playwright install chromium
+
+      - name: End-to-end tests
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:e2e
+
+      - name: Accessibility tests
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:a11y
+
+      - name: Visual regression tests
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:visual
+
+      - name: Pull-request visual subset
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:visual:pr
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ${{ env.UI_DIR }}/playwright-report/
+          retention-days: 7
+
+  tauri-e2e:
+    name: Tauri WebDriver end-to-end
+    runs-on: windows-latest
+    timeout-minutes: 90
+    # Blocking gate: it opens the real WebView2 window, checks the storage
+    # contract (`data` next to the executable) and verifies that no remote
+    # resource is reachable.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.UI_DIR }}
+        run: npm ci
+
+      - name: Build the frontend
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run build
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build the desktop binary
+        run: cargo build -p freespace-desktop
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Start tauri-driver
+        run: Start-Process -FilePath tauri-driver -NoNewWindow
+
+      - name: Wait for the driver
+        run: Start-Sleep -Seconds 5
+
+      - name: Tauri end-to-end tests
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:tauri
