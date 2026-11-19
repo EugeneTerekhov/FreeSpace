@@ -6,6 +6,8 @@ All notable changes to FreeSpace are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-11-19
+
 ### Added
 
 - Tree row context menu on right click and `Shift+F10`: open the object in
@@ -22,6 +24,11 @@ All notable changes to FreeSpace are documented in this file. The format follows
 - The interface is reduced to 11 screens in 6 sidebar groups. The Treemap
   and the standalone scanning and export screens are gone: scanning progress is
   shown inline, and export is a global action.
+- The frontend now uses React 19 and `@ui-sdk`; the visual regression suite and
+  its baselines were retired.
+- Documentation moved to `docs/ru` (Russian) and `docs/en` (English); one-off
+  release, audit and performance reports and unused quality checklists were
+  removed.
 
 ### Fixed
 

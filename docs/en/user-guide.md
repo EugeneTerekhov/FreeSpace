@@ -8,7 +8,7 @@ duplicates, helps reclaim space safely, and works completely offline.
 - Portable build: unpack the ZIP into any folder and run `freespace-gui.exe`. The archive contains
   no Explorer integration; settings, the journal, cache and quarantine live in the `data` folder
   next to the executable.
-- Installer: run `FreeSpace_1.2.0_x64-setup.exe` (the name contains the version). The Tauri NSIS
+- Installer: run `FreeSpace_1.3.0_x64-setup.exe` (the name contains the version). The Tauri NSIS
   installer installs a compatible WebView2 offline and creates no context-menu entries. All
   application data lives in `data` next to the executable.
 - A portable build without a bundled `webview2` folder uses the system WebView2; for a fully

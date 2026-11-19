@@ -1,10 +1,10 @@
-# Portable FreeSpace 1.1 build script.
+# Portable FreeSpace 1.3.0 build script.
 #
 # Usage:
 #   pwsh -File installer/portable.ps1
 #   pwsh -File installer/portable.ps1 -WebView2Runtime C:\WebView2\FixedRuntime
 #
-# Produces dist/freespace-portable-1.2.0.zip with the GUI and CLI built without
+# Produces dist/freespace-portable-1.3.0.zip with the GUI and CLI built without
 # the context-menu feature, the application-owned `data` directory, the user
 # guide and, when `-WebView2Runtime` is given, an extracted fixed WebView2
 # runtime in `webview2/`. No registry entries are created by this build.
@@ -21,7 +21,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root 'dist'
 $stage = Join-Path $dist 'freespace-portable'
-$zip = Join-Path $dist 'freespace-portable-1.2.0.zip'
+$zip = Join-Path $dist 'freespace-portable-1.3.0.zip'
 
 # `--no-default-features` disables the optional `context-menu` feature. The
 # portable build therefore has no `context-menu` command and no Explorer items.

@@ -982,7 +982,7 @@ export class MockTransport implements Transport {
   private bootstrap(): AppBootstrap {
     return {
       ipc_version: 1,
-      app_version: '1.2.0',
+      app_version: '1.3.0',
       os: 'windows',
       webview_version: '130.0.2849.68',
       settings: this.settings,
@@ -996,7 +996,7 @@ export class MockTransport implements Transport {
       },
       capabilities: this.capabilities(),
       about: {
-        version: '1.2.0',
+        version: '1.3.0',
         build: 'mock',
         webview_version: '130.0.2849.68',
         licenses: [

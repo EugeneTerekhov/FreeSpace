@@ -9,11 +9,11 @@ tree, duplicate and stale-file discovery, disk snapshots, safe file operations a
 
 ## Статус / Status
 
-**1.2.0** — нативный клиент Tauri 2 + React: 11 экранов в 6 группах, тёмная и светлая темы,
+**1.3.0** — нативный клиент Tauri 2 + React: 11 экранов в 6 группах, тёмная и светлая темы,
 DPI 100–200%, reduced motion, клавиатура и Narrator, RU/EN, безопасные операции и офлайн-установщик
 с WebView2. CLI сохраняет паритет с GUI и печатает JSON.
 
-**1.2.0** — native Tauri 2 + React client: 11 screens in 6 groups, dark and light themes,
+**1.3.0** — native Tauri 2 + React client: 11 screens in 6 groups, dark and light themes,
 100–200% DPI, reduced motion, keyboard and Narrator support, RU/EN, safe operations and an offline
 installer with WebView2. The CLI keeps parity with the GUI and emits JSON.
 
