@@ -82,7 +82,7 @@ impl FallbackMonitor {
         } else {
             let mut writes = write_deltas(self.previous.values(), &snapshot);
             writes.retain(|write| write.bytes > 0);
-            writes.sort_by(|left, right| right.bytes.cmp(&left.bytes));
+            writes.sort_by_key(|left| std::cmp::Reverse(left.bytes));
             writes
         };
         self.previous = snapshot
@@ -122,8 +122,7 @@ where
             let bytes = current.write_bytes.checked_sub(previous.write_bytes)?;
             let operations = current
                 .write_operations
-                .checked_sub(previous.write_operations)
-                .unwrap_or_default();
+                .saturating_sub(previous.write_operations);
             if bytes == 0 && operations == 0 {
                 return None;
             }
