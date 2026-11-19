@@ -12,6 +12,7 @@ Thumbs.db
 # Logs and local state
 *.log
 /.opencode/state/
+/.opencode/skills/
 /data/
 /Quarantine/
 node_modules/
