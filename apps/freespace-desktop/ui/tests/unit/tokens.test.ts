@@ -61,6 +61,7 @@ function contrast(foreground: string, background: string): number {
 const PAIRS: [string, string, number][] = [
   ['--fs-text', '--fs-bg', 4.5],
   ['--fs-text', '--fs-surface', 4.5],
+  ['--fs-text', '--fs-surface-overlay', 4.5],
   ['--fs-text-muted', '--fs-surface', 4.5],
   ['--fs-text-subtle', '--fs-surface-raised', 4.5],
   ['--fs-accent-ink', '--fs-accent', 4.5],

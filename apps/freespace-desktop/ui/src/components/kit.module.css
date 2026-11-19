@@ -518,7 +518,7 @@
   border: 1px solid transparent;
   border-radius: var(--fs-radius-pill);
   background: var(--fs-surface-overlay);
-  color: var(--fs-text-muted);
+  color: var(--fs-text);
   font-size: var(--fs-text-2xs);
   font-weight: var(--fs-weight-medium);
   white-space: nowrap;
@@ -526,7 +526,7 @@
 
 .neutral {
   background: var(--fs-surface-overlay);
-  color: var(--fs-text-muted);
+  color: var(--fs-text);
 }
 
 .toneSuccess {
