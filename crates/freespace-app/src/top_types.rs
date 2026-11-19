@@ -144,7 +144,7 @@ pub fn types_category_summary(
                     share: group.share,
                 })
                 .collect();
-        rows.sort_by(|left, right| right.logical_size.cmp(&left.logical_size));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.logical_size));
         return Ok(rows);
     }
 

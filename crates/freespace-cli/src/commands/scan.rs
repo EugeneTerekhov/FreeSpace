@@ -283,12 +283,7 @@ fn node_json(
             children.push((child, node_json(tree, child, level + 1, depth, min_size)));
         }
     }
-    children.sort_by(|left, right| {
-        tree.node(right.0)
-            .size
-            .logical
-            .cmp(&tree.node(left.0).size.logical)
-    });
+    children.sort_by_key(|node| std::cmp::Reverse(tree.node(node.0).size.logical));
 
     json!({
         "name": tree.name(id),

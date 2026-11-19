@@ -528,11 +528,7 @@ fn event_matches(event: &MonitorEventView, filter: &MonitorEventFilter) -> bool 
             return false;
         }
     }
-    if filter.threshold_only && !event.threshold_exceeded {
-        return false;
-    }
-
-    true
+    !(filter.threshold_only && !event.threshold_exceeded)
 }
 
 fn validate_exclusions(exclusions: &[String]) -> Result<Vec<String>, UiError> {

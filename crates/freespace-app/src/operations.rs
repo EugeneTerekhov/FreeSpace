@@ -596,7 +596,7 @@ pub fn journal_page(
         .map(journal_view)
         .filter(|entry| journal_matches(entry, filter))
         .collect();
-    entries.sort_by(|left, right| right.occurred_at.cmp(&left.occurred_at));
+    entries.sort_by_key(|left| std::cmp::Reverse(left.occurred_at));
     let offset = cursor
         .map(|cursor| cursor.parse::<usize>())
         .transpose()

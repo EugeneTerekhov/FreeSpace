@@ -419,14 +419,9 @@ fn matches_owner_filter(summary: &freespace_analysis::OwnerSummary, filter: &Fil
     {
         return false;
     }
-    if filter
+    !filter
         .max_size
         .is_some_and(|maximum| summary.total_bytes > maximum)
-    {
-        return false;
-    }
-
-    true
 }
 
 fn filter_scope(filter: &FilterSet) -> String {
