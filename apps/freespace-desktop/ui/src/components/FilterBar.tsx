@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { api } from '../api/runtime';
-import type { FilterSet, ScreenId } from '../api/dto';
+import type { FilterSet } from '../api/dto';
 import { Button } from './Button';
 import { Chip } from './Choice';
 import { SearchField, Select } from './Fields';
@@ -24,7 +24,11 @@ const CATEGORIES = [
 ] as const;
 
 export interface FilterBarProps {
-  screen: ScreenId;
+  /**
+   * Persistence key for saved sets. Absorbed screens keep their historical key
+   * (`top_files`, `owners`, …) so filters do not mix between tabs.
+   */
+  screen: string;
   filter: FilterSet;
   onChange: (filter: FilterSet) => void;
   disabled?: boolean;
@@ -33,7 +37,11 @@ export interface FilterBarProps {
 /** Shared filter bar with saved sets and explicit active conditions. */
 export function FilterBar({ screen, filter, onChange, disabled = false }: FilterBarProps) {
   const settings = useSettingsStore((state) => state.settings);
-  const saved = useMemo(() => settings?.saved_filters[screen] ?? [], [screen, settings]);
+  const savedSets = useMemo(
+    () => (settings?.saved_filters ?? {}) as Record<string, FilterSet[] | undefined>,
+    [settings],
+  );
+  const saved = useMemo(() => savedSets[screen] ?? [], [savedSets, screen]);
   const [extension, setExtension] = useState('');
   const [minSizeMb, setMinSizeMb] = useState(
     filter.min_size === null ? '' : String(Math.round(filter.min_size / (1024 * 1024))),
@@ -44,7 +52,7 @@ export function FilterBar({ screen, filter, onChange, disabled = false }: Filter
     const next = [...saved, { ...filter, name }];
     const updated = await api.appSettingsSet({
       saved_filters: {
-        ...(settings?.saved_filters ?? {}),
+        ...savedSets,
         [screen]: next,
       },
     });

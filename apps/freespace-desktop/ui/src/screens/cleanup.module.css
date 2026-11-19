@@ -1,0 +1,250 @@
+/*
+ * Cleanup screen: recommendations, categories and the snapshot comparison
+ * (T050). Only spacing, surfaces and type come from tokens; controls sit on the
+ * 8px grid and no colour is decorative.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-6);
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+
+.buttonGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  flex-wrap: nowrap;
+}
+
+.fieldNarrow {
+  width: 160px;
+  min-width: 0;
+}
+
+.fieldWide {
+  width: 240px;
+  min-width: 0;
+}
+
+.olderField {
+  min-width: 0;
+}
+
+.olderInput {
+  width: 6.5rem;
+  padding: var(--fs-space-2);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  background: var(--fs-surface);
+  color: var(--fs-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.olderInput:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.input {
+  width: 100%;
+  padding: var(--fs-space-2);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  background: var(--fs-surface);
+  color: var(--fs-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.hint {
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-subtle);
+}
+
+/* Category chips: one press selects or clears every candidate of a category. */
+.categories {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+/* ---------- Tables ---------- */
+
+/* A wide table scrolls inside its own panel: it must never widen the screen
+ * and push the sidebar or the first columns out of view. */
+.tableWrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-text-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cleanup tables size their columns explicitly so a long path truncates
+ * instead of shoving risk, size and actions out of the panel. */
+.tableFixed {
+  table-layout: fixed;
+  min-width: 48rem;
+}
+
+.table th {
+  padding: 0 var(--fs-space-2) var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line-faint);
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Headers wrap inside their column rather than stretching it. */
+.tableFixed th {
+  vertical-align: bottom;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.table td {
+  height: var(--fs-row-height);
+  padding: var(--fs-space-1) var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line-faint);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--fs-surface-overlay);
+}
+
+.numeric {
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* The header is styled by `.table th`, so alignment needs to outrank it. */
+.table th.numeric {
+  text-align: end;
+}
+
+.path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fs-text-muted);
+}
+
+.colSelect {
+  width: 2.5rem;
+}
+
+.colRisk {
+  width: 7.5rem;
+}
+
+.colReason {
+  width: 12rem;
+}
+
+.colSize {
+  width: 6.5rem;
+}
+
+.colAction {
+  width: 12.5rem;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.risk {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+}
+
+.panelFoot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--fs-space-2);
+}
+
+/* ---------- Growth by directory ---------- */
+
+.growthList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.growthRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--fs-space-4);
+  padding-bottom: var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line-faint);
+  font-size: var(--fs-text-xs);
+}
+
+.growthRow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.growthPath {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fs-text-muted);
+}
+
+.growthValue {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .fieldNarrow,
+  .fieldWide {
+    width: 100%;
+  }
+}

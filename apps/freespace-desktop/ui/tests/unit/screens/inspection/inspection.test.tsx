@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { UiError } from '../../../../src/api/dto';
-import type { OwnerSummaryPage } from '../../../../src/api/dto-inspection';
+import type { ArchiveEntryPage, OwnerSummaryPage } from '../../../../src/api/dto-inspection';
 import type { CommandName } from '../../../../src/api/transport';
 import { Archives } from '../../../../src/screens/Archives';
-import { Export } from '../../../../src/screens/Export';
+import { Inspect } from '../../../../src/screens/Inspect';
 import { Metadata } from '../../../../src/screens/Metadata';
 import { Owners } from '../../../../src/screens/Owners';
 import { Unlock } from '../../../../src/screens/Unlock';
@@ -63,13 +63,33 @@ function failure(): Error {
   return Object.assign(new Error(error.details ?? 'injected failure'), error);
 }
 
+interface RecordedCall {
+  command: CommandName;
+  args: Record<string, unknown> | undefined;
+}
+
+/** Records every command a screen sends, without changing the response. */
+function recordInvoke(transport: Transport): RecordedCall[] {
+  const calls: RecordedCall[] = [];
+  const original = transport.invoke.bind(transport);
+  vi.spyOn(transport, 'invoke').mockImplementation(
+    <T,>(command: CommandName, args?: Record<string, unknown>): Promise<T> => {
+      calls.push({ command, args });
+
+      return original(command, args);
+    },
+  );
+
+  return calls;
+}
+
 beforeEach(() => {
   useSnapshotStore.getState().setSnapshot(2, volume);
 });
 
 afterEach(() => {
   useSnapshotStore.getState().reset();
-  useShellStore.getState().setScreen('dashboard');
+  useShellStore.getState().setScreen('overview');
   vi.restoreAllMocks();
 });
 
@@ -121,6 +141,29 @@ describe('metadata screen', () => {
     expect(await screen.findByText('Проверьте введённые значения.')).toBeInTheDocument();
     expect(screen.getByText('Сначала укажите путь.')).toBeInTheDocument();
   });
+
+  it('renders each file as a label/value metadata group and only reads', async () => {
+    const user = userEvent.setup();
+    const calls = recordInvoke(sharedTransport());
+    renderWithI18n(<Metadata />);
+
+    await user.type(screen.getByRole('textbox', { name: 'Файл' }), 'photo');
+    await user.keyboard('{Enter}');
+    await screen.findByText('C:\\Users\\Pictures\\photo.jpg');
+
+    // Tags stay label/value pairs, not one flat summary string.
+    expect(screen.getByText('CameraMake')).toBeInTheDocument();
+    expect(screen.getByText('Contoso')).toBeInTheDocument();
+    expect(screen.getByText('CameraModel')).toBeInTheDocument();
+    expect(screen.getByText('EXIF')).toBeInTheDocument();
+    expect(screen.getByText('ОК')).toBeInTheDocument();
+
+    // Reading a file never writes: only search and metadata extraction run.
+    expect([...new Set(calls.map((call) => call.command))].sort()).toEqual([
+      'metadata_get',
+      'tree_search',
+    ]);
+  });
 });
 
 describe('owners screen', () => {
@@ -132,7 +175,7 @@ describe('owners screen', () => {
       screen.getByText('Нажмите «Построить отчёт», чтобы прочитать владельцев файлов.'),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Построить отчёт по владельцам' }));
+    await user.click(screen.getAllByRole('button', { name: 'Построить отчёт по владельцам' })[0]!);
     expect(await screen.findByText('CORP\\alice')).toBeInTheDocument();
     expect(screen.getByText('S-1-5-21-1001')).toBeInTheDocument();
 
@@ -143,8 +186,9 @@ describe('owners screen', () => {
     await user.click(logins[0]!);
     expect(await screen.findByText('C:\\Users\\alice\\Documents\\owned-1.dat')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Загрузить ещё' }));
-    expect(await screen.findByText('C:\\Users\\alice\\Documents\\owned-6.dat')).toBeInTheDocument();
+    expect(
+      await screen.findByText('C:\\Users\\alice\\Documents\\owned-6.dat'),
+    ).toBeInTheDocument();
   });
 
   it('shows the loading progress and a transport error', async () => {
@@ -165,7 +209,7 @@ describe('owners screen', () => {
 
     const user = userEvent.setup();
     renderWithI18n(<Owners />);
-    await user.click(screen.getByRole('button', { name: 'Построить отчёт по владельцам' }));
+    await user.click(screen.getAllByRole('button', { name: 'Построить отчёт по владельцам' })[0]!);
     expect(screen.getByRole('progressbar', { name: 'Чтение владельцев…' })).toBeInTheDocument();
 
     release(realPage);
@@ -180,7 +224,7 @@ describe('owners screen', () => {
 
     const user = userEvent.setup();
     renderWithI18n(<Owners />);
-    await user.click(screen.getByRole('button', { name: 'Построить отчёт по владельцам' }));
+    await user.click(screen.getAllByRole('button', { name: 'Построить отчёт по владельцам' })[0]!);
 
     expect(await screen.findByText('Ошибка файловой системы.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
@@ -190,7 +234,7 @@ describe('owners screen', () => {
     const user = userEvent.setup();
     renderWithI18n(<Owners />);
 
-    await user.click(screen.getByRole('button', { name: 'Построить отчёт по владельцам' }));
+    await user.click(screen.getAllByRole('button', { name: 'Построить отчёт по владельцам' })[0]!);
     await screen.findByText('CORP\\alice');
     await user.click(screen.getByRole('button', { name: 'Экспортировать' }));
 
@@ -247,51 +291,53 @@ describe('archives screen', () => {
       screen.getByText('archive.unsupported.password: the archive is password-protected'),
     ).toBeInTheDocument();
   });
-});
 
-describe('export screen', () => {
-  it('previews a composition and completes an offline export', async () => {
+  it('lists nested archives and marks a partial listing without unpacking', async () => {
     const user = userEvent.setup();
-    renderWithI18n(<Export />);
+    const page: ArchiveEntryPage = {
+      path: 'D:\\Archive\\bundle.tar',
+      format: 'tar',
+      cursor: null,
+      next_cursor: null,
+      entries: [
+        {
+          internal_path: 'nested/photos.7z',
+          size: 32 * 1024 * 1024,
+          compressed_size: 32 * 1024 * 1024,
+          is_directory: false,
+          encrypted: false,
+          share: 1,
+          depth: 1,
+          extension: '7z',
+        },
+      ],
+      total_entries: 1,
+      total_files: 1,
+      total_size: 32 * 1024 * 1024,
+      encrypted_count: 0,
+      warnings: ['archive.unsupported.limits'],
+      stale_cursor: false,
+    };
+    const transport = sharedTransport();
+    transport.setHandler('archives_entries_page', () => page);
+    const calls = recordInvoke(transport);
+    renderWithI18n(<Archives />);
 
-    expect(screen.getByRole('checkbox', { name: 'Дерево' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Владельцы' })).toBeChecked();
+    await user.type(
+      screen.getByRole('textbox', { name: 'Архив или папка' }),
+      'D:\\Archive\\bundle.tar',
+    );
+    await user.keyboard('{Enter}');
 
-    const output = screen.getByLabelText('Файл отчёта');
-    await user.clear(output);
-    await user.type(output, 'C:\\Temp\\report.csv');
-    await user.click(screen.getByRole('checkbox', { name: 'Типы' }));
-    expect(screen.getByRole('checkbox', { name: 'Типы' })).not.toBeChecked();
-
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-    expect(await screen.findByText('C:\\Temp\\report.csv')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Экспортировать' })).toBeEnabled();
-
-    await user.click(screen.getByRole('button', { name: 'Экспортировать' }));
+    const grid = await screen.findByRole('grid', { name: 'Архив' });
+    expect(within(grid).getByText('nested/photos.7z')).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        'Отчёт записан: C:\\Temp\\report.csv',
-        {},
-        { timeout: 5000 },
-      ),
+      screen.getByText('Архив превышает безопасные лимиты просмотра.'),
     ).toBeInTheDocument();
-  });
-
-  it('requires an output path and a scanned generation', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Export />);
-
-    const output = screen.getByLabelText('Файл отчёта');
-    await user.clear(output);
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-    expect(await screen.findByText('Проверьте введённые значения.')).toBeInTheDocument();
-    expect(screen.getAllByText('Файл отчёта').length).toBeGreaterThan(0);
-
-    useSnapshotStore.getState().reset();
-    renderWithI18n(<Export />);
-    expect(
-      screen.getAllByText('Сначала просканируйте том или каталог.').length,
-    ).toBeGreaterThan(0);
+    // The container is only enumerated: nothing is extracted or written.
+    expect([...new Set(calls.map((call) => call.command))]).toEqual([
+      'archives_entries_page',
+    ]);
   });
 });
 
@@ -402,5 +448,55 @@ describe('unlock screen', () => {
     await user.keyboard('{Enter}');
     expect(await screen.findByText('Блокирующий процесс не найден.')).toBeInTheDocument();
     expect(screen.getByText('Файл доступен.')).toBeInTheDocument();
+  });
+
+  it('releases nothing until the confirmation is submitted', async () => {
+    const user = userEvent.setup();
+    const calls = recordInvoke(sharedTransport());
+    renderWithI18n(<Unlock />);
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Файл' }),
+      'C:\\Temp\\confirmed-unlock.bin',
+    );
+    await user.keyboard('{Enter}');
+    await screen.findByText('explorer.exe');
+
+    expect(calls.some((call) => call.command === 'unlock_release')).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Попросить приложения закрыть файл' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(calls.some((call) => call.command === 'unlock_release')).toBe(false);
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Попросить приложения закрыть файл' }),
+    );
+    expect(await screen.findByText('снято')).toBeInTheDocument();
+
+    const release = calls.find((call) => call.command === 'unlock_release');
+    expect(release?.args).toMatchObject({
+      path: 'C:\\Temp\\confirmed-unlock.bin',
+      mode: 'soft',
+      confirmed: true,
+    });
+  });
+});
+
+describe('inspect screen', () => {
+  it('keeps all four sections mounted behind the new tab shell', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Inspect />);
+
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(4);
+
+    await user.click(screen.getByRole('tab', { name: 'Архивы' }));
+    const panels = screen.getAllByRole('tabpanel', { hidden: true });
+    // Switching tabs never unmounts the other sections, so their state stays.
+    expect(panels.filter((panel) => panel.hasAttribute('hidden'))).toHaveLength(3);
+    expect(screen.getByRole('tab', { name: 'Архивы' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
   });
 });

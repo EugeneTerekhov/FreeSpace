@@ -21,14 +21,17 @@ import {
 } from '../api/settingsOps';
 import { normalizeError, validationError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Segmented, Toggle } from '../components/Choice';
 import { Banner, ErrorState, Loading } from '../components/Feedback';
 import { Field, Select } from '../components/Fields';
 import { setLanguage, t } from '../i18n';
 import { formatBytes } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
-import local from './settings.module.css';
+import { About } from './About';
+import { Elevation } from './Elevation';
+import { Panel } from './ScreenFrame';
+import { ScreenFrameTabs } from './ScreenTabs';
+import local from './settings-screen.module.css';
 
 const MAX_DAYS = 3650;
 const MAX_INTERVAL = 86_400;
@@ -85,7 +88,7 @@ function isIntegerInRange(value: string, min: number, max: number): boolean {
  * the theme, language, density and motion change without a restart. The legacy
  * 001 fields keep the explicit *Save* action documented for the settings screen.
  */
-export function Settings() {
+export function SettingsPanel() {
   const [view, setView] = useState<SettingsView | null>(null);
   const [ui, setUi] = useState<UiSettings | null>(null);
   const [exclusions, setExclusions] = useState('');
@@ -219,9 +222,9 @@ export function Settings() {
 
   if (loading && view === null) {
     return (
-      <Card title={t('nav.settings')}>
+      <Panel title={t('nav.settings')}>
         <Loading label={t('common.loading')} rows={4} />
-      </Card>
+      </Panel>
     );
   }
 
@@ -257,93 +260,212 @@ export function Settings() {
         />
       ) : null}
 
-      <Card title={t('settings.theme')}>
-        <div className={local.formGrid}>
-          <Field id="settings-language" label={t('settings.language')}>
-            <Select
-              id="settings-language"
-              value={ui.language}
-              options={[
-                { value: 'ru', label: label('settings.language.ru') },
-                { value: 'en', label: label('settings.language.en') },
-              ]}
-              onChange={(event) => {
-                void applyUi({ language: event.target.value as Language });
-              }}
-            />
-          </Field>
-
-          <div>
-            <Segmented
-              label={t('settings.theme')}
-              value={ui.theme}
-              onChange={(value) => {
-                void applyUi({ theme: value as ThemePreference });
-              }}
-              options={[
-                { value: 'system', label: label('settings.theme.system') },
-                { value: 'dark', label: label('settings.theme.dark') },
-                { value: 'light', label: label('settings.theme.light') },
-              ]}
-            />
-          </div>
-
-          <div>
-            <span className={local.hint}>{label('settings.density')}</span>
-            <Segmented
-              label={label('settings.density')}
-              value={ui.density}
-              onChange={(value) => {
-                void applyUi({ density: value as Density });
-              }}
-              options={[
-                { value: 'comfortable', label: label('settings.density.comfortable') },
-                { value: 'compact', label: label('settings.density.compact') },
-              ]}
-            />
-          </div>
-
-          <div>
-            <span className={local.hint}>{t('settings.units')}</span>
-            <Segmented
-              label={t('settings.units')}
-              value={ui.units}
-              onChange={(value) => {
-                void applyUi({ units: value as UnitSystem });
-              }}
-              options={[
-                { value: 'binary', label: formatBytes(1024, 'binary') },
-                { value: 'decimal', label: formatBytes(1000, 'decimal') },
-              ]}
-            />
-          </div>
-
-          <div>
-            <span className={local.hint}>{label('settings.reduced_motion')}</span>
-            <Segmented
-              label={label('settings.reduced_motion')}
-              value={ui.reduced_motion}
-              onChange={(value) => {
-                void applyUi({ reduced_motion: value as ReducedMotion });
-              }}
-              options={[
-                { value: 'system', label: label('settings.reduced_motion.system') },
-                { value: 'on', label: label('settings.reduced_motion.on') },
-                { value: 'off', label: label('settings.reduced_motion.off') },
-              ]}
-            />
-          </div>
-        </div>
-        <div className={local.footer}>
+      <Panel
+        title={t('nav.settings')}
+        actions={
           <Button variant="secondary" loading={saving} onClick={() => void reset()}>
             {t('filter.reset')}
           </Button>
-          <span className={local.hint}>{t('settings.change_hint')}</span>
-        </div>
-      </Card>
+        }
+      >
+        <div className={local.section}>
+          <h3 className={local.sectionTitle}>{t('system.settings.interface')}</h3>
+          <div className={local.formGrid}>
+            <Field id="settings-language" label={t('settings.language')}>
+              <Select
+                id="settings-language"
+                value={ui.language}
+                options={[
+                  { value: 'ru', label: label('settings.language.ru') },
+                  { value: 'en', label: label('settings.language.en') },
+                ]}
+                onChange={(event) => {
+                  void applyUi({ language: event.target.value as Language });
+                }}
+              />
+            </Field>
 
-      <Card title={t('settings.exclusions')}>
-        <Field id="settings-exclusions" label={t('settings.exclusions')} hint={t('settings.change_hint')}>
+            <div className={local.settingItem}>
+              <span className={local.hint}>{t('settings.theme')}</span>
+              <Segmented
+                label={t('settings.theme')}
+                value={ui.theme}
+                onChange={(value) => {
+                  void applyUi({ theme: value as ThemePreference });
+                }}
+                options={[
+                  { value: 'system', label: label('settings.theme.system') },
+                  { value: 'dark', label: label('settings.theme.dark') },
+                  { value: 'light', label: label('settings.theme.light') },
+                ]}
+              />
+            </div>
+
+            <div className={local.settingItem}>
+              <span className={local.hint}>{label('settings.density')}</span>
+              <Segmented
+                label={label('settings.density')}
+                value={ui.density}
+                onChange={(value) => {
+                  void applyUi({ density: value as Density });
+                }}
+                options={[
+                  { value: 'comfortable', label: label('settings.density.comfortable') },
+                  { value: 'compact', label: label('settings.density.compact') },
+                ]}
+              />
+            </div>
+
+            <div className={local.settingItem}>
+              <span className={local.hint}>{t('settings.units')}</span>
+              <Segmented
+                label={t('settings.units')}
+                value={ui.units}
+                onChange={(value) => {
+                  void applyUi({ units: value as UnitSystem });
+                }}
+                options={[
+                  { value: 'binary', label: formatBytes(1024, 'binary') },
+                  { value: 'decimal', label: formatBytes(1000, 'decimal') },
+                ]}
+              />
+            </div>
+
+            <div className={local.settingItem}>
+              <span className={local.hint}>{label('settings.reduced_motion')}</span>
+              <Segmented
+                label={label('settings.reduced_motion')}
+                value={ui.reduced_motion}
+                onChange={(value) => {
+                  void applyUi({ reduced_motion: value as ReducedMotion });
+                }}
+                options={[
+                  { value: 'system', label: label('settings.reduced_motion.system') },
+                  { value: 'on', label: label('settings.reduced_motion.on') },
+                  { value: 'off', label: label('settings.reduced_motion.off') },
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className={local.section}>
+          <h3 className={local.sectionTitle}>{t('system.settings.cleanup')}</h3>
+          <div className={local.formGrid}>
+            <Field id="settings-duplicate-rule" label={t('settings.duplicate_rule')}>
+              <Select
+                id="settings-duplicate-rule"
+                value={duplicateRule}
+                options={[
+                  { value: 'oldest', label: t('duplicates.rule.oldest') },
+                  { value: 'newest', label: t('duplicates.rule.newest') },
+                  { value: 'shortest-path', label: t('duplicates.rule.shortest') },
+                  { value: 'original-dir', label: t('duplicates.rule.original-dir') },
+                ]}
+                onChange={(event) => {
+                  setDuplicateRule(event.target.value as DuplicateKeepRule);
+                }}
+              />
+            </Field>
+
+            <Field
+              id="settings-outdated-days"
+              label={t('settings.outdated_days')}
+              {...(daysValid ? {} : { error: t('error.validation') })}
+            >
+              <input
+                id="settings-outdated-days"
+                className={`${local.control} ${local.number}`}
+                type="number"
+                min={0}
+                max={MAX_DAYS}
+                step={1}
+                value={outdatedDays}
+                onChange={(event) => {
+                  setOutdatedDays(event.target.value);
+                }}
+              />
+            </Field>
+
+            <Field
+              id="settings-quarantine-days"
+              label={t('settings.quarantine_days')}
+              {...(quarantineValid ? {} : { error: t('error.validation') })}
+            >
+              <input
+                id="settings-quarantine-days"
+                className={`${local.control} ${local.number}`}
+                type="number"
+                min={0}
+                max={MAX_DAYS}
+                step={1}
+                value={quarantineDays}
+                onChange={(event) => {
+                  setQuarantineDays(event.target.value);
+                }}
+              />
+            </Field>
+          </div>
+
+          <div className={local.toggleList}>
+            <Toggle
+              checked={confirmDestructive}
+              onCheckedChange={setConfirmDestructive}
+              label={t('settings.confirm')}
+            />
+            <Toggle
+              checked={contextMenu}
+              onCheckedChange={setContextMenu}
+              label={t('settings.context_menu')}
+            />
+          </div>
+        </div>
+
+        <div className={local.section}>
+          <h3 className={local.sectionTitle}>{t('nav.monitor')}</h3>
+          <div className={local.formGrid}>
+            <Field
+              id="settings-monitor-threshold"
+              label={t('settings.monitor_threshold')}
+              {...(thresholdValid ? {} : { error: t('error.validation') })}
+            >
+              <input
+                id="settings-monitor-threshold"
+                className={`${local.control} ${local.number}`}
+                type="number"
+                min={0}
+                step={1024 * 1024}
+                value={thresholdBytes}
+                onChange={(event) => {
+                  setThresholdBytes(event.target.value);
+                }}
+              />
+            </Field>
+
+            <Field
+              id="settings-monitor-interval"
+              label={t('settings.monitor_interval')}
+              {...(intervalValid ? {} : { error: t('error.validation') })}
+            >
+              <input
+                id="settings-monitor-interval"
+                className={`${local.control} ${local.number}`}
+                type="number"
+                min={1}
+                max={MAX_INTERVAL}
+                step={1}
+                value={intervalSecs}
+                onChange={(event) => {
+                  setIntervalSecs(event.target.value);
+                }}
+              />
+            </Field>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title={t('system.settings.paths')}>
+        <Field id="settings-exclusions" label={t('settings.exclusions')}>
           <textarea
             id="settings-exclusions"
             className={local.control}
@@ -377,126 +499,9 @@ export function Settings() {
             </ul>
           </>
         ) : null}
-      </Card>
+      </Panel>
 
-      <Card title={t('settings.duplicate_rule')}>
-        <div className={local.formGrid}>
-          <Field id="settings-duplicate-rule" label={t('settings.duplicate_rule')}>
-            <Select
-              id="settings-duplicate-rule"
-              value={duplicateRule}
-              options={[
-                { value: 'oldest', label: t('duplicates.rule.oldest') },
-                { value: 'newest', label: t('duplicates.rule.newest') },
-                { value: 'shortest-path', label: t('duplicates.rule.shortest') },
-                { value: 'original-dir', label: t('duplicates.rule.original-dir') },
-              ]}
-              onChange={(event) => {
-                setDuplicateRule(event.target.value as DuplicateKeepRule);
-              }}
-            />
-          </Field>
-
-          <Field
-            id="settings-outdated-days"
-            label={t('settings.outdated_days')}
-            {...(daysValid ? {} : { error: t('error.validation') })}
-          >
-            <input
-              id="settings-outdated-days"
-              className={`${local.control} ${local.number}`}
-              type="number"
-              min={0}
-              max={MAX_DAYS}
-              step={1}
-              value={outdatedDays}
-              onChange={(event) => {
-                setOutdatedDays(event.target.value);
-              }}
-            />
-          </Field>
-
-          <Field
-            id="settings-quarantine-days"
-            label={t('settings.quarantine_days')}
-            {...(quarantineValid ? {} : { error: t('error.validation') })}
-          >
-            <input
-              id="settings-quarantine-days"
-              className={`${local.control} ${local.number}`}
-              type="number"
-              min={0}
-              max={MAX_DAYS}
-              step={1}
-              value={quarantineDays}
-              onChange={(event) => {
-                setQuarantineDays(event.target.value);
-              }}
-            />
-          </Field>
-
-          <div>
-            <Toggle
-              checked={confirmDestructive}
-              onCheckedChange={setConfirmDestructive}
-              label={t('settings.confirm')}
-            />
-          </div>
-
-          <div>
-            <Toggle
-              checked={contextMenu}
-              onCheckedChange={setContextMenu}
-              label={t('settings.context_menu')}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card title={t('nav.monitor')}>
-        <div className={local.formGrid}>
-          <Field
-            id="settings-monitor-threshold"
-            label={t('settings.monitor_threshold')}
-            hint={formatBytes(Number(thresholdBytes) || 0, ui.units)}
-            {...(thresholdValid ? {} : { error: t('error.validation') })}
-          >
-            <input
-              id="settings-monitor-threshold"
-              className={`${local.control} ${local.number}`}
-              type="number"
-              min={0}
-              step={1024 * 1024}
-              value={thresholdBytes}
-              onChange={(event) => {
-                setThresholdBytes(event.target.value);
-              }}
-            />
-          </Field>
-
-          <Field
-            id="settings-monitor-interval"
-            label={t('settings.monitor_interval')}
-            hint={`1 – ${MAX_INTERVAL}`}
-            {...(intervalValid ? {} : { error: t('error.validation') })}
-          >
-            <input
-              id="settings-monitor-interval"
-              className={`${local.control} ${local.number}`}
-              type="number"
-              min={1}
-              max={MAX_INTERVAL}
-              step={1}
-              value={intervalSecs}
-              onChange={(event) => {
-                setIntervalSecs(event.target.value);
-              }}
-            />
-          </Field>
-        </div>
-      </Card>
-
-      <Card>
+      <Panel title={t('system.settings.apply')}>
         <p className={local.note}>{t('settings.change_hint')}</p>
         <p className={local.note}>{t('settings.restart_hint')}</p>
         {notice !== null ? <Banner tone="info">{notice}</Banner> : null}
@@ -510,7 +515,42 @@ export function Settings() {
             {t('settings.save')}
           </Button>
         </div>
-      </Card>
+      </Panel>
     </div>
+  );
+}
+
+const SETTINGS_TABS = [
+  { id: 'general', labelKey: 'nav.settings' },
+  { id: 'elevation', labelKey: 'nav.elevation' },
+  { id: 'about', labelKey: 'nav.about' },
+] as const;
+
+type SettingsTab = (typeof SETTINGS_TABS)[number]['id'];
+
+/** System: settings, elevation and about as three tabs (T080). */
+export function Settings() {
+  const [tab, setTab] = useState<SettingsTab>('general');
+
+  return (
+    <ScreenFrameTabs
+      idBase="settings"
+      tabs={SETTINGS_TABS.map((item) => ({ id: item.id, label: t(item.labelKey) }))}
+      active={tab}
+      onChange={(id) => {
+        setTab(id as SettingsTab);
+      }}
+    >
+      {(id) => {
+        switch (id) {
+          case 'general':
+            return <SettingsPanel />;
+          case 'elevation':
+            return <Elevation />;
+          default:
+            return <About />;
+        }
+      }}
+    </ScreenFrameTabs>
   );
 }

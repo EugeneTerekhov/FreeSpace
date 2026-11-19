@@ -130,6 +130,15 @@ export function registerFilesystemMocks(register: MockRegister): void {
     return preview;
   });
 
+  register('reveal_in_explorer', (args) => {
+    const path = asString(args.path).trim();
+    if (path === '') {
+      throw failure(createError('E_VALIDATION', 'reveal_in_explorer needs a path'));
+    }
+
+    return {};
+  });
+
   register('rename_apply', (args) => {
     const previewId = asString(args.preview_id);
     const stored = renamePreviews.get(previewId);

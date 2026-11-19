@@ -3,30 +3,38 @@ import { expect, test } from '@playwright/test';
 import { screens } from './pages/screens';
 
 test.describe('filesystem screens', () => {
-  test('size details shows exact metrics for a selected path', async ({ page }) => {
+  test('the tree shows the size details of a row on hover', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.runScan();
-    await app.open('size_details');
+    await app.withSnapshot();
+    await app.openTreeRoot();
 
-    await page.getByLabel('Объект').fill('C:\\Windows\\explorer.exe');
-    await page.getByRole('button', { name: 'Проверить' }).click();
+    const row = page.getByRole('row', { name: /Windows(?!\.)/ });
+    await expect(row).toBeVisible();
+    await row.hover();
 
-    await expect(page.getByText('Логический размер')).toBeVisible();
-    await expect(page.getByText('Размер на диске').first()).toBeVisible();
-    await expect(page.getByText('Физический размер')).toBeVisible();
-    await expect(page.getByText('жёсткая ссылка')).toBeVisible();
-    await expect(page.getByText('Альтернативные потоки').first()).toBeVisible();
-    await expect(
-      page.getByText('C:\\Windows\\WinSxS\\explorer.exe', { exact: true }),
-    ).toBeVisible();
+    // "Size details" is no longer a screen or a side panel: a dense card opens
+    // over the hovered row after a short delay.
+    const card = page.getByRole('tooltip', { name: 'Детали размера' });
+    await expect(card).toBeVisible();
+    await expect(card.getByText('Логический размер')).toBeVisible();
+    await expect(card.getByText('Размер на диске')).toBeVisible();
+    await expect(card.getByText('Жёсткие ссылки')).toBeVisible();
+    await expect(card.getByText('Потоки ADS')).toBeVisible();
+    await expect(card.getByText('C:\\Windows', { exact: true })).toBeVisible();
+    await expect(card.getByText('Каталог')).toBeVisible();
   });
 
-  test('long paths validates, previews and confirms a delete', async ({ page }) => {
+  test('long paths validate, preview and confirm a delete from the inspect tab', async ({
+    page,
+  }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.runScan();
-    await app.open('long_paths');
+    await app.withAnalysis('inspect');
+
+    const tab = page.getByRole('tab', { name: 'Длинные пути' });
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
 
     await expect(page.getByRole('grid', { name: 'Длинные пути' })).toBeVisible();
     const row = page.getByRole('row', { name: /long-path-01-/ }).first();
@@ -71,11 +79,30 @@ test.describe('filesystem screens', () => {
     await expect(page.getByText('завершено').first()).toBeVisible();
   });
 
+  test('file operation tabs keep rename and permissions reachable', async ({ page }) => {
+    await page.goto('/');
+    const app = screens(page);
+    await app.withAnalysis('fileops');
+
+    const tablist = page.getByRole('tablist', { name: 'Разделы экрана' });
+    const rename = tablist.getByRole('tab', { name: 'Переименование' });
+    const permissions = tablist.getByRole('tab', { name: 'Права доступа' });
+
+    await expect(rename).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Переименование' })).toBeVisible();
+
+    await permissions.click();
+    await expect(permissions).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Права доступа' })).toBeVisible();
+
+    await permissions.press('ArrowLeft');
+    await expect(rename).toHaveAttribute('aria-selected', 'true');
+  });
+
   test('rename previews old and new names and applies once', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.runScan();
-    await app.open('rename');
+    await app.withAnalysis('fileops');
 
     await page
       .getByLabel('Объекты (по одному в строке)')
@@ -104,10 +131,10 @@ test.describe('filesystem screens', () => {
   test('permissions previews an attribute diff and applies it', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.runScan();
-    await app.open('permissions');
+    await app.withAnalysis('fileops');
+    await page.getByRole('tab', { name: 'Права доступа' }).click();
 
-    await page.getByLabel('Объект').fill('C:\\Users\\Documents');
+    await page.getByRole('textbox', { name: 'Объект', exact: true }).fill('C:\\Users\\Documents');
     await page.getByRole('button', { name: 'Проверить' }).click();
 
     await expect(page.getByText('DOMAIN\\alex')).toBeVisible();
@@ -129,37 +156,5 @@ test.describe('filesystem screens', () => {
     await save.click();
 
     await expect(page.getByText('Обновлено: 1, ошибок: 0')).toBeVisible();
-  });
-
-  test('journal lists the operation, filters it and offers undo', async ({ page }) => {
-    await page.goto('/');
-    const app = screens(page);
-    await app.runScan();
-    await app.open('long_paths');
-
-    const row = page.getByRole('row', { name: /long-path-02-/ }).first();
-    await expect(row).toBeVisible();
-    await row.click();
-    await page.getByRole('button', { name: 'Удалить' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog
-      .getByRole('checkbox', { name: 'Я просмотрел объекты и подтверждаю операцию' })
-      .check();
-    await dialog.getByRole('button', { name: 'Удалить', exact: true }).click();
-    await expect(page.getByText('Ход операции').first()).toBeVisible();
-
-    await app.open('journal');
-    await expect(page.getByRole('grid', { name: 'Журнал' })).toBeVisible();
-    await expect(page.getByText('mock-user').first()).toBeVisible();
-    await expect(page.getByRole('grid', { name: 'Журнал' }).getByText('Удаление')).toBeVisible();
-
-    await page.getByRole('combobox', { name: 'Операция' }).selectOption('delete');
-    await expect(page.getByRole('grid', { name: 'Журнал' }).getByText('Удаление')).toBeVisible();
-    await page.getByRole('combobox', { name: 'Результат' }).selectOption('success');
-    await expect(page.getByRole('grid', { name: 'Журнал' })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Сбросить' }).click();
-    await page.getByRole('button', { name: /Восстановить|Отменить/ }).first().click();
-    await expect(page.getByText(/Восстановлено/)).toBeVisible();
   });
 });

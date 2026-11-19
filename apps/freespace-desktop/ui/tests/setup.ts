@@ -19,8 +19,8 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   });
 }
 
-// jsdom does not implement ResizeObserver or canvas; both are stubbed so the
-// Treemap screen can be exercised without WebView2.
+// jsdom does not implement ResizeObserver or canvas; both are stubbed so
+// virtualised and canvas-based components can be exercised without WebView2.
 if (typeof globalThis.ResizeObserver !== 'function') {
   class ResizeObserverStub {
     constructor(private readonly callback: ResizeObserverCallback) {}

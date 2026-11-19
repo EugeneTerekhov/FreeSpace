@@ -24,7 +24,7 @@ function settings(
     density: 'comfortable',
     units: 'binary',
     reduced_motion: reduced,
-    last_screen: 'dashboard',
+    last_screen: 'overview',
     sidebar_collapsed: false,
     column_layouts: {},
     saved_filters: {},

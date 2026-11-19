@@ -30,8 +30,6 @@ import type {
   SortSpec,
   Task,
   TaskStarted,
-  TreemapRequest,
-  TreemapResponse,
   TreePage,
   TypeSummary,
   UiSettings,
@@ -186,29 +184,6 @@ export class ApiClient {
 
   treePath(generation: number, nodeId: number): Promise<NodeRow[]> {
     return this.transport.invoke<NodeRow[]>('tree_path', {
-      generation,
-      node_id: nodeId,
-    });
-  }
-
-  treemapTiles(
-    generation: number,
-    request: TreemapRequest,
-  ): Promise<TreemapResponse> {
-    return this.transport.invoke<TreemapResponse>('treemap_tiles', {
-      generation,
-      node_id: request.node_id,
-      width: request.width,
-      height: request.height,
-      metric: request.metric,
-      max_depth: request.max_depth,
-      min_tile_px: request.min_tile_px,
-      max_tiles: request.max_tiles,
-    });
-  }
-
-  treemapNode(generation: number, nodeId: number): Promise<NodeRow> {
-    return this.transport.invoke<NodeRow>('treemap_node', {
       generation,
       node_id: nodeId,
     });
@@ -395,6 +370,10 @@ export class ApiClient {
     return this.transport.invoke<void>('operation_cancel', {
       operation_id: operationId,
     });
+  }
+
+  revealInExplorer(path: string): Promise<void> {
+    return this.transport.invoke<void>('reveal_in_explorer', { path });
   }
 
   operationUndo(operationId: string): Promise<OperationAccepted> {

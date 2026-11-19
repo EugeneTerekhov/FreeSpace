@@ -1,9 +1,9 @@
 //! Search, filtering and sorting over [`FsTree`](crate::tree::FsTree).
 //!
 //! The tree is the single source of truth for every screen: the size tree, the
-//! treemap, the CLI `tree` command and the top-file list all need the same
-//! subset of nodes in the same order. Keeping the rules here guarantees that
-//! every frontend answers identically (FR-007, FR-008).
+//! top-file list and the CLI `tree` command all need the same subset of nodes in
+//! the same order. Keeping the rules here guarantees that every frontend
+//! answers identically (FR-007, FR-008).
 
 use std::path::Path;
 

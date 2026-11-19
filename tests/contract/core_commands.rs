@@ -7,10 +7,9 @@
 use std::fs;
 
 use freespace_app::{
-    dto::{FilterSet, Metric, SortKey, SortSpec, TreemapRequest},
+    dto::{FilterSet, Metric, SortKey, SortSpec},
     scan::run_scan,
     tree::TreeSnapshot,
-    treemap,
 };
 use freespace_scan::session::NoopObserver;
 use serde_json::Value;
@@ -121,32 +120,6 @@ fn search_and_ancestors_work_on_a_generation() {
 }
 
 #[test]
-fn treemap_respects_the_tile_budget_and_totals() {
-    let (_directory, snapshot) = scanned();
-    let response = treemap::tiles(
-        &snapshot,
-        &TreemapRequest {
-            width: 800,
-            height: 600,
-            max_tiles: 100,
-            ..TreemapRequest::default()
-        },
-    )
-    .expect("tiles");
-
-    assert!(!response.tiles.is_empty());
-    assert!(response.tiles.len() <= 100);
-    let sum: u64 = response.tiles.iter().map(|tile| tile.size).sum();
-    assert!(sum <= response.total_size);
-    assert!(
-        response
-            .tiles
-            .iter()
-            .all(|tile| tile.rect.w > 0.0 && tile.rect.h > 0.0)
-    );
-}
-
-#[test]
 fn fixtures_match_the_serialised_dtos() {
     let (_directory, snapshot) = scanned();
     let page = snapshot
@@ -163,23 +136,6 @@ fn fixtures_match_the_serialised_dtos() {
     let actual_keys: std::collections::BTreeSet<&str> = page_value
         .as_object()
         .expect("page object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(actual_keys, expected_keys);
-
-    let tiles = treemap::tiles(&snapshot, &TreemapRequest::default()).expect("tiles");
-    let tiles_value = serde_json::to_value(&tiles).expect("serialise tiles");
-    let tiles_fixture = fixture("treemap_tiles.success.json");
-    let expected_keys: std::collections::BTreeSet<&str> = tiles_fixture["result"]
-        .as_object()
-        .expect("fixture result")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    let actual_keys: std::collections::BTreeSet<&str> = tiles_value
-        .as_object()
-        .expect("tiles object")
         .keys()
         .map(String::as_str)
         .collect();

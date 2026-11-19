@@ -2,14 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { TreemapTile } from '../../src/api/dto';
 import { CommandPalette } from '../../src/app/CommandPalette';
 import { DataTable, type Column, type DataTableTree } from '../../src/components/DataTable';
-import {
-  adjacentTileIndex,
-  initialTileIndex,
-  tileCentre,
-} from '../../src/treemap/keyboard';
 
 interface Row {
   id: number;
@@ -28,20 +22,6 @@ const COLUMNS: Column<Row>[] = [
   { id: 'name', header: 'Name', sortable: true, render: (row) => row.name },
   { id: 'count', header: 'Items', align: 'end', render: (row) => row.children },
 ];
-
-function tile(index: number, y: number, height: number): TreemapTile {
-  return {
-    node_id: index,
-    rect: { x: 0, y, w: 800, h: height },
-    depth: 0,
-    size: 1000 - index * 100,
-    fraction: 0.1,
-    color_key: 'folder',
-    label: `tile-${index}`,
-    is_aggregate: false,
-    child_count: 0,
-  };
-}
 
 describe('DataTable keyboard model', () => {
   it('uses a roving tabindex between rows', async () => {
@@ -179,28 +159,5 @@ describe('CommandPalette keyboard model', () => {
     const options = screen.getAllByRole('option');
     expect(options[1]).toHaveAttribute('id', 'command-map');
     expect(options[1]).toHaveAttribute('aria-selected', 'true');
-  });
-});
-
-describe('Treemap spatial navigation', () => {
-  const tiles = [tile(0, 0, 300), tile(1, 300, 200), tile(2, 500, 100)];
-
-  it('measures tile centres', () => {
-    expect(tileCentre(tiles[0]!)).toEqual({ x: 400, y: 150 });
-  });
-
-  it('starts on the largest tile and moves between bands', () => {
-    expect(initialTileIndex(tiles)).toBe(0);
-    expect(adjacentTileIndex(tiles, -1, 'down')).toBe(0);
-    expect(adjacentTileIndex(tiles, 0, 'down')).toBe(1);
-    expect(adjacentTileIndex(tiles, 1, 'down')).toBe(2);
-    expect(adjacentTileIndex(tiles, 1, 'up')).toBe(0);
-  });
-
-  it('falls back to document order at the edges', () => {
-    expect(adjacentTileIndex(tiles, 0, 'right')).toBe(1);
-    expect(adjacentTileIndex(tiles, 0, 'up')).toBe(0);
-    expect(adjacentTileIndex(tiles, 2, 'down')).toBe(2);
-    expect(adjacentTileIndex([], 0, 'down')).toBe(-1);
   });
 });

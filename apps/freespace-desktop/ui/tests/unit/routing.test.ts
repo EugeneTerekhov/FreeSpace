@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  GROUPS,
   SCREENS,
   SCREEN_BY_ID,
+  groupEntries,
   isScreenId,
+  normalizeScreenId,
   resolveInitialScreen,
-  screensInBatch,
+  screensInGroup,
 } from '../../src/app/routing';
 
 describe('screen registry', () => {
-  it('contains exactly 24 unique screens', () => {
-    expect(SCREENS).toHaveLength(24);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(24);
+  it('contains exactly 11 unique screens', () => {
+    expect(SCREENS).toHaveLength(11);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(11);
 
     for (const screen of SCREENS) {
       expect(SCREEN_BY_ID[screen.id]).toBe(screen);
@@ -20,32 +23,64 @@ describe('screen registry', () => {
     }
   });
 
+  it('covers every screen with exactly one sidebar group', () => {
+    expect(GROUPS).toHaveLength(6);
+
+    const grouped = GROUPS.flatMap((group) => group.screens);
+    expect(grouped).toHaveLength(SCREENS.length);
+    expect(new Set(grouped).size).toBe(SCREENS.length);
+
+    for (const screen of SCREENS) {
+      expect(screensInGroup(screen.group).map((item) => item.id)).toContain(screen.id);
+    }
+
+    expect(groupEntries().map(({ group }) => group.id)).toEqual([
+      'overview',
+      'analysis',
+      'cleanup',
+      'operations',
+      'tools',
+      'system',
+    ]);
+  });
+
   it('restores the last screen only when it is known', () => {
     expect(resolveInitialScreen('tree', true)).toBe('tree');
-    expect(resolveInitialScreen('unknown' as never, true)).toBe('dashboard');
-    expect(resolveInitialScreen(null, true)).toBe('dashboard');
-    expect(resolveInitialScreen('tree', false)).toBe('dashboard');
+    expect(resolveInitialScreen('unknown', true)).toBe('overview');
+    expect(resolveInitialScreen(null, true)).toBe('overview');
+    expect(resolveInitialScreen('tree', false)).toBe('overview');
   });
 
-  it('groups screens by delivery batch', () => {
-    expect(screensInBatch('core').map((screen) => screen.id)).toEqual([
-      'dashboard',
-      'scan',
-      'tree',
-      'treemap',
-    ]);
-    expect(screensInBatch('settings')).toHaveLength(5);
+  it('maps screens removed by the recomposition to their new owner', () => {
+    expect(normalizeScreenId('dashboard')).toBe('overview');
+    expect(normalizeScreenId('scan')).toBe('overview');
+    expect(normalizeScreenId('treemap')).toBe('tree');
+    expect(normalizeScreenId('size_details')).toBe('tree');
+    expect(normalizeScreenId('top_files')).toBe('analysis');
+    expect(normalizeScreenId('types')).toBe('analysis');
+    expect(normalizeScreenId('owners')).toBe('analysis');
+    expect(normalizeScreenId('snapshots')).toBe('cleanup');
+    expect(normalizeScreenId('metadata')).toBe('inspect');
+    expect(normalizeScreenId('archives')).toBe('inspect');
+    expect(normalizeScreenId('unlock')).toBe('inspect');
+    expect(normalizeScreenId('long_paths')).toBe('inspect');
+    expect(normalizeScreenId('rename')).toBe('fileops');
+    expect(normalizeScreenId('permissions')).toBe('fileops');
+    expect(normalizeScreenId('elevation')).toBe('settings');
+    expect(normalizeScreenId('about')).toBe('settings');
+    expect(normalizeScreenId('export')).toBe('analysis');
+    expect(normalizeScreenId('duplicates')).toBe('duplicates');
+    expect(normalizeScreenId('menu')).toBeNull();
   });
 
-  it('keeps a CLI analogue for every non-shell capability', () => {
+  it('keeps a CLI analogue for every screen', () => {
     for (const screen of SCREENS) {
-      if (screen.batch === 'settings' || screen.batch === 'inspection') {
-        expect(screen.cliAnalog === null || typeof screen.cliAnalog === 'string').toBe(
-          true,
-        );
-      }
+      expect(typeof screen.cliAnalog).toBe('string');
+      expect(screen.cliAnalog).not.toBe('');
     }
-    expect(SCREEN_BY_ID.tree.cliAnalog).toBe('tree');
-    expect(SCREEN_BY_ID.dashboard.cliAnalog).toBe('drives');
+
+    expect(SCREEN_BY_ID.tree.cliAnalog).toBe('tree, filter');
+    expect(SCREEN_BY_ID.overview.cliAnalog).toBe('drives, scan');
+    expect(SCREEN_BY_ID.analysis.cliAnalog).toBe('top, types, owners');
   });
 });

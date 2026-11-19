@@ -233,7 +233,6 @@ const fixtures = {
     { generation, query: 'Windows', metric, sort, page_size: 500, cursor: null },
     { ...page, parent_id: null },
   ),
-  'treemap_node.success.json': envelope('treemap_node', { generation, node_id: 0 }, node),
   'volumes_current.success.json': envelope('volumes_current', {}, volume),
   'volumes_refresh.success.json': envelope('volumes_refresh', {}, [volume]),
   'volumes_summary.success.json': envelope(
@@ -278,20 +277,6 @@ const fixtures = {
       category: 'io',
       message_key: 'error.not_found',
       details: 'unknown volume',
-      retryable: false,
-      task_id: null,
-      journal_entry_id: null,
-    },
-  },
-  'treemap_tiles.stale_node.json': {
-    command: 'treemap_tiles',
-    input: { generation: 99, node_id: 42 },
-    result: null,
-    error: {
-      code: 'E_STALE_NODE',
-      category: 'stale',
-      message_key: 'error.stale_node',
-      details: 'node 42 is not part of generation 99',
       retryable: false,
       task_id: null,
       journal_entry_id: null,

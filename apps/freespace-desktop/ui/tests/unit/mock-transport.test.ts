@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe('MockTransport', () => {
-  it('answers dashboard and tree commands with realistic data', async () => {
+  it('answers volume and tree commands with realistic data', async () => {
     const transport = createMockTransport();
 
     const volumes = await transport.invoke<{ mount_point: string }[]>('volumes_list');
@@ -25,13 +25,6 @@ describe('MockTransport', () => {
       parent_id: 0,
     });
     expect(children.rows.map((row) => row.name)).toContain('Windows');
-
-    const tiles = await transport.invoke<{ tiles: { rect: { w: number } }[] }>(
-      'treemap_tiles',
-      { generation: 1, width: 800, height: 400 },
-    );
-    expect(tiles.tiles.length).toBeGreaterThan(3);
-    expect(tiles.tiles[0]?.rect.w).toBe(800);
   });
 
   it('runs a simulated scan with monotonic progress and a final generation', async () => {

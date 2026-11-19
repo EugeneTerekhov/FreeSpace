@@ -1,0 +1,208 @@
+/*
+ * Shared layout primitives for the 11 screens.
+ *
+ * Only spacing, surfaces and type come from tokens; nothing here is decorative.
+ * Screens compose these blocks and add their own module for anything specific.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-6);
+  min-height: 100%;
+}
+
+.screenHead {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.screenText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.screenContext {
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-muted);
+}
+
+.screenActions {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+  min-width: 0;
+  padding: var(--fs-space-4);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface-raised);
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  min-width: 0;
+}
+
+.panelTitle {
+  font-size: var(--fs-text-sm);
+  font-weight: var(--fs-weight-semibold);
+}
+
+.panelHint {
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-subtle);
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--fs-space-4);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--fs-space-4);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface);
+}
+
+.statLabel {
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+  color: var(--fs-text-subtle);
+}
+
+.statValue {
+  font-size: var(--fs-text-lg);
+  font-weight: var(--fs-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.grid {
+  display: grid;
+  gap: var(--fs-space-4);
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.hint {
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-subtle);
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  flex-wrap: wrap;
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-muted);
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Tabs ---------- */
+
+.tabsRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--fs-space-3);
+  border-bottom: 1px solid var(--fs-line);
+}
+
+.tabsRow > .tabs {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.tabsActions {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+  margin-left: auto;
+  padding-bottom: var(--fs-space-2);
+}
+
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: var(--fs-space-1);
+  border-bottom: 1px solid var(--fs-line);
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--fs-radius-sm) var(--fs-radius-sm) 0 0;
+  background: transparent;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--fs-motion-fast) var(--fs-ease),
+    color var(--fs-motion-fast) var(--fs-ease);
+}
+
+.tab:hover {
+  background: var(--fs-surface-overlay);
+  color: var(--fs-text);
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--fs-accent-strong);
+  color: var(--fs-text);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.tabPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-4);
+  min-height: 0;
+}
+
+/* The class rule outranks the UA `[hidden]` style, so hidden panels must be
+ * hidden explicitly: otherwise every tab body stays in the layout and the
+ * accessibility tree at once. */
+.tabPanel[hidden] {
+  display: none;
+}

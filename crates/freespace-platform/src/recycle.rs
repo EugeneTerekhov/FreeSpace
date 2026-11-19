@@ -82,7 +82,24 @@ pub fn recycle(paths: &[PathBuf]) -> Result<u32> {
     }
 
     // SAFETY: the queued items are owned by the operation.
-    unsafe { operation.PerformOperations() }.map_err(|error| Error::Io(win::win_error(&error)))?;
+    let performed = unsafe { operation.PerformOperations() };
+
+    let mut removed = 0u32;
+    for path in paths {
+        if !exists(path) {
+            removed = removed.saturating_add(1);
+        }
+    }
+
+    // The file-system state is the truth. The shell can return an error or an
+    // aborted flag after it has actually moved the object; reporting a failure
+    // then would leave the row in the tree even though the data is gone.
+    let total = u32::try_from(paths.len()).unwrap_or(u32::MAX);
+    if removed == total {
+        return Ok(removed);
+    }
+
+    performed.map_err(|error| Error::Io(win::win_error(&error)))?;
 
     // SAFETY: `operation` is still alive and fully initialised.
     let aborted = unsafe { operation.GetAnyOperationsAborted() }
@@ -93,14 +110,13 @@ pub fn recycle(paths: &[PathBuf]) -> Result<u32> {
         ));
     }
 
-    let mut removed = 0u32;
-    for path in paths {
-        if !exists(path) {
-            removed = removed.saturating_add(1);
-        }
-    }
-
-    Ok(removed)
+    // The shell reported success but did not move every object (for example
+    // when the Recycle Bin refuses it). Never turn that into a successful
+    // deletion: the caller would remove the row while the data stays.
+    Err(Error::Operation(format!(
+        "{} of {total} objects were not moved to the Recycle Bin",
+        total.saturating_sub(removed)
+    )))
 }
 
 fn exists(path: &Path) -> bool {

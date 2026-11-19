@@ -9,7 +9,6 @@ import type {
 import { shredCancel, shredPreview, shredStart, shredStatus } from '../api/settingsOps';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Badge, Checkbox, Segmented } from '../components/Choice';
 import { Dialog } from '../components/Dialog';
 import { Banner, ErrorState } from '../components/Feedback';
@@ -18,7 +17,8 @@ import { OperationProgressView } from '../components/OperationProgress';
 import { t, tPlural } from '../i18n';
 import { formatBytes, formatNumber } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
-import local from './settings.module.css';
+import { Panel, Screen, Stat, StatRow } from './ScreenFrame';
+import styles from './operations.module.css';
 
 const TERMINAL = new Set(['completed', 'partial', 'failed', 'cancelled']);
 const MAX_PASSES = 35;
@@ -50,11 +50,11 @@ function clampPasses(value: string): number {
 }
 
 /**
- * Irreversible shredder.
+ * Irreversible shredder (T061).
  *
- * The start button exists only inside the preview dialog and stays disabled
- * until the explicit acknowledgement is checked: the operation can never begin
- * from the form itself.
+ * The form only builds a preview. The start button exists solely inside the
+ * preview dialog, is marked `data-agent-confirm` and stays disabled until the
+ * explicit acknowledgement is checked, so no caller can begin from the form.
  */
 export function Shred() {
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -176,19 +176,31 @@ export function Shred() {
         ];
 
   return (
-    <div className={local.page}>
-      <Card title={t('nav.shred')}>
-        <p className={local.note}>{t('shred.intro')}</p>
+    <Screen context={t('operations.shred.context', { count: paths.length })}>
+      <StatRow>
+        <Stat label={t('shred.files')} value={formatNumber(paths.length, language)} />
+        <Stat label={t('shred.passes')} value={formatNumber(passes, language)} />
+        <Stat label={t('shred.pattern')} value={label(`shred.pattern.${pattern}`)} />
+      </StatRow>
 
+      <Panel
+        title={t('operations.shred.form')}
+        hint={t('shred.intro')}
+        actions={
+          <span className={styles.hint}>
+            {t('operations.shred.preview_required')}
+          </span>
+        }
+      >
         <Banner tone="error">{t('shred.irreversible')}</Banner>
         <Banner tone="warning">{t('shred.ssd_warning')}</Banner>
 
-        <div className={local.formGrid}>
-          <div className={local.wide}>
+        <div className={styles.formGrid}>
+          <div className={styles.wide}>
             <Field id="shred-targets" label={t('shred.files')}>
               <textarea
                 id="shred-targets"
-                className={local.control}
+                className={styles.control}
                 rows={5}
                 value={targets}
                 placeholder={t('shred.files_hint')}
@@ -197,19 +209,17 @@ export function Shred() {
                 }}
               />
             </Field>
-            {paths.length === 0 ? (
-              <p className={local.hint}>{t('shred.no_files')}</p>
-            ) : (
-              <p className={local.hint}>
-                {tPlural('scan.objects', paths.length)}
-              </p>
-            )}
+            <p className={styles.hint}>
+              {paths.length === 0
+                ? t('shred.no_files')
+                : tPlural('scan.objects', paths.length)}
+            </p>
           </div>
 
           <Field id="shred-passes" label={t('shred.passes')} hint={`1 – ${MAX_PASSES}`}>
             <input
               id="shred-passes"
-              className={`${local.control} ${local.number}`}
+              className={`${styles.control} ${styles.number}`}
               type="number"
               min={1}
               max={MAX_PASSES}
@@ -222,7 +232,7 @@ export function Shred() {
           </Field>
 
           <div>
-            <span className={local.hint}>{t('shred.pattern')}</span>
+            <span className={styles.hint}>{t('shred.pattern')}</span>
             <Segmented
               label={t('shred.pattern')}
               value={pattern}
@@ -236,7 +246,7 @@ export function Shred() {
             />
           </div>
 
-          <div className={local.inline}>
+          <div className={styles.inline}>
             <Button
               variant="primary"
               loading={busy}
@@ -245,10 +255,12 @@ export function Shred() {
             >
               {t('details.inspect')}
             </Button>
-            <Badge tone="info">{t('shred.passes')}: {formatNumber(passes, language)}</Badge>
+            <Badge tone="info">
+              {t('shred.passes')}: {formatNumber(passes, language)}
+            </Badge>
           </div>
         </div>
-      </Card>
+      </Panel>
 
       {error !== null ? (
         <ErrorState
@@ -303,6 +315,7 @@ export function Shred() {
               variant="danger"
               loading={busy}
               disabled={!acknowledged}
+              data-agent-confirm="true"
               onClick={() => void start()}
             >
               {t('shred.destroy')}
@@ -311,8 +324,8 @@ export function Shred() {
         }
       >
         {preview === null ? null : (
-          <div className={local.page}>
-            <p className={local.note}>
+          <div className={styles.stack}>
+            <p className={styles.note}>
               {t('confirm.summary', {
                 count: formatNumber(preview.targets.length, language),
                 size: formatBytes(preview.total_size, units),
@@ -320,29 +333,30 @@ export function Shred() {
             </p>
 
             <Banner tone="error">{t('shred.irreversible')}</Banner>
+            <p className={styles.hint}>{t('operations.shred.irreversible_hint')}</p>
             <Banner tone="warning">{t('shred.ssd_warning')}</Banner>
 
             {warningKeys.length > 0 ? (
-              <ul className={local.list}>
+              <ul className={styles.list}>
                 {warningKeys.map((key) => (
                   <li key={key}>{t(key)}</li>
                 ))}
               </ul>
             ) : null}
 
-            <dl className={local.meta}>
+            <dl className={styles.details}>
               <dt>{t('shred.passes')}</dt>
               <dd>{formatNumber(passes, language)}</dd>
               <dt>{t('shred.pattern')}</dt>
               <dd>{label(`shred.pattern.${pattern}`)}</dd>
             </dl>
 
-            <table className={local.table} aria-label={t('confirm.targets')}>
+            <table className={styles.table} aria-label={t('confirm.targets')}>
               <thead>
                 <tr>
                   <th scope="col">{t('confirm.target')}</th>
                   <th scope="col">{t('details.kind')}</th>
-                  <th scope="col" className={local.numeric}>
+                  <th scope="col" className={styles.numeric}>
                     {t('details.size')}
                   </th>
                 </tr>
@@ -350,11 +364,11 @@ export function Shred() {
               <tbody>
                 {preview.targets.map((target) => (
                   <tr key={target.path}>
-                    <td className={`${local.mono} ${local.pathCell}`} title={target.path}>
-                      {target.path}
+                    <td className={styles.mono} title={target.path}>
+                      <span className={styles.pathCell}>{target.path}</span>
                     </td>
                     <td>{t(`kind.${target.kind}`)}</td>
-                    <td className={local.numeric}>{formatBytes(target.size, units)}</td>
+                    <td className={styles.numeric}>{formatBytes(target.size, units)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -372,6 +386,6 @@ export function Shred() {
           </div>
         )}
       </Dialog>
-    </div>
+    </Screen>
   );
 }

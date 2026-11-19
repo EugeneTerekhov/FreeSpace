@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { UiError } from '../../../../src/api/dto';
 import type { CommandName } from '../../../../src/api/transport';
+import { t } from '../../../../src/i18n';
 import { About } from '../../../../src/screens/About';
 import { Elevation } from '../../../../src/screens/Elevation';
 import { Monitor } from '../../../../src/screens/Monitor';
@@ -149,7 +150,9 @@ describe('settings screen', () => {
 
     renderWithI18n(<Settings />);
 
-    expect(await screen.findByText('Внутренняя ошибка.')).toBeInTheDocument();
+    const panel = await screen.findByRole('tabpanel', { name: 'Настройки' });
+    expect(await within(panel).findByText('Внутренняя ошибка.')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
   });
 });
 
@@ -339,7 +342,7 @@ describe('monitor screen', () => {
     const user = userEvent.setup();
     renderWithI18n(<Monitor />);
 
-    const interval = screen.getByLabelText('Интервал опроса, секунд');
+    const interval = screen.getByLabelText('Интервал опроса, секунд (1 – 86400)');
     await user.clear(interval);
     await user.type(interval, '0');
     await user.click(screen.getByRole('button', { name: 'Запустить мониторинг' }));
@@ -412,8 +415,39 @@ describe('monitor screen', () => {
   });
 });
 
-describe('elevation screen', () => {
-  it('requests elevation and switches to the administrator state', async () => {
+describe('settings tabs', () => {
+  it('keeps settings, elevation and about in one screen with three tabs', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Settings />);
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'Настройки',
+      'Права доступа',
+      'О программе',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Настройки' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Права доступа' }));
+    const elevation = await screen.findByRole('tabpanel', { name: 'Права доступа' });
+    expect(within(elevation).getByText('Текущий режим')).toBeInTheDocument();
+    expect(screen.queryByRole('tabpanel', { name: 'Настройки' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'О программе' }));
+    const about = await screen.findByRole('tabpanel', { name: 'О программе' });
+    expect(await within(about).findByText('1.1.0')).toBeInTheDocument();
+    expect(within(about).getByText('130.0.2849.68')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Настройки' }));
+    expect(await screen.findByLabelText('Язык')).toBeInTheDocument();
+  });
+});
+
+describe('elevation tab', () => {
+  it('restarts with administrator rights only after the consequences are confirmed', async () => {
     const user = userEvent.setup();
     renderWithI18n(<Elevation />);
 
@@ -422,12 +456,56 @@ describe('elevation screen', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Доступен')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Запросить повышение прав' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Перезапустить от имени администратора' }),
+    );
+
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(t('system.elevation.restart_title')),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(t('system.elevation.restart_consequences')),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: t('system.elevation.restart_confirm'),
+      }),
+    );
 
     expect(await screen.findByText('Администратор')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Запросить повышение прав' }),
+      screen.getByRole('button', { name: 'Перезапустить от имени администратора' }),
     ).toBeDisabled();
+  });
+
+  it('stays in the limited mode when the restart is cancelled', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Elevation />);
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Перезапустить от имени администратора',
+      }),
+    );
+
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: t('system.elevation.restart_cancel'),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Обычный пользователь (ограниченный режим)'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Перезапустить от имени администратора' }),
+    ).toBeEnabled();
   });
 
   it('shows the limited mode after a refusal', async () => {
@@ -441,7 +519,15 @@ describe('elevation screen', () => {
 
     renderWithI18n(<Elevation />);
     await user.click(
-      await screen.findByRole('button', { name: 'Запросить повышение прав' }),
+      await screen.findByRole('button', {
+        name: 'Перезапустить от имени администратора',
+      }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: t('system.elevation.restart_confirm'),
+      }),
     );
 
     expect(

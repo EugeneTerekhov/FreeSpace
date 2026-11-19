@@ -10,6 +10,7 @@
 //! * [`locks`] — Restart Manager lock inspection and release;
 //! * [`trim`] — solid-state detection and TRIM requests;
 //! * [`recycle`] — Recycle Bin deletion through `IFileOperation`;
+//! * [`reveal`] — opening an object in Windows Explorer;
 //! * [`reparse`] — reparse-point classification;
 //! * [`allocated`] — exact allocated size and allocated ranges;
 //! * [`ads`] — alternate data stream enumeration;
@@ -35,6 +36,7 @@ pub mod paths;
 pub mod process_io;
 pub mod recycle;
 pub mod reparse;
+pub mod reveal;
 pub mod security;
 pub mod trim;
 pub mod volumes;

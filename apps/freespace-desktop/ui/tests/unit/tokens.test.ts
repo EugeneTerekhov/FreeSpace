@@ -89,7 +89,7 @@ describe('design tokens', () => {
       }
     });
 
-    it(`${theme}: defines the full surface and Treemap palette`, () => {
+    it(`${theme}: defines the full surface palette`, () => {
       for (const token of [
         '--fs-bg',
         '--fs-surface',
@@ -97,8 +97,6 @@ describe('design tokens', () => {
         '--fs-surface-overlay',
         '--fs-text',
         '--fs-selection',
-        '--fs-tm-1',
-        '--fs-tm-10',
       ]) {
         expect(variablesInTheme.get(token), `${theme} ${token}`).toBeDefined();
       }

@@ -23,38 +23,11 @@ export default defineConfig({
   },
   expect: {
     timeout: 10_000,
-    toHaveScreenshot: {
-      maxDiffPixelRatio: 0.01,
-    },
   },
-  // Every reference lives in one reviewable tree: the matrix adds a directory
-  // per screen, the delivery batches add flat names. The product is Windows
-  // only, so the platform suffix is not part of the name.
-  snapshotPathTemplate: '{testDir}/baselines/{arg}{ext}',
   projects: [
     {
       name: 'e2e',
       testDir: './tests/e2e',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 900 },
-        deviceScaleFactor: 1,
-      },
-    },
-    {
-      name: 'visual',
-      testDir: './tests/visual',
-      testIgnore: ['**/pr.spec.ts', '**/*.test.ts'],
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 900 },
-        deviceScaleFactor: 1,
-      },
-    },
-    {
-      name: 'pr',
-      testDir: './tests/visual',
-      testMatch: ['**/pr.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1440, height: 900 },

@@ -1,28 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '../api/runtime';
-import type { FilterSet, NodeRow, SortKey, SortSpec, TreePage, TypeSummary, UiError } from '../api/dto';
+import type {
+  FilterSet,
+  NodeRow,
+  SortKey,
+  SortSpec,
+  TreePage,
+  TypeSummary,
+  UiError,
+} from '../api/dto';
 import { normalizeError } from '../app/errors';
 import { openInTree } from '../app/navigation';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Segmented } from '../components/Choice';
 import { DataTable, type Column, type SortState } from '../components/DataTable';
-import { EmptyState, ErrorState } from '../components/Feedback';
+import { EmptyState, ErrorState, Progress } from '../components/Feedback';
 import { FilterBar } from '../components/FilterBar';
-import { emptyFilter } from '../lib/filters';
+import { Select } from '../components/Fields';
 import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
+import { emptyFilter } from '../lib/filters';
 import { t } from '../i18n';
 import { formatBytes, formatNumber, formatPercent } from '../i18n/format';
 import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
-import local from './analysis.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import styles from './analysis-screen.module.css';
 
 type GroupMode = 'extension' | 'category';
+
+const GROUP_LIMITS = [10, 25, 50];
 
 /** Space distribution by extension or category, with a drill-down table. */
 export function Types() {
@@ -30,6 +40,7 @@ export function Types() {
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
   const [mode, setMode] = useState<GroupMode>('extension');
+  const [limit, setLimit] = useState(25);
   const [filter, setFilter] = useState<FilterSet>(emptyFilter());
   const [summary, setSummary] = useState<TypeSummary[]>([]);
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -39,12 +50,14 @@ export function Types() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<UiError | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  const [reloadToken, setReloadToken] = useState(0);
   const operation = useOperation();
 
   useEffect(() => {
-    if (generation === null) return;
+    if (generation === null) return undefined;
     let active = true;
     setLoading(true);
+    setError(null);
     const timer = setTimeout(() => {
       void api
         .typesSummary(generation, filter, mode)
@@ -70,7 +83,7 @@ export function Types() {
       active = false;
       clearTimeout(timer);
     };
-  }, [filter, generation, mode]);
+  }, [filter, generation, mode, reloadToken]);
 
   const loadFiles = useCallback(
     async (cursor?: string | null) => {
@@ -112,6 +125,15 @@ export function Types() {
     [rows, selected],
   );
   const activeGroup = summary.find((row) => keyOf(row, mode) === selectedType);
+  const visibleSummary = summary.slice(0, limit);
+  const totalFiles = useMemo(
+    () => summary.reduce((sum, row) => sum + row.count, 0),
+    [summary],
+  );
+  const totalSize = useMemo(
+    () => summary.reduce((sum, row) => sum + row.logical_size, 0),
+    [summary],
+  );
 
   const columns: Column<NodeRow>[] = [
     {
@@ -139,7 +161,11 @@ export function Types() {
       header: t('top.path'),
       width: 'minmax(220px, 2fr)',
       sortable: true,
-      render: (row) => <span className={styles.pathCell} title={row.path}>{row.name}</span>,
+      render: (row) => (
+        <span className={`${styles.pathCell} ${styles.fileName}`} title={row.path}>
+          {row.name}
+        </span>
+      ),
     },
     {
       id: 'size',
@@ -173,9 +199,8 @@ export function Types() {
     return (
       <EmptyState
         title={t('analysis.scan_required')}
-        description={t('scan.required')}
         actions={
-          <Button variant="primary" onClick={() => useShellStore.getState().setScreen('scan')}>
+          <Button variant="primary" onClick={() => useShellStore.getState().setScreen('overview')}>
             {t('scan.start')}
           </Button>
         }
@@ -185,6 +210,29 @@ export function Types() {
 
   return (
     <div className={styles.stack}>
+      <p className={styles.context} data-testid="analysis-context-types">
+        {t('analysis_ui.context_types', {
+          groups: formatNumber(summary.length, language),
+          files: formatNumber(totalFiles, language),
+          size: formatBytes(totalSize, units),
+        })}
+      </p>
+
+      <StatRow>
+        <Stat
+          label={t('analysis_ui.stat_groups')}
+          value={<span data-testid="analysis-types-groups">{formatNumber(summary.length, language)}</span>}
+        />
+        <Stat
+          label={t('analysis_ui.stat_files')}
+          value={<span data-testid="analysis-types-files">{formatNumber(totalFiles, language)}</span>}
+        />
+        <Stat
+          label={t('analysis_ui.stat_size')}
+          value={<span data-testid="analysis-types-size">{formatBytes(totalSize, units)}</span>}
+        />
+      </StatRow>
+
       <div className={styles.toolbar}>
         <Segmented
           label={t('types.group')}
@@ -198,6 +246,20 @@ export function Types() {
             setSelectedType(null);
           }}
         />
+        <label className={styles.field}>
+          {t('analysis_ui.limit_groups')}
+          <Select
+            aria-label={t('analysis_ui.limit_groups')}
+            value={String(limit)}
+            options={GROUP_LIMITS.map((value) => ({
+              value: String(value),
+              label: String(value),
+            }))}
+            onChange={(event) => {
+              setLimit(Number(event.target.value));
+            }}
+          />
+        </label>
         <span className={styles.spacer} />
         <Button
           variant="danger"
@@ -222,93 +284,139 @@ export function Types() {
           title={t(error.message_key)}
           code={error.code}
           details={error.details ?? undefined}
-          actions={<Button variant="primary" onClick={() => void loadFiles()}>{t('error.retry')}</Button>}
+          actions={
+            <Button
+              variant="primary"
+              onClick={() => {
+                setReloadToken((current) => current + 1);
+                void loadFiles();
+              }}
+            >
+              {t('error.retry')}
+            </Button>
+          }
         />
       ) : null}
 
-      <div className={local.columns}>
-        <Card title={mode === 'category' ? t('types.by_category') : t('types.by_extension')}>
-          <table className={local.table} aria-label={t('nav.types')} aria-busy={loading || undefined}>
-            <thead>
-              <tr>
-                <th scope="col">{t('types.extension')}</th>
-                <th scope="col" className={local.numeric}>{t('types.count')}</th>
-                <th scope="col" className={local.numeric}>{t('types.size')}</th>
-                <th scope="col" className={local.numeric}>{t('types.share')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.map((row) => {
-                const key = keyOf(row, mode);
-                const label =
-                  mode === 'extension'
-                    ? row.extension === ''
-                      ? t('types.no_extension')
-                      : `.${row.extension}`
-                    : t(`treemap.category.${row.category}`);
-                return (
-                  <tr key={key} aria-selected={key === selectedType}>
-                    <td>
-                      <button
-                        type="button"
-                        className={local.typeButton}
-                        onClick={() => {
-                          setSelectedType(key);
-                        }}
-                      >
-                        {label}
-                      </button>
-                      <div className={local.bar} aria-hidden="true">
-                        <div
-                          className={local.barFill}
-                          style={{ width: `${Math.max(1, row.share * 100)}%` }}
-                        />
-                      </div>
-                    </td>
-                    <td className={local.numeric}>{formatNumber(row.count, language)}</td>
-                    <td className={local.numeric}>{formatBytes(row.logical_size, units)}</td>
-                    <td className={local.numeric}>{formatPercent(row.share, language)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {summary.length === 0 && !loading ? (
-            <EmptyState title={t('types.empty')} />
-          ) : null}
-        </Card>
+      {loading && summary.length === 0 ? (
+        <Progress label={t('common.loading')} state="indeterminate" />
+      ) : null}
 
-        <Card
-          title={
-            activeGroup === undefined
-              ? t('nav.types')
-              : mode === 'extension'
-                ? activeGroup.extension === ''
-                  ? t('types.no_extension')
-                  : `.${activeGroup.extension}`
-                : t(`treemap.category.${activeGroup.category}`)
-          }
-        >
-          <DataTable
-            label={t('nav.types')}
-            rows={rows}
-            columns={columns}
-            rowKey={(row) => row.id}
-            sort={sort}
-            onSortChange={setSort}
-            loading={loading}
-            height={420}
-            empty={t('types.empty')}
-          />
-          {page?.next_cursor !== null && page?.next_cursor !== undefined ? (
-            <div className={styles.analyzeRow}>
-              <Button variant="secondary" loading={loading} onClick={() => void loadFiles(page.next_cursor)}>
-                {t('tree.load_more')}
-              </Button>
-            </div>
-          ) : null}
-        </Card>
-      </div>
+      {!loading && summary.length === 0 && error === null ? (
+        <EmptyState title={t('types.empty')} />
+      ) : (
+        <div className={styles.columns}>
+          <Panel
+            title={mode === 'category' ? t('types.by_category') : t('types.by_extension')}
+            actions={
+              <span className={styles.panelMeta}>
+                {visibleSummary.length} / {summary.length}
+              </span>
+            }
+          >
+            <table className={styles.table} aria-label={t('nav.types')} aria-busy={loading || undefined}>
+              <thead>
+                <tr>
+                  <th scope="col">{t('types.extension')}</th>
+                  <th scope="col" className={styles.numeric}>
+                    {t('types.count')}
+                  </th>
+                  <th scope="col" className={styles.numeric}>
+                    {t('types.size')}
+                  </th>
+                  <th scope="col" className={styles.numeric}>
+                    {t('types.share')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleSummary.map((row) => {
+                  const key = keyOf(row, mode);
+                  const label =
+                    mode === 'extension'
+                      ? row.extension === ''
+                        ? t('types.no_extension')
+                        : `.${row.extension}`
+                      : t(`treemap.category.${row.category}`);
+                  const active = key === selectedType;
+
+                  return (
+                    <tr
+                      key={key}
+                      className={`${styles.row} ${active ? styles.rowSelected : ''}`}
+                      aria-selected={active}
+                    >
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.typeButton}
+                          onClick={() => {
+                            setSelectedType(key);
+                          }}
+                        >
+                          {label}
+                        </button>
+                        <div className={styles.bar} aria-hidden="true">
+                          <div
+                            className={styles.barFill}
+                            style={{ width: `${Math.max(1, row.share * 100)}%` }}
+                          />
+                        </div>
+                      </td>
+                      <td className={styles.numeric}>{formatNumber(row.count, language)}</td>
+                      <td className={styles.numeric}>{formatBytes(row.logical_size, units)}</td>
+                      <td className={styles.numeric}>{formatPercent(row.share, language)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Panel>
+
+          <Panel
+            title={
+              activeGroup === undefined
+                ? t('nav.types')
+                : mode === 'extension'
+                  ? activeGroup.extension === ''
+                    ? t('types.no_extension')
+                    : `.${activeGroup.extension}`
+                  : t(`treemap.category.${activeGroup.category}`)
+            }
+            actions={
+              activeGroup === undefined ? undefined : (
+                <span className={styles.panelMeta}>
+                  {formatNumber(activeGroup.count, language)} ·{' '}
+                  {formatBytes(activeGroup.logical_size, units)}
+                </span>
+              )
+            }
+          >
+            <DataTable
+              label={t('nav.types')}
+              rows={rows}
+              columns={columns}
+              rowKey={(row) => row.id}
+              sort={sort}
+              onSortChange={setSort}
+              loading={loading}
+              height={420}
+              empty={t('types.empty')}
+            />
+            {page?.next_cursor !== null && page?.next_cursor !== undefined ? (
+              <div className={styles.loadMore}>
+                <Button
+                  variant="secondary"
+                  loading={loading}
+                  onClick={() => void loadFiles(page.next_cursor)}
+                >
+                  {t('tree.load_more')}
+                </Button>
+              </div>
+            ) : null}
+          </Panel>
+        </div>
+      )}
 
       {operation.progress !== null ? (
         <OperationProgressView

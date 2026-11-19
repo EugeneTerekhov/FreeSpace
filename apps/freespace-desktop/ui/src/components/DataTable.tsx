@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import {
   clearFocusRing,
+  FOCUS_VISIBLE_ATTRIBUTE,
   focusWithRing,
   rovingIndex,
 } from '../app/focus';
@@ -23,6 +24,12 @@ export interface SortState {
   descending: boolean;
 }
 
+/** Viewport position of a pointer or a row, used to place a hover card. */
+export interface RowAnchor {
+  x: number;
+  y: number;
+}
+
 /** Optional hierarchy semantics: `aria-level`, `aria-expanded` and arrow keys. */
 export interface DataTableTree<T> {
   level: (row: T) => number;
@@ -31,6 +38,9 @@ export interface DataTableTree<T> {
   onExpand: (row: T) => void;
   onCollapse: (row: T) => void;
 }
+
+/** Shared row height for the virtualizer, the static body and paging. */
+const ROW_HEIGHT = 30;
 
 export interface DataTableProps<T> {
   label: string;
@@ -49,8 +59,36 @@ export interface DataTableProps<T> {
   error?: ReactNode;
   /** Partial-result marker rendered inside the grid. */
   partial?: ReactNode;
+  /**
+   * Decorative layer painted behind the cells, for example the inline share bar
+   * of a tree row. It must position itself absolutely; the cells stay above it.
+   */
+  rowBackground?: (row: T) => ReactNode;
+  /** Shows the check mark in the first cell of the selected row. Defaults to true. */
+  showSelectionMark?: boolean;
   /** Hierarchy semantics for tree-like tables; enables arrow expand/collapse. */
   tree?: DataTableTree<T>;
+  /**
+   * Hover card hooks: the anchor is the pointer position for a mouse and the
+   * row itself for a keyboard focus.
+   */
+  onRowHoverStart?: (row: T, anchor: RowAnchor) => void;
+  onRowHoverEnd?: (row: T) => void;
+  /**
+   * Context menu of a row: the right mouse button, Shift+F10 or the
+   * context-menu key. The anchor is the pointer or the row itself.
+   */
+  onRowContextMenu?: (row: T, anchor: RowAnchor) => void;
+}
+
+/** Focus that came from the keyboard, not from a pointer click. */
+function isKeyboardFocus(element: HTMLElement): boolean {
+  if (element.getAttribute(FOCUS_VISIBLE_ATTRIBUTE) === 'true') return true;
+  try {
+    return element.matches(':focus-visible');
+  } catch {
+    return false;
+  }
 }
 
 /** Virtualised grid with roving tabindex, keyboard activation and sortable headers. */
@@ -70,19 +108,24 @@ export function DataTable<T>({
   error,
   partial,
   tree,
+  rowBackground,
+  showSelectionMark = true,
+  onRowHoverStart,
+  onRowHoverEnd,
+  onRowContextMenu,
 }: DataTableProps<T>) {
   const parent = useRef<HTMLDivElement>(null);
   const virtual = rows.length > 50;
   const virtualizer = useVirtualizer({
     count: virtual ? rows.length : 0,
     getScrollElement: () => parent.current,
-    estimateSize: () => 36,
+    estimateSize: () => ROW_HEIGHT,
     overscan: 12,
   });
   const template = columns
     .map((column) => column.width ?? 'minmax(80px, 1fr)')
     .join(' ');
-  const pageSize = Math.max(1, Math.floor(height / 36) - 1);
+  const pageSize = Math.max(1, Math.floor(height / ROW_HEIGHT) - 1);
 
   const rowKeyRef = useRef(rowKey);
   rowKeyRef.current = rowKey;
@@ -158,6 +201,7 @@ export function DataTable<T>({
     const key = rowKey(row);
     const selected = selectedKey === key;
     const expandable = tree?.hasChildren(row) ?? false;
+    const level = tree?.level(row) ?? 1;
 
     return (
       <div
@@ -165,7 +209,7 @@ export function DataTable<T>({
         key={key}
         data-row-index={index}
         aria-selected={selected}
-        aria-level={tree?.level(row)}
+        aria-level={tree === undefined ? undefined : level}
         aria-expanded={expandable ? tree?.isExpanded(row) : undefined}
         tabIndex={index === activeIndex ? 0 : -1}
         className={cx(styles.row, !virtualized && styles.staticRow, selected && styles.selected)}
@@ -175,6 +219,22 @@ export function DataTable<T>({
         }}
         onBlur={(event) => {
           clearFocusRing(event.currentTarget);
+          onRowHoverEnd?.(row);
+        }}
+        onFocus={(event) => {
+          if (!isKeyboardFocus(event.currentTarget)) return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          onRowHoverStart?.(row, {
+            x: rect.left + Math.min(240, rect.width / 2),
+            y: rect.bottom,
+          });
+        }}
+        onPointerEnter={(event) => {
+          if (event.pointerType !== 'mouse') return;
+          onRowHoverStart?.(row, { x: event.clientX, y: event.clientY });
+        }}
+        onPointerLeave={() => {
+          onRowHoverEnd?.(row);
         }}
         onClick={() => {
           setActiveIndex(index);
@@ -183,7 +243,28 @@ export function DataTable<T>({
         onDoubleClick={() => {
           onActivate?.(row);
         }}
+        onContextMenu={(event) => {
+          if (onRowContextMenu === undefined) return;
+          event.preventDefault();
+          setActiveIndex(index);
+          onSelect?.(row);
+          onRowContextMenu(row, { x: event.clientX, y: event.clientY });
+        }}
         onKeyDown={(event) => {
+          if (
+            onRowContextMenu !== undefined &&
+            (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))
+          ) {
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            setActiveIndex(index);
+            onSelect?.(row);
+            onRowContextMenu(row, {
+              x: rect.left + Math.min(240, rect.width / 2),
+              y: rect.bottom,
+            });
+            return;
+          }
           const next = rovingIndex({
             key: event.key,
             index,
@@ -216,13 +297,21 @@ export function DataTable<T>({
           }
         }}
       >
+        {rowBackground !== undefined ? rowBackground(row) : null}
         {columns.map((column, columnIndex) => (
           <div
             key={column.id}
             role="gridcell"
             className={cx(styles.cell, column.align === 'end' && styles.alignEnd)}
+            style={
+              tree !== undefined && columnIndex === 0
+                ? {
+                    paddingLeft: `calc(var(--fs-space-3) + ${(level - 1) * 16}px)`,
+                  }
+                : undefined
+            }
           >
-            {columnIndex === 0 && selected ? (
+            {showSelectionMark && columnIndex === 0 && selected ? (
               <span className={styles.selectedMark} aria-hidden="true">
                 ✓
               </span>
@@ -305,7 +394,10 @@ export function DataTable<T>({
                 {column.sortable === true && onSortChange !== undefined ? (
                   <button
                     type="button"
-                    className={styles.sortButton}
+                    className={cx(
+                      styles.sortButton,
+                      column.align === 'end' && styles.sortButtonEnd,
+                    )}
                     onClick={() => {
                       onSortChange({
                         key: column.id,
@@ -313,9 +405,11 @@ export function DataTable<T>({
                       });
                     }}
                   >
-                    {column.header}
+                    <span className={styles.sortLabel}>{column.header}</span>
                     {active ? (
-                      <span aria-hidden="true">{sort.descending ? ' ↓' : ' ↑'}</span>
+                      <span className={styles.sortArrow} aria-hidden="true">
+                        {sort.descending ? '↓' : '↑'}
+                      </span>
                     ) : null}
                   </button>
                 ) : (
@@ -352,14 +446,14 @@ export function DataTable<T>({
 
             return renderRow(row, item.index, {
               transform: `translateY(${item.start}px)`,
-              height: 36,
+              height: ROW_HEIGHT,
             });
           })}
         </div>
       ) : (
         <div role="rowgroup" className={styles.staticBody}>
           {rows.map((row, index) =>
-            renderRow(row, index, { transform: 'none', height: 36 }, false),
+            renderRow(row, index, { transform: 'none', height: ROW_HEIGHT }, false),
           )}
         </div>
       )}

@@ -14,7 +14,7 @@ use freespace_app::{
 use crate::events::EVENT_NAMES;
 
 /// Commands implemented today, in contract order.
-pub const COMMANDS: [&str; 88] = [
+pub const COMMANDS: [&str; 87] = [
     "about_info",
     "about_licenses",
     "app_about_info",
@@ -67,6 +67,7 @@ pub const COMMANDS: [&str; 88] = [
     "permissions_preview",
     "rename_apply",
     "rename_preview",
+    "reveal_in_explorer",
     "scan_cancel",
     "scan_sessions",
     "scan_start",
@@ -92,8 +93,6 @@ pub const COMMANDS: [&str; 88] = [
     "tree_path",
     "tree_root",
     "tree_search",
-    "treemap_node",
-    "treemap_tiles",
     "types_files_page",
     "types_summary",
     "unlock_locks",
@@ -153,11 +152,13 @@ pub fn canonicalize(path: &Path) -> Result<PathBuf, UiError> {
 pub fn is_within(root: &Path, target: &Path) -> bool {
     let root = normalize_text(root);
     let target = normalize_text(target);
+    // A volume root keeps its trailing separator (`e:\`), so comparing raw
+    // prefixes would reject every direct child (`e:\file.txt`). Compare without
+    // the separator and require a boundary of its own instead.
+    let root = root.trim_end_matches('\\');
+    let target = target.trim_end_matches('\\');
 
-    target == root
-        || target
-            .strip_prefix(&root)
-            .is_some_and(|rest| rest.starts_with('\\') || rest.starts_with('/'))
+    target == root || target.starts_with(&format!("{root}\\"))
 }
 
 /// A canonical directory that bounds every path of a task.
@@ -273,6 +274,38 @@ mod tests {
         let scope = Scope::new(&nested).expect("scope");
         let escape = nested.join("..");
         assert!(scope.ensure_within(&escape).is_err());
+    }
+
+    #[test]
+    fn accepts_direct_children_of_a_volume_root() {
+        for root in [r"E:\", r"E:", r"e:\"] {
+            assert!(is_within(
+                std::path::Path::new(root),
+                std::path::Path::new(r"E:\222222222222222222.txt")
+            ));
+            assert!(is_within(
+                std::path::Path::new(root),
+                std::path::Path::new(r"e:\folder\payload.bin")
+            ));
+            assert!(is_within(
+                std::path::Path::new(root),
+                std::path::Path::new(root)
+            ));
+            assert!(!is_within(
+                std::path::Path::new(root),
+                std::path::Path::new(r"F:\payload.bin")
+            ));
+        }
+
+        // A directory root still needs a separator boundary.
+        assert!(is_within(
+            std::path::Path::new(r"E:\folder"),
+            std::path::Path::new(r"E:\folder\payload.bin")
+        ));
+        assert!(!is_within(
+            std::path::Path::new(r"E:\folder"),
+            std::path::Path::new(r"E:\folder-other\payload.bin")
+        ));
     }
 
     #[test]

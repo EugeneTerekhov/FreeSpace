@@ -1,9 +1,10 @@
 .table {
   position: relative;
   overflow: auto;
-  border: var(--fs-border);
-  border-radius: var(--fs-radius-lg);
+  border: 1px solid var(--fs-line-faint);
+  border-radius: var(--fs-radius-xl);
   background: var(--fs-surface);
+  box-shadow: var(--fs-ring-faint);
   outline-offset: -2px;
 }
 
@@ -14,29 +15,58 @@
   display: grid;
   align-items: center;
   min-height: 34px;
-  border-bottom: var(--fs-border);
+  border-bottom: 1px solid var(--fs-line-faint);
   background: var(--fs-surface-raised);
-  color: var(--fs-text-muted);
-  font-size: 11px;
+  color: var(--fs-text-subtle);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--fs-tracking-caps);
 }
 
 .headerCell {
   padding: 0 var(--fs-space-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.2;
+  overflow-wrap: normal;
 }
 
+/*
+ * The sort control is a flex row so the arrow can never be pushed onto a
+ * line of its own: the label wraps inside its box while the arrow keeps its
+ * place on the first line, right next to the column name.
+ */
 .sortButton {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fs-space-1);
+  width: 100%;
   border: 0;
   padding: 0;
   background: transparent;
   color: inherit;
   font: inherit;
+  text-align: inherit;
   text-transform: inherit;
   letter-spacing: inherit;
+}
+
+/* Right-aligned columns keep the name and its arrow glued to the right edge. */
+.sortButtonEnd {
+  justify-content: flex-end;
+}
+
+.sortLabel {
+  min-width: 0;
+}
+
+/* The arrow itself must stay on one line. */
+.sortArrow {
+  flex: none;
+  white-space: nowrap;
 }
 
 .body {
@@ -54,10 +84,11 @@
   right: 0;
   display: grid;
   align-items: center;
-  border-bottom: 1px solid var(--fs-line);
+  border-bottom: 1px solid var(--fs-line-faint);
   color: var(--fs-text);
-  font-size: 13px;
+  font-size: var(--fs-text-snug);
   cursor: default;
+  transition: background var(--fs-motion-hover) var(--fs-ease);
 }
 
 .row:focus {
@@ -81,10 +112,13 @@
 
 .selected,
 .selected:hover {
-  background: var(--fs-selection);
+  background: var(--fs-accent-soft);
+  box-shadow: inset 2px 0 0 var(--fs-accent);
 }
 
 .cell {
+  position: relative;
+  z-index: 1;
   padding: 0 var(--fs-space-3);
   overflow: hidden;
   text-overflow: ellipsis;

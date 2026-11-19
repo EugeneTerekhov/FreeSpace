@@ -7,20 +7,37 @@
  */
 
 :root {
-  /* Typography */
-  --fs-font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --fs-font-display: "Segoe UI Variable Display", "Segoe UI", sans-serif;
-  --fs-font-mono: "Cascadia Mono", "Consolas", monospace;
+  /*
+   * Typography: one family for the whole product.
+   *
+   * Paths, sizes, tables and numbers win from a monospaced, tabular face, and a
+   * single family removes an accidental second hierarchy. JetBrains Mono ships
+   * with the system fallback stack so the app stays offline (plan.md §2.2).
+   */
+  --fs-font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  --fs-font-sans: var(--fs-font-mono);
+  --fs-font-display: var(--fs-font-mono);
 
-  --fs-text-xs: 11px/16px;
-  --fs-text-sm: 12px/18px;
-  --fs-text-base: 13px/20px;
-  --fs-text-md: 14px/22px;
-  --fs-text-lg: 16px/24px;
-  --fs-text-xl: 20px/28px;
-  --fs-text-2xl: 24px/32px;
-  --fs-text-3xl: 32px/40px;
-  --fs-text-4xl: 40px/48px;
+  /* Modular scale, ratio ≈ 1.2 anchored at 13px. */
+  --fs-text-2xs: 11px/15px;
+  --fs-text-xs: 13px/17px;
+  --fs-text-sm: 15px/20px;
+  --fs-text-snug: 13px/18px;
+  --fs-text-base: 16px/22px;
+  --fs-text-md: 19px/26px;
+  --fs-text-display-sm: 15px/21px;
+  --fs-text-lg: 23px/30px;
+  --fs-text-xl: 27px/34px;
+  --fs-text-2xl: 33px/40px;
+  --fs-text-3xl: 40px/46px;
+  --fs-text-4xl: 48px/54px;
+
+  /* Tracking: display type is tight, mono and caps are wide. */
+  --fs-tracking-tight: -0.01em;
+  --fs-tracking-display: -0.03em;
+  --fs-tracking-hero: -0.045em;
+  --fs-tracking-mono: 0.02em;
+  --fs-tracking-caps: 0.08em;
 
   --fs-weight-regular: 400;
   --fs-weight-medium: 500;
@@ -38,21 +55,31 @@
   --fs-space-10: 40px;
 
   /* Radius */
-  --fs-radius-sm: 6px;
-  --fs-radius-md: 8px;
-  --fs-radius-lg: 10px;
-  --fs-radius-xl: 14px;
-  --fs-radius-2xl: 20px;
+  --fs-radius-sm: 4px;
+  --fs-radius-md: 6px;
+  --fs-radius-lg: 8px;
+  --fs-radius-xl: 10px;
+  --fs-radius-2xl: 14px;
   --fs-radius-pill: 999px;
 
-  /* Borders */
+  /* Borders and inset rings. The reference uses a 1px inner ring instead of a
+   * solid frame, so components keep the same silhouette in both themes. */
   --fs-border: 1px solid var(--fs-line);
   --fs-border-strong: 1px solid var(--fs-line-strong);
+  --fs-ring: inset 0 0 0 1px var(--fs-line);
+  --fs-ring-strong: inset 0 0 0 1px var(--fs-line-strong);
+  --fs-ring-faint: inset 0 0 0 1px var(--fs-line-faint);
+  --fs-ring-accent: inset 0 0 0 1px var(--fs-accent-ring);
+  --fs-ring-danger: inset 0 0 0 1px var(--fs-danger-ring);
 
-  /* Shadows */
+  /* Shadows: only functional (dialogs, overlays, popups). */
   --fs-shadow-1: 0 1px 2px rgb(0 0 0 / 24%);
   --fs-shadow-2: 0 8px 24px rgb(0 0 0 / 32%);
+  --fs-shadow-3: 0 24px 48px -16px rgb(0 0 0 / 55%);
+  --fs-shadow-overlay: 0 24px 60px -24px rgb(0 0 0 / 55%);
+  --fs-shadow-window: 0 48px 90px -30px rgb(0 0 0 / 90%);
   --fs-overlay-backdrop: rgb(0 0 0 / 55%);
+  --fs-overlay-blur: blur(6px);
 
   /* Layers */
   --fs-z-sticky: 10;
@@ -71,12 +98,15 @@
   --fs-sidebar-collapsed: 64px;
   --fs-status: 28px;
 
-  /* Motion */
-  --fs-motion-hover: 120ms;
-  --fs-motion-panel: 180ms;
-  --fs-motion-dialog: 240ms;
+  /* Motion: functional state changes only (plan.md §2.5). */
+  --fs-motion-fast: 120ms;
+  --fs-motion-base: 180ms;
+  --fs-motion-hover: var(--fs-motion-fast);
+  --fs-motion-panel: var(--fs-motion-base);
+  --fs-motion-dialog: var(--fs-motion-base);
   --fs-motion-reduced: 0ms;
   --fs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fs-ease-soft: cubic-bezier(0.45, 0, 0.1, 1);
 }
 
 :root[data-density="compact"] {

@@ -22,7 +22,7 @@
     "targets": ["nsis"],
     "publisher": "FreeSpace",
     "shortDescription": "Disk space analyzer and cleanup tool for Windows",
-    "longDescription": "FreeSpace analyzes disk usage, builds a size tree and a treemap, finds duplicates and stale data, and reclaims space through previewed, journaled operations. It works fully offline and keeps every file in the application folder.",
+    "longDescription": "FreeSpace analyzes disk usage, builds a size tree, finds duplicates and stale data, and reclaims space through previewed, journaled operations. It works fully offline and keeps every file in the application folder.",
     "icon": ["icons/icon.ico", "icons/icon.png"],
     "windows": {
       "webviewInstallMode": {

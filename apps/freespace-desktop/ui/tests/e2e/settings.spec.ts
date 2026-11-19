@@ -3,6 +3,34 @@ import { expect, test } from '@playwright/test';
 import { screens } from './pages/screens';
 
 test.describe('settings and US6 screens', () => {
+  test('settings tabs keep the general, elevation and about sections reachable', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const app = screens(page);
+    await app.open('settings');
+
+    const tablist = page.getByRole('tablist', { name: 'Разделы экрана' });
+    const general = tablist.getByRole('tab', { name: 'Настройки' });
+    const elevation = tablist.getByRole('tab', { name: 'Права доступа' });
+    const about = tablist.getByRole('tab', { name: 'О программе' });
+
+    await expect(general).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Настройки' })).toBeVisible();
+
+    await elevation.click();
+    await expect(elevation).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Права доступа' })).toBeVisible();
+
+    await elevation.press('ArrowRight');
+    await expect(about).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'О программе' })).toBeVisible();
+
+    await about.press('Home');
+    await expect(general).toHaveAttribute('aria-selected', 'true');
+    await expect(general).toBeFocused();
+  });
+
   test('applies preferences, validates paths and saves the legacy settings', async ({
     page,
   }) => {
@@ -18,16 +46,14 @@ test.describe('settings and US6 screens', () => {
     await theme.getByRole('radio').nth(2).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-    const density = page.getByRole('radiogroup').nth(1);
+    const density = page.getByRole('radiogroup', { name: 'Плотность' });
     await density.getByRole('radio').nth(1).click();
     await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
 
     const exclusions = page.locator('#settings-exclusions');
     await exclusions.fill('relative\\folder');
     await page.getByRole('button', { name: 'Проверить' }).click();
-    await expect(
-      page.getByText('Проверьте введённые значения.').first(),
-    ).toBeVisible();
+    await expect(page.getByText('Проверьте введённые значения.').first()).toBeVisible();
 
     await exclusions.fill('C:\\Temp; **\\node_modules');
     await page.getByRole('button', { name: 'Проверить' }).click();
@@ -102,30 +128,41 @@ test.describe('settings and US6 screens', () => {
     await expect(page.getByText('Мониторинг завершён')).toBeVisible();
   });
 
-  test('elevation explains the reason and requests administrator rights', async ({
+  test('elevation tab explains the reason and requests administrator rights', async ({
     page,
   }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.open('elevation');
+    await app.open('settings');
+    await page.getByRole('tab', { name: 'Права доступа' }).click();
 
     await expect(
       page.getByText('Обычный пользователь (ограниченный режим)'),
     ).toBeVisible();
     await expect(page.getByText('Доступен')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Запросить повышение прав' }).click();
+    // The restart always goes through an explained confirmation dialog.
+    await page
+      .getByRole('button', { name: 'Перезапустить от имени администратора' })
+      .click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByText('Перезапуск с правами администратора'),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Перезапустить', exact: true }).click();
 
     await expect(page.getByText('Администратор', { exact: true })).toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'Запросить повышение прав' }),
+      page.getByRole('button', { name: 'Перезапустить от имени администратора' }),
     ).toBeDisabled();
   });
 
-  test('About shows build data, licences and never opens a link', async ({ page }) => {
+  test('about tab shows build data, licences and never opens a link', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.open('about');
+    await app.open('settings');
+    await page.getByRole('tab', { name: 'О программе' }).click();
 
     const main = page.getByRole('main');
     await expect(main.getByText('1.1.0')).toBeVisible();

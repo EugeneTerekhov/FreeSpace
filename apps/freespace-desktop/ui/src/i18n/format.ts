@@ -58,3 +58,50 @@ export function formatDate(
     timeStyle: 'short',
   }).format(new Date(timestamp));
 }
+
+/** Compact numeric date for dense table columns. */
+export function formatDateCompact(timestamp: number | null): string {
+  if (timestamp === null) return '—';
+
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}.${month}.${year}`;
+}
+
+/**
+ * Fixed numeric date and time for dense table columns: `DD/MM/YYYY HH:MM`.
+ *
+ * Deliberately locale-neutral so the whole value always fits a fixed column.
+ */
+export function formatDateTimeShort(timestamp: number | null): string {
+  if (timestamp === null) return '—';
+
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+/** Compact numeric date and time for dense surfaces such as hover cards. */
+export function formatDateTimeCompact(
+  timestamp: number | null,
+  language: Language = 'ru',
+): string {
+  if (timestamp === null) return '—';
+
+  return new Intl.DateTimeFormat(language, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(timestamp));
+}

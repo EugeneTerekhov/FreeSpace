@@ -1,36 +1,43 @@
 import { expect, test } from '@playwright/test';
 
-import { screens } from '../e2e/pages/screens';
+import { SCREEN_IDS, screens } from '../e2e/pages/screens';
 import { expectNoViolations } from './axe';
 
 test.describe('accessibility', () => {
-  test('dashboard', async ({ page }) => {
+  test('overview', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Обзор' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Тома' })).toBeVisible();
     await expectNoViolations(page);
   });
 
-  test('scan', async ({ page }) => {
+  test('overview with the embedded scan progress', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.open('scan');
-    await expect(page.getByRole('heading', { level: 1, name: 'Сканирование' })).toBeVisible();
+    await app.runScan();
+
+    await expect(page.getByRole('heading', { level: 2, name: 'Текущий анализ' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Открыть дерево' })).toBeVisible();
     await expectNoViolations(page);
   });
 
   test('tree', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.withSnapshot('tree');
+    await app.withSnapshot();
+
     await expect(page.getByRole('treegrid', { name: 'Дерево' })).toBeVisible();
     await expectNoViolations(page);
   });
 
-  test('treemap', async ({ page }) => {
+  test('command palette', async ({ page }) => {
     await page.goto('/');
-    const app = screens(page);
-    await app.withSnapshot('treemap');
-    await expect(page.getByRole('img', { name: /Щёлкните плитку/ })).toBeVisible();
+    await page.keyboard.press('Control+K');
+
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('option')).toHaveCount(
+      SCREEN_IDS.length,
+    );
     await expectNoViolations(page);
   });
 });

@@ -1,20 +1,15 @@
-//! Synthetic tree generator and Treemap measurement harness.
+//! Synthetic tree generator and backend measurement harness.
 //!
 //! Usage:
 //!   cargo run --release -p freespace-app --example gen_fixture -- 1000000
 //!
 //! The tree is built in memory with the same arena as a real scan. The tool
-//! prints build time, name-arena size and the time to aggregate a 1600x900
-//! Treemap with 2 000 tiles, which is the budget measured in
-//! `docs/performance-002.md`.
+//! prints build time, name-arena size and the time to page the tree root, which
+//! is the performance budget.
 
 use std::{env, mem::size_of, path::Path, time::Instant};
 
-use freespace_app::{
-    dto::{Metric, TreemapRequest},
-    tree::TreeSnapshot,
-    treemap,
-};
+use freespace_app::{dto::Metric, tree::TreeSnapshot};
 use freespace_core::{
     model::{FileSystem, Volume, VolumeStatus},
     size::SizeMetrics,
@@ -98,28 +93,6 @@ fn main() {
         snapshot.tree().name_bytes(),
         build.as_millis(),
         size_of::<freespace_core::tree::FsNode>()
-    );
-
-    let request = TreemapRequest {
-        width: 1_600,
-        height: 900,
-        metric: Metric::OnDisk,
-        max_depth: 6,
-        min_tile_px: 4,
-        max_tiles: 2_000,
-        node_id: None,
-    };
-
-    let layout_started = Instant::now();
-    let response = treemap::tiles(&snapshot, &request).expect("treemap");
-    let layout = layout_started.elapsed();
-
-    println!(
-        "treemap: tiles={} truncated={} total_bytes={} layout_ms={}",
-        response.tiles.len(),
-        response.truncated,
-        response.total_size,
-        layout.as_millis()
     );
 
     let root_page_started = Instant::now();

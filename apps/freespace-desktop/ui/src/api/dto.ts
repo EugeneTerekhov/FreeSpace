@@ -6,31 +6,19 @@
  * produced by Rust; the interface never recomputes them.
  */
 
+/** The 11 screens of the 002 recomposition (see `app/routing.ts`). */
 export type ScreenId =
-  | 'dashboard'
-  | 'scan'
+  | 'overview'
   | 'tree'
-  | 'treemap'
-  | 'top_files'
-  | 'types'
+  | 'analysis'
   | 'duplicates'
   | 'cleanup'
-  | 'snapshots'
   | 'journal'
-  | 'size_details'
-  | 'long_paths'
-  | 'rename'
-  | 'permissions'
-  | 'metadata'
-  | 'owners'
-  | 'archives'
-  | 'export'
-  | 'unlock'
   | 'shred'
   | 'monitor'
-  | 'elevation'
-  | 'settings'
-  | 'about';
+  | 'inspect'
+  | 'fileops'
+  | 'settings';
 
 export type UiErrorCode =
   | 'E_VALIDATION'
@@ -129,42 +117,6 @@ export interface FilterSet {
   accessible_only: boolean;
   exclude_paths: string[];
   name: string | null;
-}
-
-export interface TreemapRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface TreemapRequest {
-  node_id: number | null;
-  width: number;
-  height: number;
-  metric: Metric;
-  max_depth: number;
-  min_tile_px: number;
-  max_tiles: number;
-}
-
-export interface TreemapTile {
-  node_id: number | null;
-  rect: TreemapRect;
-  depth: number;
-  size: number;
-  fraction: number;
-  color_key: string;
-  label: string;
-  is_aggregate: boolean;
-  child_count: number;
-}
-
-export interface TreemapResponse {
-  generation: number;
-  tiles: TreemapTile[];
-  truncated: boolean;
-  total_size: number;
 }
 
 export interface VolumeSummary {

@@ -72,6 +72,7 @@ pub fn run() {
             commands::filesystem::long_paths_validate,
             commands::filesystem::rename_preview,
             commands::filesystem::rename_apply,
+            commands::filesystem::reveal_in_explorer,
             commands::filesystem::permissions_get,
             commands::filesystem::permissions_preview,
             commands::filesystem::permissions_apply,
@@ -118,8 +119,6 @@ pub fn run() {
             commands::tree::tree_search,
             commands::tree::tree_node,
             commands::tree::tree_path,
-            commands::treemap::treemap_tiles,
-            commands::treemap::treemap_node,
         ])
         .setup(move |app| {
             let state = app.state::<AppState>();
@@ -204,7 +203,7 @@ mod tests {
         assert_eq!(capabilities.commands.len(), security::COMMANDS.len());
         assert!(!capabilities.commands.is_empty());
         assert!(capabilities.commands.contains(&"app_bootstrap".to_owned()));
-        assert!(capabilities.commands.contains(&"treemap_tiles".to_owned()));
+        assert!(capabilities.commands.contains(&"tree_children".to_owned()));
     }
 
     #[test]

@@ -4,6 +4,7 @@ import { api } from '../api/runtime';
 import type {
   DeleteMode,
   OperationAccepted,
+  OperationCompletedEvent,
   OperationPreview,
   OperationPreviewRequest,
   OperationProgress,
@@ -41,6 +42,36 @@ export function useOperation(): UseOperationState {
     },
     [],
   );
+
+  // The poll is the primary path, but the backend also announces the terminal
+  // state. Reading it on the event closes the race where a very fast operation
+  // finishes between two polls; the tree then removes the deleted row at once.
+  useEffect(() => {
+    if (accepted === null) return undefined;
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    const operationId = accepted.operation_id;
+
+    void api.transport
+      .listen<OperationCompletedEvent>('operation-completed', (envelope) => {
+        if (!active || envelope.payload.operation_id !== operationId) return;
+        void api
+          .operationStatus(operationId)
+          .then((current) => {
+            if (active) setProgress(current);
+          })
+          .catch(() => undefined);
+      })
+      .then((off) => {
+        if (active) unlisten = off;
+        else off();
+      });
+
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [accepted]);
 
   const prepare = useCallback(async (request: OperationPreviewRequest) => {
     setError(null);

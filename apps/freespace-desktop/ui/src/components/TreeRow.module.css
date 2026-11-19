@@ -1,0 +1,94 @@
+/* Tree rows: type icon, chevron and the inline share bar. */
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fs-radius-sm);
+  background: transparent;
+  color: var(--fs-text-subtle);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--fs-surface-overlay);
+  color: var(--fs-text);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 1px;
+}
+
+.chevron {
+  display: inline-grid;
+  place-items: center;
+  transition: transform var(--fs-motion-fast) var(--fs-ease);
+}
+
+.chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.toggleSpacer {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--fs-text-muted);
+}
+
+.icon[data-tree-icon='folder'],
+.icon[data-tree-icon='folder-open'],
+.icon[data-tree-icon='volume'] {
+  color: var(--fs-accent-strong);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The fill starts after the chevron and ends at the row edge; the inset keeps a
+ * 2 px gap between neighbouring rows so bars never merge. */
+.shareTrack {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  bottom: 1px;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: var(--fs-radius-sm);
+  pointer-events: none;
+}
+
+.shareFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--fs-tree-fill);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

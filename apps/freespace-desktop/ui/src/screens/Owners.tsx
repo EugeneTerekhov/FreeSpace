@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { FilterSet, NodeRow, TreePage, UiError } from '../api/dto';
 import type {
@@ -10,22 +10,22 @@ import { fetchOwnerFiles, fetchOwnersPage } from '../api/inspection';
 import { normalizeError } from '../app/errors';
 import { Badge } from '../components/Choice';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { DataTable, type Column } from '../components/DataTable';
-import { EmptyState, ErrorState, Progress } from '../components/Feedback';
+import { Banner, EmptyState, ErrorState, Progress } from '../components/Feedback';
 import { FilterBar } from '../components/FilterBar';
+import { Select } from '../components/Fields';
 import { t } from '../i18n';
-import { formatBytes, formatDate, formatPercent } from '../i18n/format';
+import { formatBytes, formatDate, formatNumber, formatPercent } from '../i18n/format';
 import { emptyFilter } from '../lib/filters';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
-import local from './inspection.module.css';
-import { ExportDialog } from './Export';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import { ExportDialog } from '../components/ExportAction';
+import styles from './analysis-screen.module.css';
 
-const OWNER_PAGE_SIZE = 5;
-const FILE_PAGE_SIZE = 5;
+const OWNER_PAGE_SIZES = [5, 10, 25];
+const FILE_PAGE_SIZE = 25;
 
 const OWNERS_COMPOSITION: readonly ExportSection[] = ['owners'];
 
@@ -45,13 +45,16 @@ function ownersOutput(root: string | null): string {
   return `${base}${base.endsWith('\\') ? '' : '\\'}FreeSpace-owners.csv`;
 }
 
-/** Owner totals, a cursor-paged file drill-down and a report action. */
+/** Owners tab: owner totals with a cursor-paged file drill-down. */
 export function Owners() {
   const generation = useSnapshotStore((state) => state.generation);
   const volume = useSnapshotStore((state) => state.volume);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
   const [filter, setFilter] = useState<FilterSet>(emptyFilter());
+  const [pageSize, setPageSize] = useState(5);
+  const [requested, setRequested] = useState(false);
+  const requestedFor = useRef<number | null>(null);
   const [page, setPage] = useState<OwnerSummaryPage | null>(null);
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,6 +74,8 @@ export function Owners() {
     setFilesPage(null);
     setError(null);
     setFilesError(null);
+    setRequested(false);
+    requestedFor.current = null;
   }, [generation]);
 
   const loadOwners = useCallback(
@@ -82,7 +87,7 @@ export function Owners() {
         const result = await fetchOwnersPage(generation, {
           filter,
           cursor,
-          page_size: OWNER_PAGE_SIZE,
+          page_size: pageSize,
         });
         setPage(result);
         setOwners((current) =>
@@ -94,8 +99,16 @@ export function Owners() {
         setLoading(false);
       }
     },
-    [filter, generation],
+    [filter, generation, pageSize],
   );
+
+  // Once the report is built, filter and page-size changes re-read it so the
+  // tab behaves like the other analysis tabs. Nothing is read before the first
+  // explicit «Построить отчёт», because owner resolution is expensive.
+  useEffect(() => {
+    if (!requested || generation === null || requestedFor.current !== generation) return;
+    void loadOwners(null);
+  }, [generation, loadOwners, requested]);
 
   const loadFiles = useCallback(
     async (owner: OwnerSummary, cursor: string | null = null) => {
@@ -122,21 +135,13 @@ export function Owners() {
     [filter, generation],
   );
 
-  const summaryColumns: Column<OwnerSummary>[] = [
+  const ownerColumns: Column<OwnerSummary>[] = [
     {
       id: 'owner',
       header: t('owners.owner'),
       width: 'minmax(180px, 1.4fr)',
       render: (owner) => (
-        <span className={local.owner}>
-          <span>{ownerLabel(owner)}</span>
-          {owner.owner_id === null ? (
-            <Badge tone="warning">{t('owners.unknown')}</Badge>
-          ) : null}
-          {!owner.accessible ? (
-            <Badge tone="warning">{t('tree.access_denied')}</Badge>
-          ) : null}
-        </span>
+        <span className={styles.fileName}>{ownerLabel(owner)}</span>
       ),
     },
     {
@@ -144,7 +149,9 @@ export function Owners() {
       header: t('owners.sid'),
       width: 'minmax(140px, 1fr)',
       render: (owner) => (
-        <span className={local.sid}>{owner.sid === '' ? t('owners.unknown') : owner.sid}</span>
+        <span className={styles.panelMeta}>
+          {owner.sid === '' ? t('owners.unknown') : owner.sid}
+        </span>
       ),
     },
     {
@@ -152,7 +159,7 @@ export function Owners() {
       header: t('owners.files'),
       width: '110px',
       align: 'end',
-      render: (owner) => owner.file_count,
+      render: (owner) => formatNumber(owner.file_count, language),
     },
     {
       id: 'size',
@@ -169,9 +176,20 @@ export function Owners() {
       render: (owner) => formatPercent(owner.share, language, 1),
     },
     {
+      id: 'state',
+      header: t('unlock.state'),
+      width: '150px',
+      render: (owner) =>
+        owner.owner_id === null || !owner.accessible ? (
+          <Badge tone="warning">
+            {owner.owner_id === null ? t('owners.unknown') : t('tree.access_denied')}
+          </Badge>
+        ) : null,
+    },
+    {
       id: 'open',
       header: '',
-      width: '130px',
+      width: '150px',
       render: (owner) => (
         <Button variant="ghost" onClick={() => void loadFiles(owner)}>
           {t('details.items')}
@@ -217,12 +235,11 @@ export function Owners() {
     return (
       <EmptyState
         title={t('analysis.scan_required')}
-        description={t('scan.required')}
         actions={
           <Button
             variant="primary"
             onClick={() => {
-              useShellStore.getState().setScreen('scan');
+              useShellStore.getState().setScreen('overview');
             }}
           >
             {t('scan.start')}
@@ -232,37 +249,66 @@ export function Owners() {
     );
   }
 
+  const totalOwners = page?.total_estimate ?? owners.length;
+  const totalBytes =
+    page?.total_bytes ?? owners.reduce((sum, owner) => sum + owner.total_bytes, 0);
+  const unknownBytes = page?.unknown_bytes ?? 0;
+
+  const buildReport = () => {
+    if (!requested) {
+      requestedFor.current = generation;
+      setRequested(true);
+      return;
+    }
+    void loadOwners(null);
+  };
+
   return (
     <div className={styles.stack}>
-      <Card title={t('nav.owners')}>
-        <p>{t('owners.intro')}</p>
-        <div className={styles.toolbar}>
-          <Button variant="primary" loading={loading} onClick={() => void loadOwners()}>
-            {t('owners.analyze')}
-          </Button>
-          <span className={styles.spacer} />
-          <Button
-            variant="secondary"
-            disabled={owners.length === 0}
-            onClick={() => {
-              setExportOpen(true);
+      <p className={styles.context} data-testid="analysis-context-owners">
+        {page === null
+          ? t('owners.intro')
+          : t('analysis_ui.context_owners', {
+              owners: formatNumber(totalOwners, language),
+              size: formatBytes(totalBytes, units),
+            })}
+      </p>
+
+      <div className={styles.toolbar}>
+        <label className={styles.field}>
+          {t('analysis_ui.limit_owners')}
+          <Select
+            aria-label={t('analysis_ui.limit_owners')}
+            value={String(pageSize)}
+            options={OWNER_PAGE_SIZES.map((value) => ({ value: String(value), label: String(value) }))}
+            onChange={(event) => {
+              setPageSize(Number(event.target.value));
             }}
-          >
-            {t('export.export')}
-          </Button>
-        </div>
-        {loading ? <Progress label={t('owners.analyzing')} state="indeterminate" /> : null}
-      </Card>
+          />
+        </label>
+        <Button variant="primary" loading={loading} onClick={buildReport}>
+          {t('owners.analyze')}
+        </Button>
+        <span className={styles.spacer} />
+        <Button
+          variant="secondary"
+          disabled={owners.length === 0}
+          onClick={() => {
+            setExportOpen(true);
+          }}
+        >
+          {t('export.export')}
+        </Button>
+      </div>
 
       <FilterBar
         screen="owners"
         filter={filter}
         onChange={(next) => {
           setFilter(next);
-          setPage(null);
-          setOwners([]);
           setSelected(null);
           setFiles([]);
+          setFilesPage(null);
         }}
       />
 
@@ -279,24 +325,69 @@ export function Owners() {
         />
       ) : null}
 
-      {owners.length === 0 && !loading && error === null ? (
-        <EmptyState title={t('owners.empty')} />
+      {loading ? <Progress label={t('owners.analyzing')} state="indeterminate" /> : null}
+
+      {requested && page !== null ? (
+        <StatRow>
+          <Stat
+            label={t('analysis_ui.stat_owners')}
+            value={
+              <span data-testid="analysis-owners-count">
+                {formatNumber(totalOwners, language)}
+              </span>
+            }
+          />
+          <Stat
+            label={t('analysis_ui.stat_size')}
+            value={
+              <span data-testid="analysis-owners-size">{formatBytes(totalBytes, units)}</span>
+            }
+          />
+          <Stat
+            label={t('owners.unknown')}
+            value={
+              <span data-testid="analysis-owners-unknown">
+                {formatBytes(unknownBytes, units)}
+              </span>
+            }
+          />
+        </StatRow>
       ) : null}
 
-      {owners.length > 0 ? (
-        <Card title={t('owners.analyze')}>
+      {!requested ? (
+        <EmptyState
+          title={t('owners.empty')}
+          actions={
+            <Button variant="primary" onClick={buildReport}>
+              {t('owners.analyze')}
+            </Button>
+          }
+        />
+      ) : owners.length === 0 && !loading && error === null ? (
+        <EmptyState title={t('owners.empty')} />
+      ) : (
+        <Panel
+          title={t('nav.owners')}
+          actions={
+            page === null ? undefined : (
+              <span className={styles.panelMeta}>
+                {t('owners.unknown')}: {formatBytes(unknownBytes, units)}
+              </span>
+            )
+          }
+        >
           <DataTable
             label={t('nav.owners')}
             rows={owners}
-            columns={summaryColumns}
+            columns={ownerColumns}
             rowKey={(owner) => `${owner.owner_id ?? 'unknown'}-${owner.sid}`}
             loading={loading}
-            height={260}
+            height={320}
             onActivate={(owner) => void loadFiles(owner)}
             empty={t('owners.empty')}
           />
           {page?.next_cursor !== null && page?.next_cursor !== undefined ? (
-            <div className={styles.analyzeRow}>
+            <div className={styles.loadMore}>
               <Button
                 variant="secondary"
                 loading={loading}
@@ -306,21 +397,22 @@ export function Owners() {
               </Button>
             </div>
           ) : null}
-          {page !== null && (page.unknown_bytes > 0 || page.error_count > 0) ? (
-            <p className={styles.metaRow}>
-              {page.unknown_bytes > 0
-                ? `${t('owners.unknown')}: ${formatBytes(page.unknown_bytes, units)}`
-                : null}
-              {page.error_count > 0 ? ` · ${t('tree.access_denied')}: ${page.error_count}` : null}
-            </p>
+          {page !== null && page.error_count > 0 ? (
+            <Banner tone="warning">
+              {t('analysis_ui.partial')} · {t('tree.access_denied')}: {page.error_count}
+            </Banner>
           ) : null}
-        </Card>
-      ) : null}
+        </Panel>
+      )}
 
       {selected !== null ? (
-        <Card
+        <Panel
           title={ownerLabel(selected)}
-          actions={<Badge tone="info">{selected.sid === '' ? t('owners.unknown') : selected.sid}</Badge>}
+          actions={
+            <Badge tone="info">
+              {selected.sid === '' ? t('owners.unknown') : selected.sid}
+            </Badge>
+          }
         >
           {filesError !== null ? (
             <ErrorState
@@ -345,7 +437,7 @@ export function Owners() {
                 empty={t('owners.empty')}
               />
               {filesPage?.next_cursor !== null && filesPage?.next_cursor !== undefined ? (
-                <div className={styles.analyzeRow}>
+                <div className={styles.loadMore}>
                   <Button
                     variant="secondary"
                     loading={filesLoading}
@@ -357,7 +449,7 @@ export function Owners() {
               ) : null}
             </>
           )}
-        </Card>
+        </Panel>
       ) : null}
 
       <ExportDialog

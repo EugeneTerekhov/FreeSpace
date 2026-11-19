@@ -25,7 +25,7 @@ export const useShellStore = create<ShellState>()((set, get) => ({
   ready: false,
   bootstrap: null,
   error: null,
-  screen: 'dashboard',
+  screen: 'overview',
   sidebarCollapsed: false,
   pendingNodeId: null,
 

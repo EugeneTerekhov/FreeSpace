@@ -7,22 +7,33 @@ import {
   Breadcrumbs,
   Header,
   Sidebar,
+  SidebarDrive,
   SplitPane,
   StatusBar,
 } from '../../src/app/AppShell';
+
+const GROUPS = [
+  {
+    id: 'overview',
+    label: 'Обзор',
+    items: [{ id: 'overview', label: 'Обзор' }],
+  },
+  {
+    id: 'analysis',
+    label: 'Анализ',
+    items: [
+      { id: 'tree', label: 'Дерево' },
+      { id: 'analysis', label: 'Анализ' },
+    ],
+  },
+];
 
 describe('shell', () => {
   it('renders the documented landmarks', () => {
     render(
       <AppShell
-        sidebar={
-          <Sidebar
-            items={[{ id: 'dashboard', label: 'Disks' }]}
-            active="dashboard"
-            onSelect={() => undefined}
-          />
-        }
-        header={<Header title="Disks" />}
+        sidebar={<Sidebar groups={GROUPS} active="overview" onSelect={() => undefined} />}
+        header={<Header title="Обзор" />}
         status={<StatusBar message="Ready" />}
       >
         Body
@@ -35,26 +46,46 @@ describe('shell', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Ready');
   });
 
+  it('renders group headings and the application icon', () => {
+    const { container } = render(
+      <Sidebar groups={GROUPS} active="overview" onSelect={() => undefined} />,
+    );
+
+    expect(screen.getAllByText('Обзор').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Анализ').length).toBeGreaterThan(0);
+    // The brand icon is decorative: rendered, but hidden from narrators.
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
   it('marks the active screen and selects another one', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
-    render(
-      <Sidebar
-        items={[
-          { id: 'dashboard', label: 'Disks' },
-          { id: 'tree', label: 'Tree' },
-        ]}
-        active="dashboard"
-        onSelect={onSelect}
-      />,
-    );
+    render(<Sidebar groups={GROUPS} active="overview" onSelect={onSelect} />);
 
-    expect(screen.getByRole('button', { name: 'Disks' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Обзор' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await user.click(screen.getByRole('button', { name: 'Tree' }));
+    expect(screen.getByRole('button', { name: 'Дерево' })).not.toHaveAttribute(
+      'aria-current',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Дерево' }));
     expect(onSelect).toHaveBeenCalledWith('tree');
+  });
+
+  it('shows the active drive in the sidebar footer', () => {
+    render(
+      <Sidebar
+        groups={GROUPS}
+        active="overview"
+        onSelect={() => undefined}
+        footer={<SidebarDrive mount="C:\\" free="288 ГБ" total="1 ТБ" />}
+      />,
+    );
+
+    expect(screen.getByText(/288 ГБ/)).toBeInTheDocument();
+    expect(screen.getByText('1 ТБ')).toBeInTheDocument();
   });
 
   it('renders one h1 and breadcrumbs with a current page', () => {
@@ -63,7 +94,6 @@ describe('shell', () => {
         <Header title="Tree" subtitle="C:\\" />
         <Breadcrumbs items={[{ label: 'C:\\' }, { label: 'Users' }]} />
       </>,
-
     );
 
     expect(screen.getByRole('heading', { level: 1, name: 'Tree' })).toBeInTheDocument();

@@ -2,12 +2,40 @@ import { expect, test } from '@playwright/test';
 
 import { screens } from './pages/screens';
 
-test.describe('metadata screen', () => {
-  test('reads media records and filters by kind and dimensions', async ({ page }) => {
+test.describe('inspection screen', () => {
+  test('inspection tabs switch with the mouse and the arrow keys', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.runScan();
-    await app.open('metadata');
+    await app.withAnalysis('inspect');
+
+    const tablist = page.getByRole('tablist', { name: 'Разделы экрана' });
+    const metadata = tablist.getByRole('tab', { name: 'Метаданные' });
+    const archives = tablist.getByRole('tab', { name: 'Архивы' });
+    const unlock = tablist.getByRole('tab', { name: 'Разблокировка' });
+    const longPaths = tablist.getByRole('tab', { name: 'Длинные пути' });
+
+    await expect(metadata).toHaveAttribute('aria-selected', 'true');
+
+    await archives.click();
+    await expect(archives).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Архивы' })).toBeVisible();
+
+    await archives.press('ArrowRight');
+    await expect(unlock).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Разблокировка' })).toBeVisible();
+
+    await unlock.press('ArrowRight');
+    await expect(longPaths).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name: 'Длинные пути' })).toBeVisible();
+
+    await longPaths.press('ArrowLeft');
+    await expect(unlock).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('metadata reads media records and filters by kind and dimensions', async ({ page }) => {
+    await page.goto('/');
+    const app = screens(page);
+    await app.withAnalysis('inspect');
 
     await page.getByRole('textbox', { name: 'Файл' }).fill('photo');
     await page.getByRole('button', { name: 'Прочитать метаданные' }).click();
@@ -31,44 +59,14 @@ test.describe('metadata screen', () => {
     await page.getByLabel('Минимальная ширина').fill('5000');
     await expect(page.getByText('C:\\Users\\Pictures\\photo.jpg')).toBeVisible();
   });
-});
 
-test.describe('owners screen', () => {
-  test('pages owners, drills into files and opens the export action', async ({ page }) => {
-    await page.goto('/');
-    const app = screens(page);
-    await app.runScan();
-    await app.open('owners');
-
-    await page.getByRole('button', { name: 'Построить отчёт по владельцам' }).click();
-    await expect(page.getByText('CORP\\alice')).toBeVisible();
-    await expect(page.getByText('S-1-5-21-1001')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Загрузить ещё' }).click();
-    await expect(page.getByText('CORP\\dmitri')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Объекты' }).first().click();
-    await expect(
-      page.getByText('C:\\Users\\alice\\Documents\\owned-1.dat'),
-    ).toBeVisible();
-
-    await page.getByRole('button', { name: 'Экспортировать' }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('checkbox', { name: 'Владельцы' })).toBeChecked();
-    await expect(dialog.getByRole('checkbox', { name: 'Дерево' })).not.toBeChecked();
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
-  });
-});
-
-test.describe('archives screen', () => {
-  test('pages archive entries, exports the list and reports a protected archive', async ({
+  test('archives page entries, export the list and report a protected archive', async ({
     page,
   }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.open('archives');
+    await app.withAnalysis('inspect');
+    await page.getByRole('tab', { name: 'Архивы' }).click();
 
     const path = page.getByRole('textbox', { name: 'Архив или папка' });
     await path.fill('C:\\Downloads\\archive.zip');
@@ -95,47 +93,14 @@ test.describe('archives screen', () => {
       page.getByText('archive.unsupported.password: the archive is password-protected'),
     ).toBeVisible();
   });
-});
 
-test.describe('export screen', () => {
-  test('previews and completes an offline report', async ({ page }) => {
+  test('unlock soft releases, force releases and schedules deletion on reboot', async ({
+    page,
+  }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.runScan();
-    await app.open('export');
-
-    await page.getByRole('checkbox', { name: 'Типы' }).uncheck();
-    await page.getByLabel('Файл отчёта').fill('C:\\Temp\\report.csv');
-    await page.getByRole('button', { name: 'Предпросмотр' }).click();
-    await expect(page.getByText('C:\\Temp\\report.csv')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Экспортировать', exact: true }).click();
-    await expect(page.getByText('Отчёт записан: C:\\Temp\\report.csv')).toBeVisible({
-      timeout: 15_000,
-    });
-  });
-
-  test('cancels a running report', async ({ page }) => {
-    await page.goto('/');
-    const app = screens(page);
-    await app.runScan();
-    await app.open('export');
-
-    await page.getByLabel('Файл отчёта').fill('C:\\Temp\\cancel.csv');
-    await page.getByRole('button', { name: 'Предпросмотр' }).click();
-    await expect(page.getByText('C:\\Temp\\cancel.csv')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Экспортировать', exact: true }).click();
-    await page.getByRole('button', { name: 'Отменить операцию' }).click();
-    await expect(page.getByText('Отменено').first()).toBeVisible({ timeout: 15_000 });
-  });
-});
-
-test.describe('unlock screen', () => {
-  test('soft releases, force releases and schedules deletion on reboot', async ({ page }) => {
-    await page.goto('/');
-    const app = screens(page);
-    await app.open('unlock');
+    await app.open('inspect');
+    await page.getByRole('tab', { name: 'Разблокировка' }).click();
 
     const path = page.getByRole('textbox', { name: 'Файл' });
     await path.fill('C:\\Temp\\e2e-soft.bin');
@@ -179,10 +144,11 @@ test.describe('unlock screen', () => {
     ).toBeVisible();
   });
 
-  test('requires elevation for protected files', async ({ page }) => {
+  test('unlock requires elevation for protected files', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.open('unlock');
+    await app.open('inspect');
+    await page.getByRole('tab', { name: 'Разблокировка' }).click();
 
     await page.getByRole('textbox', { name: 'Файл' }).fill('C:\\Temp\\e2e-protected.bin');
     await page.keyboard.press('Enter');

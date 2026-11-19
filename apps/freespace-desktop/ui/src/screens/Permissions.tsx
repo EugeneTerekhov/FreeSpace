@@ -14,13 +14,12 @@ import {
 } from '../api/filesystem';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Badge, Checkbox, Toggle } from '../components/Choice';
-import { Banner, EmptyState, Loading } from '../components/Feedback';
+import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
 import { Field } from '../components/Fields';
 import { t } from '../i18n';
-import styles from './screens.module.css';
-import local from './filesystem.module.css';
+import { Panel } from './ScreenFrame';
+import local from './fileops.module.css';
 
 type AttributeChange = 'set' | 'clear';
 
@@ -56,16 +55,14 @@ const ATTRIBUTE_BITS: Record<FileAttributeName, number> = {
 };
 
 const ATTRIBUTE_LABEL: Record<FileAttributeName, string> = {
-  // Four labels are missing from the catalogue and use the closest existing
-  // keys; they are reported for the Phase 11 i18n pass.
-  'read-only': 'permissions.attributes',
+  'read-only': 'fileops.attr.read_only',
   hidden: 'attr.hidden',
   system: 'attr.system',
-  archive: 'treemap.category.archive',
-  temporary: 'cleanup.reason.temp',
+  archive: 'fileops.attr.archive',
+  temporary: 'fileops.attr.temporary',
   sparse: 'attr.sparse',
   compressed: 'attr.compressed',
-  'not-content-indexed': 'permissions.attributes_hint',
+  'not-content-indexed': 'fileops.attr.not_content_indexed',
 };
 
 interface DiffRow {
@@ -77,7 +74,14 @@ interface DiffRow {
   afterKey: string | null;
 }
 
-/** NTFS owner, attributes and ACL actions with a preview diff. */
+/**
+ * NTFS owner, attributes and ACL actions with a preview diff.
+ *
+ * Reading the object only queries the security descriptor. Changes are never
+ * written directly: the preview names the current owner, the inherited or
+ * explicit ACL and every attribute that flips, and the apply step needs an
+ * explicit acknowledgement because a wrong ACL can lock the user out.
+ */
 export function Permissions() {
   const [path, setPath] = useState('');
   const [view, setView] = useState<PermissionsView | null>(null);
@@ -201,12 +205,20 @@ export function Permissions() {
   };
 
   const diffRows = preview === null ? [] : buildDiffRows(preview);
+  const currentAttributes = ATTRIBUTE_NAMES.filter(
+    (name) => view !== null && (view.attribute_mask & ATTRIBUTE_BITS[name]) !== 0,
+  );
 
   return (
-    <div className={styles.stack}>
-      <Card title={t('nav.permissions')}>
-        <p className={local.note}>{t('permissions.intro')}</p>
-        <div className={styles.toolbar}>
+    <div className={local.stack}>
+      <Panel title={t('nav.permissions')} hint={t('fileops.permissions.hint')}>
+        <form
+          className={local.toolbar}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void load(path);
+          }}
+        >
           <Field id="permissions-path" label={t('details.path')}>
             <input
               id="permissions-path"
@@ -216,32 +228,27 @@ export function Permissions() {
               onChange={(event) => {
                 setPath(event.target.value);
               }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  void load(path);
-                }
-              }}
             />
           </Field>
-          <Button variant="primary" loading={loading} onClick={() => void load(path)}>
+          <Button type="submit" variant="primary" loading={loading}>
             {t('details.inspect')}
           </Button>
-        </div>
-        {notice !== null ? <p role="status">{notice}</p> : null}
-      </Card>
+        </form>
+        {notice !== null ? <Banner tone="info">{notice}</Banner> : null}
+      </Panel>
 
       {error !== null ? (
-        <Banner tone="error">
-          {t(error.message_key)}
-          {error.details !== null ? `: ${error.details}` : ''}
-        </Banner>
+        <ErrorState
+          title={t(error.message_key)}
+          code={error.code}
+          details={error.details ?? undefined}
+        />
       ) : null}
 
       {loading ? (
-        <Card title={t('permissions.acl')}>
-          <Loading label={t('common.loading')} />
-        </Card>
+        <Panel title={t('permissions.acl')}>
+          <Loading label={t('common.loading')} rows={2} />
+        </Panel>
       ) : null}
 
       {!loading && view === null && error === null ? (
@@ -255,26 +262,36 @@ export function Permissions() {
           ) : null}
 
           <div className={local.columns}>
-            <Card title={t('permissions.acl')}>
+            <Panel title={t('permissions.acl')}>
               <p className={local.mono}>{view.path}</p>
-              <dl className={local.metrics}>
+              <dl className={local.metricList}>
                 <div className={local.metric}>
                   <dt className={local.metricLabel}>{t('owners.owner')}</dt>
-                  <dd className={local.mono}>{view.owner ?? '—'}</dd>
+                  <dd className={local.metricValue}>{view.owner ?? '—'}</dd>
                 </div>
                 <div className={local.metric}>
                   <dt className={local.metricLabel}>{t('owners.sid')}</dt>
-                  <dd className={local.mono}>{view.owner_sid ?? '—'}</dd>
+                  <dd className={local.metricValue}>{view.owner_sid ?? '—'}</dd>
+                </div>
+                <div className={local.metric}>
+                  <dt className={local.metricLabel}>
+                    {t('fileops.permissions.inheritance')}
+                  </dt>
+                  <dd className={local.metricValue}>
+                    {view.is_protected
+                      ? t('fileops.permissions.explicit')
+                      : t('fileops.permissions.inherited')}
+                  </dd>
                 </div>
                 <div className={local.metric}>
                   <dt className={local.metricLabel}>{t('details.kind')}</dt>
-                  <dd className={local.mono}>
+                  <dd className={local.metricValue}>
                     {t(view.is_directory ? 'kind.directory' : 'kind.file')}
                   </dd>
                 </div>
               </dl>
 
-              <div className={local.statusRow}>
+              <div className={local.badgeRow}>
                 {view.is_protected ? (
                   <Badge tone="warning">{t('confirm.system')}</Badge>
                 ) : null}
@@ -330,19 +347,17 @@ export function Permissions() {
                   setConfirmed(false);
                 }}
               />
-            </Card>
+            </Panel>
 
-            <Card title={t('permissions.attributes')}>
-              <p className={local.note}>{t('permissions.attributes_hint')}</p>
+            <Panel
+              title={t('permissions.attributes')}
+              hint={t('fileops.permissions.attributes_hint')}
+            >
               <div className={local.toggles}>
                 {ATTRIBUTE_NAMES.map((name) => (
                   <Toggle
                     key={name}
-                    checked={attributeValue(
-                      view.attribute_mask,
-                      attributeChanges,
-                      name,
-                    )}
+                    checked={attributeValue(view.attribute_mask, attributeChanges, name)}
                     label={t(ATTRIBUTE_LABEL[name])}
                     onCheckedChange={(next) => {
                       toggleAttribute(name, next);
@@ -350,29 +365,35 @@ export function Permissions() {
                   />
                 ))}
               </div>
-              <div className={local.statusRow}>
-                {ATTRIBUTE_NAMES.filter(
-                  (name) => (view.attribute_mask & ATTRIBUTE_BITS[name]) !== 0,
-                ).map((name) => (
-                  <Badge key={name}>{t(ATTRIBUTE_LABEL[name])}</Badge>
-                ))}
+              <div className={local.badgeRow}>
+                {currentAttributes.length === 0 ? (
+                  <span className={local.note}>{t('metadata.none')}</span>
+                ) : (
+                  currentAttributes.map((name) => (
+                    <Badge key={name}>{t(ATTRIBUTE_LABEL[name])}</Badge>
+                  ))
+                )}
               </div>
-              <div className={local.actions}>
-                <Button
-                  variant="secondary"
-                  loading={previewing}
-                  disabled={!hasChanges}
-                  onClick={() => void previewNow()}
-                >
-                  {t('rename.preview')}
-                </Button>
-              </div>
-            </Card>
+            </Panel>
           </div>
 
+          <Panel title={t('fileops.permissions.changes')}>
+            <div className={local.actions}>
+              <Button
+                variant="secondary"
+                loading={previewing}
+                disabled={!hasChanges}
+                onClick={() => void previewNow()}
+              >
+                {t('rename.preview')}
+              </Button>
+              <span className={local.note}>{t('fileops.permissions.changes_hint')}</span>
+            </div>
+          </Panel>
+
           {preview !== null ? (
-            <Card title={t('rename.preview')}>
-              {preview.requires_elevation ? (
+            <Panel title={t('rename.preview')}>
+              {preview.requires_elevation && !view.requires_elevation ? (
                 <Banner tone="warning">{t('confirm.elevation_required')}</Banner>
               ) : null}
               <table className={local.table} aria-label={t('rename.preview')}>
@@ -386,7 +407,7 @@ export function Permissions() {
                   {diffRows.map((row) => (
                     <tr key={row.id}>
                       <td>{t(row.targetKey)}</td>
-                      <td className={local.changeValue}>
+                      <td className={local.diffValue}>
                         {changeValue(row.before, row.beforeKey)}
                         {' → '}
                         {changeValue(row.after, row.afterKey)}
@@ -422,7 +443,7 @@ export function Permissions() {
                   {t('settings.save')}
                 </Button>
               </div>
-            </Card>
+            </Panel>
           ) : null}
         </>
       ) : null}

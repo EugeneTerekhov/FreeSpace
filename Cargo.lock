@@ -1384,7 +1384,6 @@ dependencies = [
 name = "freespace-app"
 version = "1.2.0"
 dependencies = [
- "criterion",
  "freespace-analysis",
  "freespace-core",
  "freespace-ops",

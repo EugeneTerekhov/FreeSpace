@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 import { SCREEN_IDS, screens } from './pages/screens';
+import { setTheme } from './theme';
+
+/** Pure black and white are banned on large surfaces (plan.md §2.1). */
+const PURE = ['#000', '#000000', '#fff', '#ffffff', 'rgb(0,0,0)', 'rgb(255,255,255)'];
 
 test.describe('themes, DPI and motion', () => {
   test('the boot script applies the saved theme before the shell paints', async ({ page }) => {
@@ -20,7 +24,39 @@ test.describe('themes, DPI and motion', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 
-  test('an explicit theme survives navigation across all 24 screens', async ({ page }) => {
+  test('both themes expose the product palette', async ({ page }) => {
+    await page.goto('/');
+
+    const readTokens = async (theme: 'dark' | 'light') => {
+      await setTheme(page, theme);
+
+      return page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+
+        return {
+          background: style.getPropertyValue('--fs-bg').trim().toLowerCase(),
+          surface: style.getPropertyValue('--fs-surface').trim().toLowerCase(),
+          text: style.getPropertyValue('--fs-text').trim().toLowerCase(),
+        };
+      });
+    };
+
+    const dark = await readTokens('dark');
+    const light = await readTokens('light');
+
+    for (const token of [dark, light]) {
+      for (const value of [token.background, token.surface, token.text]) {
+        expect(value).not.toBe('');
+        expect(PURE).not.toContain(value);
+      }
+    }
+
+    // The two palettes are genuinely different neutrals.
+    expect(dark.background).not.toBe(light.background);
+    expect(dark.text).not.toBe(light.text);
+  });
+
+  test('an explicit theme survives navigation across all 11 screens', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
     await app.open('settings');

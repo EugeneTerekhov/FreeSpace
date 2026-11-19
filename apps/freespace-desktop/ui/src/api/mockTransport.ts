@@ -24,8 +24,6 @@ import type {
   SnapshotDiffSortKey,
   SnapshotSummary,
   Task,
-  TreemapResponse,
-  TreemapTile,
   TypeSummary,
   UiError,
   UiSettings,
@@ -105,7 +103,7 @@ function defaultSettings(): UiSettings {
     density: 'comfortable',
     units: 'binary',
     reduced_motion: 'system',
-    last_screen: 'dashboard',
+    last_screen: 'overview',
     sidebar_collapsed: false,
     column_layouts: {},
     saved_filters: {},
@@ -333,20 +331,23 @@ export class MockTransport implements Transport {
   }
 
   private seedTree(): void {
+    // Every directory total equals the sum of its children, exactly like the
+    // tree produced by the scanner, so a parent is never smaller than its
+    // contents.
     this.addRow(0, null, 'C:\\', 'directory', 760 * GB, {
-      child_count: 6,
+      child_count: 9,
       file_count: 180_000,
     });
     this.addRow(1, 0, 'Windows', 'directory', 180 * GB, {
-      child_count: 3,
+      child_count: 4,
       file_count: 90_000,
     });
     this.addRow(2, 0, 'Program Files', 'directory', 90 * GB, {
-      child_count: 2,
+      child_count: 4,
       file_count: 30_000,
     });
-    this.addRow(3, 0, 'Users', 'directory', 150 * GB, {
-      child_count: 3,
+    this.addRow(3, 0, 'Users', 'directory', 22_548 * MB, {
+      child_count: 4,
       file_count: 55_000,
     });
     this.addRow(4, 0, 'pagefile.sys', 'file', 16 * GB, {
@@ -369,15 +370,20 @@ export class MockTransport implements Transport {
         reparse: false,
       },
     });
-    this.addRow(6, 0, 'Temp', 'directory', 5 * GB, { child_count: 2 });
-    this.addRow(10, 1, 'System32', 'directory', 60 * GB, { child_count: 1 });
-    this.addRow(11, 1, 'WinSxS', 'directory', 80 * GB);
+    this.addRow(6, 0, 'Temp', 'directory', 5 * GB, { child_count: 3 });
+    this.addRow(7, 0, 'Windows.old', 'directory', 200 * GB);
+    this.addRow(8, 0, 'Recovery', 'directory', 60 * GB);
+    this.addRow(9, 0, '$Recycle.Bin', 'directory', 175 * GB - 20 * MB);
+    this.addRow(10, 1, 'System32', 'directory', 60 * GB, { child_count: 4 });
+    this.addRow(11, 1, 'WinSxS', 'directory', 80 * GB, { child_count: 3 });
     this.addRow(12, 1, 'explorer.exe', 'file', 4 * MB);
-    this.addRow(20, 2, 'FreeSpace', 'directory', 1 * GB, { child_count: 1 });
+    this.addRow(13, 1, 'SysWOW64', 'directory', 40 * GB - 4 * MB);
+    this.addRow(20, 2, 'FreeSpace', 'directory', 40 * MB, { child_count: 1 });
     this.addRow(21, 2, 'Shared', 'directory', 12 * GB);
-    this.addRow(22, 3, 'Documents', 'directory', 40 * GB);
-    this.addRow(23, 3, 'Downloads', 'directory', 60 * GB);
-    this.addRow(24, 3, 'Pictures', 'directory', 30 * GB);
+    this.addRow(22, 3, 'Documents', 'directory', 8 * MB, { child_count: 1 });
+    this.addRow(23, 3, 'Downloads', 'directory', 2 * GB, { child_count: 3 });
+    this.addRow(24, 3, 'Pictures', 'directory', 12 * MB, { child_count: 1 });
+    this.addRow(25, 3, 'AppData', 'directory', 20 * GB);
     this.addRow(30, 6, 'Freespace-cache', 'directory', 3 * GB);
     this.addRow(31, 6, 'crash.dmp', 'file', 2 * GB);
     this.addRow(32, 10, 'notepad.exe', 'file', 200 * MB);
@@ -388,6 +394,14 @@ export class MockTransport implements Transport {
     this.addRow(37, 23, 'backup-1.bin', 'file', 512 * MB);
     this.addRow(38, 23, 'backup-2.bin', 'file', 512 * MB);
     this.addRow(39, 6, 'Empty folder', 'directory', 0, { child_count: 0 });
+    this.addRow(40, 2, 'Common Files', 'directory', 50 * GB);
+    this.addRow(41, 2, 'Microsoft', 'directory', 28 * GB - 40 * MB);
+    this.addRow(42, 10, 'kernel32.dll', 'file', 20 * GB);
+    this.addRow(43, 10, 'ntoskrnl.exe', 'file', 25 * GB);
+    this.addRow(44, 10, 'drivers', 'directory', 15 * GB - 200 * MB);
+    this.addRow(45, 11, 'ManifestCache', 'directory', 30 * GB);
+    this.addRow(46, 11, 'TempCache', 'directory', 25 * GB);
+    this.addRow(47, 11, 'Backup', 'directory', 25 * GB);
   }
 
   private seedHandlers(): void {
@@ -452,8 +466,6 @@ export class MockTransport implements Transport {
       }
       return ancestors;
     });
-    this.handlers.set('treemap_tiles', (args) => this.tiles(args));
-    this.handlers.set('treemap_node', (args) => this.byId.get(Number(args.node_id)));
     this.handlers.set('top_files_page', (args) => this.topFiles(args));
     this.handlers.set('types_summary', (args) => this.typesSummary(args));
     this.handlers.set('types_files_page', (args) => this.typesFiles(args));
@@ -1070,66 +1082,6 @@ export class MockTransport implements Transport {
       metric,
       sort,
       stale_cursor: false,
-    };
-  }
-
-  private tiles(args: Record<string, unknown>): TreemapResponse {
-    const parent = args.node_id === null || args.node_id === undefined ? 0 : Number(args.node_id);
-    const width = Number(args.width ?? 800);
-    const height = Number(args.height ?? 600);
-    const maxTiles = Number(args.max_tiles ?? 2000);
-    const ids = this.children.get(parent) ?? [];
-    const rows = ids
-      .map((id) => this.byId.get(id))
-      .filter((row): row is NodeRow => row !== undefined)
-      .sort((left, right) => right.on_disk_size - left.on_disk_size);
-    const total = rows.reduce((sum, row) => sum + row.on_disk_size, 0);
-
-    if (total === 0) {
-      return { generation: this.generation, tiles: [], truncated: false, total_size: 0 };
-    }
-
-    const kept = rows.slice(0, Math.max(1, maxTiles - 1));
-    const hidden = rows.slice(kept.length);
-    const shards: { row: NodeRow | null; size: number }[] = kept.map((row) => ({
-      row,
-      size: row.on_disk_size,
-    }));
-    const hiddenSize = hidden.reduce((sum, row) => sum + row.on_disk_size, 0);
-    if (hiddenSize > 0) {
-      shards.push({ row: null, size: hiddenSize });
-    }
-
-    const tiles: TreemapTile[] = [];
-    let y = 0;
-    for (const shard of shards) {
-      const heightShare = Math.max(1, Math.round((shard.size / total) * height));
-      const row = shard.row;
-      tiles.push({
-        node_id: row?.id ?? null,
-        rect: { x: 0, y, w: width, h: Math.min(heightShare, height - y) },
-        depth: 0,
-        size: shard.size,
-        fraction: shard.size / total,
-        color_key:
-          row === null
-            ? 'other'
-            : row.kind === 'directory'
-              ? 'folder'
-              : categoryKey(row.name),
-        label: row?.name ?? '',
-        is_aggregate: row === null,
-        child_count: row?.child_count ?? hidden.length,
-      });
-      y += heightShare;
-      if (y >= height) break;
-    }
-
-    return {
-      generation: this.generation,
-      tiles,
-      truncated: hidden.length > 0,
-      total_size: total,
     };
   }
 

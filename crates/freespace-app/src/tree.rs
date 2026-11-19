@@ -269,21 +269,6 @@ impl TreeSnapshot {
         )
     }
 
-    /// Returns every child of `parent` sorted by size without pagination.
-    ///
-    /// Used by the Treemap aggregation, which applies its own tile budget.
-    #[must_use]
-    pub fn sorted_children(&self, parent: NodeId, metric: Metric) -> Vec<(NodeId, u64)> {
-        let mut children: Vec<(NodeId, u64)> = self
-            .tree
-            .children(parent)
-            .map(|id| (id, metric.of(self.tree.node(id).size)))
-            .filter(|(_, size)| *size > 0)
-            .collect();
-        children.sort_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(&right.0)));
-        children
-    }
-
     fn build_page(&self, ids: Vec<NodeId>, spec: PageSpec<'_>) -> Result<TreePage, UiError> {
         validate_page_size(spec.page_size)?;
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Lock } from 'lucide-react';
+import { Archive, Lock } from 'lucide-react';
 
 import type { UiError } from '../api/dto';
 import type {
@@ -15,7 +15,6 @@ import {
 import { normalizeError, validationError } from '../app/errors';
 import { Badge } from '../components/Choice';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { DataTable, type Column } from '../components/DataTable';
 import { Banner, EmptyState, ErrorState } from '../components/Feedback';
 import { Field, Select } from '../components/Fields';
@@ -23,8 +22,8 @@ import { t } from '../i18n';
 import { formatBytes, formatNumber, formatPercent } from '../i18n/format';
 import { emptyFilter } from '../lib/filters';
 import { useSettingsStore } from '../stores/settingsStore';
-import styles from './screens.module.css';
-import local from './inspection.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import local from './inspect.module.css';
 
 const ARCHIVE_PAGE_SIZE = 8;
 
@@ -35,7 +34,34 @@ const FORMAT_LABELS: Record<ArchiveExportFormat, string> = {
   html: 'HTML',
 };
 
-/** Read-only archive contents with paging and a list export. */
+/** Containers that are themselves archives, listed without extracting them. */
+const NESTED_EXTENSIONS = new Set([
+  'zip',
+  '7z',
+  'rar',
+  'tar',
+  'gz',
+  'tgz',
+  'bz2',
+  'xz',
+  'iso',
+  'cab',
+]);
+
+function isNestedArchive(entry: ArchiveEntry): boolean {
+  const extension = entry.extension ?? '';
+
+  return extension !== '' && NESTED_EXTENSIONS.has(extension);
+}
+
+/**
+ * Read-only archive contents with paging, a nested-archive marker and a list
+ * export.
+ *
+ * Nothing is unpacked and nothing is written inside the archive: the backend
+ * only enumerates the container, so browsing a 480 000-entry 7z is as safe as
+ * reading a directory listing.
+ */
 export function Archives() {
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
@@ -109,10 +135,18 @@ export function Archives() {
       width: 'minmax(260px, 2fr)',
       render: (entry) => (
         <span className={local.archiveName}>
-          <span className={local.path} title={entry.internal_path}>
+          <span className={local.pathCell} title={entry.internal_path}>
             {entry.internal_path}
             {entry.is_directory ? '\\' : ''}
           </span>
+          {isNestedArchive(entry) ? (
+            <Badge tone="info">
+              <span className={local.status}>
+                <Archive size={12} aria-hidden="true" />
+                <span>{t('inspect.archives.nested')}</span>
+              </span>
+            </Badge>
+          ) : null}
           {entry.encrypted ? (
             <Badge tone="warning">
               <span className={local.status}>
@@ -133,7 +167,7 @@ export function Archives() {
     },
     {
       id: 'packed',
-      header: t('details.allocated'),
+      header: t('inspect.archives.packed'),
       width: '130px',
       align: 'end',
       render: (entry) =>
@@ -143,8 +177,8 @@ export function Archives() {
     },
     {
       id: 'ratio',
-      header: t('types.share'),
-      width: '100px',
+      header: t('inspect.archives.ratio'),
+      width: '110px',
       align: 'end',
       render: (entry) => {
         const compressed = entry.compressed_size ?? entry.size;
@@ -166,34 +200,34 @@ export function Archives() {
   const archiveTotal = page?.total_size ?? 0;
 
   return (
-    <div className={styles.stack}>
-      <Card title={t('nav.archives')}>
-        <p>{t('archives.intro')}</p>
-        <div className={styles.toolbar}>
+    <div className={local.stack}>
+      <Panel title={t('nav.archives')} hint={t('inspect.archives.hint')}>
+        <form
+          className={local.toolbar}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void inspect();
+          }}
+        >
           <Field id="archives-path" label={t('archives.path')}>
             <input
               id="archives-path"
               className={local.input}
               value={path}
+              spellCheck={false}
               onChange={(event) => {
                 setPath(event.target.value);
                 setPage(null);
                 setError(null);
                 setNotice(null);
               }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  void inspect();
-                }
-              }}
             />
           </Field>
-          <Button variant="primary" loading={loading} onClick={() => void inspect()}>
+          <Button type="submit" variant="primary" loading={loading}>
             {t('archives.inspect')}
           </Button>
-        </div>
-      </Card>
+        </form>
+      </Panel>
 
       {error !== null ? (
         <ErrorState
@@ -212,16 +246,42 @@ export function Archives() {
       {notice !== null ? <Banner tone="info">{notice}</Banner> : null}
 
       {page === null ? (
-        !loading && error === null ? <EmptyState title={t('archives.empty')} /> : null
+        !loading && error === null ? (
+          <EmptyState title={t('archives.empty')} description={t('archives.intro')} />
+        ) : null
       ) : (
         <>
-          <Card
-            title={t('archives.archive')}
+          <StatRow>
+            <Stat
+              label={t('inspect.archives.entries')}
+              value={formatNumber(page.total_entries, language)}
+            />
+            <Stat
+              label={t('inspect.archives.files')}
+              value={formatNumber(page.total_files, language)}
+            />
+            <Stat
+              label={t('top.size')}
+              value={formatBytes(page.total_size, units)}
+            />
+            <Stat
+              label={t('inspect.archives.encrypted')}
+              value={formatNumber(page.encrypted_count, language)}
+            />
+          </StatRow>
+
+          {page.warnings.length > 0 ? (
+            <Banner tone="warning">
+              {t('inspect.archives.partial', { count: page.warnings.length })}
+            </Banner>
+          ) : null}
+
+          <Panel
+            title={<span className={local.pathCell}>{page.path}</span>}
             actions={<Badge tone="info">{page.format.toUpperCase()}</Badge>}
           >
-            <p className={local.path}>{page.path}</p>
-            <div className={styles.metaRow}>
-              <span>{t('archives.entries', { count: page.total_entries })}</span>
+            <div className={local.metaRow}>
+              <span>{t('archives.entries', { count: formatNumber(page.total_entries, language) })}</span>
               <span>{t('archives.total', { size: formatBytes(page.total_size, units) })}</span>
             </div>
             {page.warnings.length > 0 ? (
@@ -241,7 +301,7 @@ export function Archives() {
               empty={t('archives.empty')}
             />
             {page.next_cursor !== null ? (
-              <div className={styles.analyzeRow}>
+              <div className={local.actions}>
                 <Button
                   variant="secondary"
                   loading={loading}
@@ -251,10 +311,10 @@ export function Archives() {
                 </Button>
               </div>
             ) : null}
-          </Card>
+          </Panel>
 
           {largest.length > 0 ? (
-            <Card title={t('archives.largest')}>
+            <Panel title={t('archives.largest')}>
               <table className={local.table} aria-label={t('archives.largest')}>
                 <thead>
                   <tr>
@@ -263,14 +323,14 @@ export function Archives() {
                       {t('top.size')}
                     </th>
                     <th scope="col" className={local.numeric}>
-                      {t('types.share')}
+                      {t('owners.share')}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {largest.map((entry) => (
                     <tr key={entry.internal_path}>
-                      <td className={local.path}>{entry.internal_path}</td>
+                      <td className={local.pathCell}>{entry.internal_path}</td>
                       <td className={local.numeric}>{formatBytes(entry.size, units)}</td>
                       <td className={local.numeric}>
                         {formatPercent(
@@ -283,10 +343,10 @@ export function Archives() {
                   ))}
                 </tbody>
               </table>
-            </Card>
+            </Panel>
           ) : null}
 
-          <Card title={t('archives.export')}>
+          <Panel title={t('archives.export')}>
             <div className={local.filterGrid}>
               <Field id="archives-format" label={t('export.format')}>
                 <Select
@@ -306,19 +366,14 @@ export function Archives() {
                   id="archives-output"
                   className={local.input}
                   value={output}
+                  spellCheck={false}
                   onChange={(event) => {
                     setOutput(event.target.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void exportList();
-                    }
                   }}
                 />
               </Field>
             </div>
-            <div className={styles.toolbar}>
+            <div className={local.actions}>
               <Button
                 variant="secondary"
                 loading={exporting}
@@ -327,14 +382,14 @@ export function Archives() {
               >
                 {t('archives.export')}
               </Button>
-              <span className={styles.spacer} />
-              <span className={styles.metaRow}>
+              <span className={local.spacer} />
+              <span className={local.metaRow}>
                 {t('archives.entries', {
                   count: formatNumber(page.total_entries, language),
                 })}
               </span>
             </div>
-          </Card>
+          </Panel>
         </>
       )}
     </div>

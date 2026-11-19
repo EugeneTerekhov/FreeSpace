@@ -1,11 +1,17 @@
 import type { ScreenId } from '../api/dto';
 
-export type ScreenBatch = 'core' | 'analysis' | 'filesystem' | 'inspection' | 'settings';
+/** The six sidebar groups of the 002 recomposition. */
+export type ScreenGroup =
+  | 'overview'
+  | 'analysis'
+  | 'cleanup'
+  | 'operations'
+  | 'tools'
+  | 'system';
 
 export type ScreenCapability =
   | 'scan'
   | 'browse'
-  | 'treemap'
   | 'filter'
   | 'delete'
   | 'journal'
@@ -14,7 +20,7 @@ export type ScreenCapability =
 
 export interface ScreenMeta {
   id: ScreenId;
-  batch: ScreenBatch;
+  group: ScreenGroup;
   titleKey: string;
   requiresVolume: boolean;
   requiresScan: boolean;
@@ -22,183 +28,90 @@ export interface ScreenMeta {
   cliAnalog: string | null;
 }
 
-/** The 24 screens in delivery order. */
+export interface NavGroup {
+  id: ScreenGroup;
+  titleKey: string;
+  screens: readonly ScreenId[];
+}
+
+/** Group order and membership; the sidebar renders exactly this list. */
+export const GROUPS: readonly NavGroup[] = [
+  { id: 'overview', titleKey: 'nav.group.overview', screens: ['overview'] },
+  { id: 'analysis', titleKey: 'nav.group.analysis', screens: ['tree', 'analysis', 'duplicates'] },
+  { id: 'cleanup', titleKey: 'nav.group.cleanup', screens: ['cleanup'] },
+  { id: 'operations', titleKey: 'nav.group.operations', screens: ['journal', 'shred', 'monitor'] },
+  { id: 'tools', titleKey: 'nav.group.tools', screens: ['inspect', 'fileops'] },
+  { id: 'system', titleKey: 'nav.group.system', screens: ['settings'] },
+];
+
+/**
+ * The 11 screens in navigation order.
+ *
+ * Screens absorbed by the recomposition stay visible as tabs or sections:
+ * disks and scan → overview; size details → tree; top files, types and owners →
+ * analysis; snapshots → cleanup; metadata, archives, unlock and long paths →
+ * inspect; rename and permissions → fileops; elevation and about → settings.
+ * Report export is a global action, not a screen.
+ */
 export const SCREENS: readonly ScreenMeta[] = [
   {
-    id: 'dashboard',
-    batch: 'core',
-    titleKey: 'nav.dashboard',
+    id: 'overview',
+    group: 'overview',
+    titleKey: 'nav.overview',
     requiresVolume: false,
     requiresScan: false,
-    capabilities: ['scan'],
-    cliAnalog: 'drives',
-  },
-  {
-    id: 'scan',
-    batch: 'core',
-    titleKey: 'nav.scan',
-    requiresVolume: false,
-    requiresScan: false,
-    capabilities: ['scan'],
-    cliAnalog: 'scan',
+    capabilities: ['scan', 'export'],
+    cliAnalog: 'drives, scan',
   },
   {
     id: 'tree',
-    batch: 'core',
+    group: 'analysis',
     titleKey: 'nav.tree',
     requiresVolume: true,
     requiresScan: true,
-    capabilities: ['browse', 'filter', 'delete'],
-    cliAnalog: 'tree',
+    capabilities: ['browse', 'filter', 'delete', 'export'],
+    cliAnalog: 'tree, filter',
   },
   {
-    id: 'treemap',
-    batch: 'core',
-    titleKey: 'nav.treemap',
+    id: 'analysis',
+    group: 'analysis',
+    titleKey: 'nav.analysis',
     requiresVolume: true,
     requiresScan: true,
-    capabilities: ['treemap', 'browse'],
-    cliAnalog: 'tree',
-  },
-  {
-    id: 'top_files',
-    batch: 'analysis',
-    titleKey: 'nav.top',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter', 'delete'],
-    cliAnalog: 'top',
-  },
-  {
-    id: 'types',
-    batch: 'analysis',
-    titleKey: 'nav.types',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter', 'delete'],
-    cliAnalog: 'types',
+    capabilities: ['filter', 'delete', 'export'],
+    cliAnalog: 'top, types, owners',
   },
   {
     id: 'duplicates',
-    batch: 'analysis',
+    group: 'analysis',
     titleKey: 'nav.duplicates',
     requiresVolume: true,
     requiresScan: true,
-    capabilities: ['filter', 'delete'],
+    capabilities: ['filter', 'delete', 'export'],
     cliAnalog: 'duplicates',
   },
   {
     id: 'cleanup',
-    batch: 'analysis',
+    group: 'cleanup',
     titleKey: 'nav.cleanup',
     requiresVolume: true,
     requiresScan: true,
     capabilities: ['filter', 'delete'],
-    cliAnalog: 'cleanup',
-  },
-  {
-    id: 'snapshots',
-    batch: 'analysis',
-    titleKey: 'nav.snapshots',
-    requiresVolume: true,
-    requiresScan: false,
-    capabilities: ['export'],
-    cliAnalog: 'snapshot',
+    cliAnalog: 'cleanup, snapshot',
   },
   {
     id: 'journal',
-    batch: 'filesystem',
+    group: 'operations',
     titleKey: 'nav.journal',
     requiresVolume: false,
     requiresScan: false,
-    capabilities: ['journal', 'delete'],
+    capabilities: ['journal', 'delete', 'export'],
     cliAnalog: 'journal',
   },
   {
-    id: 'size_details',
-    batch: 'filesystem',
-    titleKey: 'nav.size_details',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['browse'],
-    cliAnalog: 'tree',
-  },
-  {
-    id: 'long_paths',
-    batch: 'filesystem',
-    titleKey: 'nav.long_paths',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['browse', 'delete'],
-    cliAnalog: 'tree',
-  },
-  {
-    id: 'rename',
-    batch: 'filesystem',
-    titleKey: 'nav.rename',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter'],
-    cliAnalog: 'rename',
-  },
-  {
-    id: 'permissions',
-    batch: 'filesystem',
-    titleKey: 'nav.permissions',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter'],
-    cliAnalog: 'attrs',
-  },
-  {
-    id: 'metadata',
-    batch: 'inspection',
-    titleKey: 'nav.metadata',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter', 'export'],
-    cliAnalog: 'filter',
-  },
-  {
-    id: 'owners',
-    batch: 'inspection',
-    titleKey: 'nav.owners',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter', 'export'],
-    cliAnalog: 'owners',
-  },
-  {
-    id: 'archives',
-    batch: 'inspection',
-    titleKey: 'nav.archives',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter', 'export'],
-    cliAnalog: 'archives',
-  },
-  {
-    id: 'export',
-    batch: 'inspection',
-    titleKey: 'nav.export',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['export'],
-    cliAnalog: 'export',
-  },
-  {
-    id: 'unlock',
-    batch: 'inspection',
-    titleKey: 'nav.unlock',
-    requiresVolume: false,
-    requiresScan: false,
-    capabilities: ['filter'],
-    cliAnalog: 'unlock',
-  },
-  {
     id: 'shred',
-    batch: 'settings',
-    titleKey: 'nav.shred',
+    group: 'operations',
+    titleKey: 'nav.shredder',
     requiresVolume: false,
     requiresScan: false,
     capabilities: ['delete'],
@@ -206,7 +119,7 @@ export const SCREENS: readonly ScreenMeta[] = [
   },
   {
     id: 'monitor',
-    batch: 'settings',
+    group: 'operations',
     titleKey: 'nav.monitor',
     requiresVolume: false,
     requiresScan: false,
@@ -214,31 +127,31 @@ export const SCREENS: readonly ScreenMeta[] = [
     cliAnalog: 'monitor',
   },
   {
-    id: 'elevation',
-    batch: 'settings',
-    titleKey: 'nav.elevation',
-    requiresVolume: false,
-    requiresScan: false,
-    capabilities: ['settings'],
-    cliAnalog: null,
+    id: 'inspect',
+    group: 'tools',
+    titleKey: 'nav.inspect',
+    requiresVolume: true,
+    requiresScan: true,
+    capabilities: ['filter', 'delete', 'export'],
+    cliAnalog: 'filter, archives, unlock',
+  },
+  {
+    id: 'fileops',
+    group: 'tools',
+    titleKey: 'nav.fileops',
+    requiresVolume: true,
+    requiresScan: true,
+    capabilities: ['filter', 'delete'],
+    cliAnalog: 'rename, acl, attrs',
   },
   {
     id: 'settings',
-    batch: 'settings',
+    group: 'system',
     titleKey: 'nav.settings',
     requiresVolume: false,
     requiresScan: false,
     capabilities: ['settings'],
     cliAnalog: 'config',
-  },
-  {
-    id: 'about',
-    batch: 'settings',
-    titleKey: 'nav.about',
-    requiresVolume: false,
-    requiresScan: false,
-    capabilities: [],
-    cliAnalog: null,
   },
 ];
 
@@ -246,24 +159,66 @@ export const SCREEN_BY_ID: Readonly<Record<ScreenId, ScreenMeta>> = Object.fromE
   SCREENS.map((screen) => [screen.id, screen]),
 ) as Record<ScreenId, ScreenMeta>;
 
+/**
+ * Screens that no longer exist after the recomposition.
+ *
+ * Persisted `last_screen` values and `navigation-request` payloads written by an
+ * older build still resolve to a live screen instead of dumping the user on the
+ * overview.
+ */
+export const LEGACY_SCREEN_ALIASES: Readonly<Record<string, ScreenId>> = {
+  dashboard: 'overview',
+  scan: 'overview',
+  treemap: 'tree',
+  size_details: 'tree',
+  top_files: 'analysis',
+  types: 'analysis',
+  owners: 'analysis',
+  snapshots: 'cleanup',
+  long_paths: 'inspect',
+  metadata: 'inspect',
+  archives: 'inspect',
+  unlock: 'inspect',
+  rename: 'fileops',
+  permissions: 'fileops',
+  elevation: 'settings',
+  about: 'settings',
+  export: 'analysis',
+};
+
 /** Returns true when a persisted value is a known screen. */
 export function isScreenId(value: string): value is ScreenId {
   return SCREENS.some((screen) => screen.id === value);
 }
 
-/** Restores the last screen only when it is still part of the registry. */
-export function resolveInitialScreen(
-  last: ScreenId | null | undefined,
-  ready: boolean,
-): ScreenId {
-  if (ready && last !== null && last !== undefined && isScreenId(last)) {
-    return last;
-  }
-
-  return 'dashboard';
+/** Maps a live or legacy screen id to the current registry; `null` if unknown. */
+export function normalizeScreenId(value: string): ScreenId | null {
+  if (isScreenId(value)) return value;
+  return LEGACY_SCREEN_ALIASES[value] ?? null;
 }
 
-/** Filters screens by delivery batch. */
-export function screensInBatch(batch: ScreenBatch): ScreenMeta[] {
-  return SCREENS.filter((screen) => screen.batch === batch);
+/** Restores the last screen only when it still maps to the registry. */
+export function resolveInitialScreen(
+  last: string | null | undefined,
+  ready: boolean,
+): ScreenId {
+  if (ready && last !== null && last !== undefined) {
+    const resolved = normalizeScreenId(last);
+    if (resolved !== null) return resolved;
+  }
+
+  return 'overview';
+}
+
+/** Filters screens by sidebar group. */
+export function screensInGroup(group: ScreenGroup): ScreenMeta[] {
+  return SCREENS.filter((screen) => screen.group === group);
+}
+
+/** Navigation entries of one group, ready for the sidebar. */
+export function groupEntries(): { group: NavGroup; screens: ScreenMeta[] }[] {
+  return GROUPS.map((group) => ({
+    group,
+    screens: group.screens.map((id) => SCREEN_BY_ID[id]),
+  }));
 }

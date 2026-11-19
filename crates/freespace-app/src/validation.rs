@@ -7,9 +7,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    dto::{
-        FilterSet, MAX_PAGE_SIZE, ScanRequest, SortSpec, TreemapRequest, UiSettings, WindowState,
-    },
+    dto::{FilterSet, MAX_PAGE_SIZE, ScanRequest, SortSpec, UiSettings, WindowState},
     error::UiError,
 };
 
@@ -29,12 +27,8 @@ pub const MAX_EXCLUSIONS: usize = 64;
 pub const MAX_SAVED_FILTERS: usize = 20;
 /// Maximum length of a saved filter name.
 pub const MAX_FILTER_NAME_CHARS: usize = 64;
-/// Maximum Treemap width or height.
-pub const MAX_TREEMAP_DIMENSION: u32 = 16_384;
-/// Maximum Treemap depth.
-pub const MAX_TREEMAP_DEPTH: u8 = 12;
-/// Maximum number of Treemap tiles.
-pub const MAX_TILES: u16 = 10_000;
+/// Maximum window width or height.
+pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 /// Smallest supported UI schema version.
 pub const UI_SCHEMA_VERSION: u16 = 1;
 
@@ -232,38 +226,6 @@ pub fn validate_scan_request(request: &ScanRequest) -> Result<(), UiError> {
     Ok(())
 }
 
-/// Validates a Treemap request.
-///
-/// # Errors
-/// Returns [`UiErrorCode::Validation`](crate::error::UiErrorCode::Validation).
-pub fn validate_treemap_request(request: &TreemapRequest) -> Result<(), UiError> {
-    if request.width == 0 || request.width > MAX_TREEMAP_DIMENSION {
-        return Err(UiError::validation(format!(
-            "width must be between 1 and {MAX_TREEMAP_DIMENSION}"
-        )));
-    }
-    if request.height == 0 || request.height > MAX_TREEMAP_DIMENSION {
-        return Err(UiError::validation(format!(
-            "height must be between 1 and {MAX_TREEMAP_DIMENSION}"
-        )));
-    }
-    if request.max_depth == 0 || request.max_depth > MAX_TREEMAP_DEPTH {
-        return Err(UiError::validation(format!(
-            "max_depth must be between 1 and {MAX_TREEMAP_DEPTH}"
-        )));
-    }
-    if !(2..=64).contains(&request.min_tile_px) {
-        return Err(UiError::validation("min_tile_px must be between 2 and 64"));
-    }
-    if !(100..=MAX_TILES).contains(&request.max_tiles) {
-        return Err(UiError::validation(format!(
-            "max_tiles must be between 100 and {MAX_TILES}"
-        )));
-    }
-
-    Ok(())
-}
-
 /// Validates persisted interface settings and their schema version.
 ///
 /// # Errors
@@ -325,12 +287,12 @@ pub fn validate_ui_settings(settings: &UiSettings) -> Result<(), UiError> {
 /// # Errors
 /// Returns [`UiErrorCode::Validation`](crate::error::UiErrorCode::Validation).
 pub fn validate_window_state(state: &WindowState) -> Result<(), UiError> {
-    if !(800..=MAX_TREEMAP_DIMENSION).contains(&state.width) {
+    if !(800..=MAX_WINDOW_DIMENSION).contains(&state.width) {
         return Err(UiError::validation(
             "window width must be between 800 and 16384",
         ));
     }
-    if !(600..=MAX_TREEMAP_DIMENSION).contains(&state.height) {
+    if !(600..=MAX_WINDOW_DIMENSION).contains(&state.height) {
         return Err(UiError::validation(
             "window height must be between 600 and 16384",
         ));
@@ -349,12 +311,9 @@ mod tests {
     use super::{
         MAX_CURSOR_CHARS, MAX_EXCLUSIONS, MAX_PAGE_SIZE, validate_cursor, validate_filter,
         validate_filter_text, validate_name, validate_page_size, validate_path,
-        validate_scan_request, validate_treemap_request, validate_ui_settings,
-        validate_window_state,
+        validate_scan_request, validate_ui_settings, validate_window_state,
     };
-    use crate::dto::{
-        ColumnState, FilterSet, ScanRequest, ScreenId, TreemapRequest, UiSettings, WindowState,
-    };
+    use crate::dto::{ColumnState, FilterSet, ScanRequest, ScreenId, UiSettings, WindowState};
 
     #[test]
     fn accepts_absolute_paths_and_rejects_malformed_ones() {
@@ -429,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn validates_scan_and_treemap_requests() {
+    fn validates_scan_requests() {
         let request = ScanRequest {
             path: r"C:\".to_owned(),
             method: crate::dto::ScanMethodChoice::Auto,
@@ -445,29 +404,6 @@ mod tests {
             ..request
         };
         assert!(validate_scan_request(&too_many).is_err());
-
-        assert!(validate_treemap_request(&TreemapRequest::default()).is_ok());
-        assert!(
-            validate_treemap_request(&TreemapRequest {
-                width: 0,
-                ..TreemapRequest::default()
-            })
-            .is_err()
-        );
-        assert!(
-            validate_treemap_request(&TreemapRequest {
-                max_tiles: 99,
-                ..TreemapRequest::default()
-            })
-            .is_err()
-        );
-        assert!(
-            validate_treemap_request(&TreemapRequest {
-                max_depth: 13,
-                ..TreemapRequest::default()
-            })
-            .is_err()
-        );
     }
 
     #[test]

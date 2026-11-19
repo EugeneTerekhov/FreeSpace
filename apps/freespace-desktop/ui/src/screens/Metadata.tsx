@@ -12,17 +12,15 @@ import { fetchMetadata } from '../api/inspection';
 import { normalizeError, validationError } from '../app/errors';
 import { Badge } from '../components/Choice';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
-import { DataTable, type Column } from '../components/DataTable';
-import { EmptyState, ErrorState, Progress } from '../components/Feedback';
+import { Banner, EmptyState, ErrorState, Progress } from '../components/Feedback';
 import { Field, Select } from '../components/Fields';
 import { t, tPlural, type MessageKey } from '../i18n';
-import { formatBytes, formatNumber } from '../i18n/format';
+import { formatBytes, formatDate, formatNumber } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
-import local from './inspection.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import local from './inspect.module.css';
 
 interface MetadataRow {
   node: NodeRow;
@@ -34,6 +32,12 @@ const KIND_KEYS: Record<MetadataKind, MessageKey> = {
   audio: 'treemap.category.audio',
   video: 'treemap.category.video',
   pe: 'treemap.category.executable',
+};
+
+const STATUS_KEYS: Record<MetadataStatus, MessageKey> = {
+  supported: 'common.ok',
+  unsupported: 'error.unsupported',
+  corrupt: 'common.error',
 };
 
 const KINDS: readonly MetadataKind[] = ['exif', 'audio', 'video', 'pe'];
@@ -87,14 +91,7 @@ function matches(
   return true;
 }
 
-function statusLabel(status: MetadataStatus): string {
-  if (status === 'supported') return t('common.ok');
-  if (status === 'unsupported') return t('error.unsupported');
-
-  return t('common.error');
-}
-
-function StatusCell({ status }: { status: MetadataStatus }) {
+function StatusBadge({ status }: { status: MetadataStatus }) {
   const tone = status === 'supported' ? 'success' : status === 'unsupported' ? 'warning' : 'danger';
   const Icon =
     status === 'supported' ? CheckCircle2 : status === 'unsupported' ? AlertTriangle : XCircle;
@@ -103,19 +100,10 @@ function StatusCell({ status }: { status: MetadataStatus }) {
     <Badge tone={tone}>
       <span className={local.status}>
         <Icon size={14} aria-hidden="true" />
-        <span>{statusLabel(status)}</span>
+        <span>{t(STATUS_KEYS[status])}</span>
       </span>
     </Badge>
   );
-}
-
-function tagsSummary(metadata: MetadataView): string {
-  if (metadata.tags.length === 0) return t('metadata.none');
-
-  return metadata.tags
-    .slice(0, 4)
-    .map((tag) => `${tag.key}=${tag.value}`)
-    .join('; ');
 }
 
 function fallbackMetadata(node: NodeRow, error: UiError): MetadataView {
@@ -135,7 +123,14 @@ function fallbackMetadata(node: NodeRow, error: UiError): MetadataView {
   };
 }
 
-/** Read-only metadata extraction with kind and media-quality filters. */
+/**
+ * Read-only metadata extraction with kind and media-quality filters.
+ *
+ * Tags are grouped by file and rendered as label/value panels: EXIF, audio and
+ * video properties and PE version fields never share one flat table, so a
+ * camera make is not mistaken for a file version. Reading only opens files; it
+ * never writes them.
+ */
 export function Metadata() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -219,88 +214,15 @@ export function Metadata() {
     );
   }, [kind, minBitrate, minDuration, minHeight, minWidth, rows]);
 
-  const columns: Column<MetadataRow>[] = [
-    {
-      id: 'path',
-      header: t('metadata.path'),
-      width: 'minmax(220px, 2fr)',
-      render: (row) => (
-        <span className={styles.pathCell} title={row.node.path}>
-          {row.node.path}
-        </span>
-      ),
-    },
-    {
-      id: 'kind',
-      header: t('metadata.kind'),
-      width: '130px',
-      render: (row) => (
-        <span title={row.metadata.source_key}>{t(kindKey(row.metadata.kind))}</span>
-      ),
-    },
-    {
-      id: 'status',
-      header: t('metadata.status'),
-      width: '190px',
-      render: (row) => <StatusCell status={statusOf(row.metadata)} />,
-    },
-    {
-      id: 'size',
-      header: t('metadata.size'),
-      width: '100px',
-      align: 'end',
-      render: (row) => formatBytes(row.metadata.size_bytes, units),
-    },
-    {
-      id: 'width',
-      header: t('metadata.min_width'),
-      width: '100px',
-      align: 'end',
-      render: (row) => tagNumber(row.metadata, 'Width') ?? t('metadata.none'),
-    },
-    {
-      id: 'height',
-      header: t('metadata.min_height'),
-      width: '100px',
-      align: 'end',
-      render: (row) => tagNumber(row.metadata, 'Height') ?? t('metadata.none'),
-    },
-    {
-      id: 'bitrate',
-      header: t('metadata.min_bitrate'),
-      width: '120px',
-      align: 'end',
-      render: (row) => tagNumber(row.metadata, 'BitrateKbps') ?? t('metadata.none'),
-    },
-    {
-      id: 'duration',
-      header: t('metadata.min_duration'),
-      width: '110px',
-      align: 'end',
-      render: (row) => tagNumber(row.metadata, 'DurationSecs') ?? t('metadata.none'),
-    },
-    {
-      id: 'tags',
-      header: t('metadata.details'),
-      width: 'minmax(160px, 1.2fr)',
-      render: (row) => (
-        <span className={local.tags} title={tagsSummary(row.metadata)}>
-          {tagsSummary(row.metadata)}
-        </span>
-      ),
-    },
-  ];
-
   if (generation === null) {
     return (
       <EmptyState
         title={t('analysis.scan_required')}
-        description={t('scan.required')}
         actions={
           <Button
             variant="primary"
             onClick={() => {
-              useShellStore.getState().setScreen('scan');
+              useShellStore.getState().setScreen('overview');
             }}
           >
             {t('scan.start')}
@@ -310,38 +232,35 @@ export function Metadata() {
     );
   }
 
+  const available = rows.filter((row) => row.metadata.available).length;
+  const partial = rows.some((row) => !row.metadata.available);
+
   return (
-    <div className={styles.stack}>
-      <Card title={t('nav.metadata')}>
-        <p>{t('metadata.intro')}</p>
-        <div className={styles.toolbar}>
+    <div className={local.stack}>
+      <Panel title={t('nav.metadata')} hint={t('inspect.metadata.hint')}>
+        <form
+          className={local.toolbar}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void read();
+          }}
+        >
           <Field id="metadata-path" label={t('metadata.path')}>
             <input
               id="metadata-path"
               className={local.input}
               value={query}
+              spellCheck={false}
               onChange={(event) => {
                 setQuery(event.target.value);
               }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  void read();
-                }
-              }}
             />
           </Field>
-          <Button variant="primary" loading={extracting} onClick={() => void read()}>
+          <Button type="submit" variant="primary" loading={extracting}>
             {t('metadata.read')}
           </Button>
-          <span className={styles.spacer} />
-          <span className={styles.metaRow}>
-            {formatNumber(visible.length, language)} / {formatNumber(rows.length, language)}
-          </span>
-        </div>
-      </Card>
+        </form>
 
-      <Card title={t('filter.title')}>
         <div className={local.filterGrid}>
           <Field id="metadata-kind" label={t('metadata.kind')}>
             <Select
@@ -405,10 +324,31 @@ export function Metadata() {
             />
           </Field>
         </div>
-      </Card>
+      </Panel>
+
+      {rows.length > 0 ? (
+        <>
+          <StatRow>
+            <Stat
+              label={t('inspect.metadata.files')}
+              value={formatNumber(rows.length, language)}
+            />
+            <Stat
+              label={t('inspect.metadata.available')}
+              value={formatNumber(available, language)}
+            />
+          </StatRow>
+          <p className={local.metaRow}>
+            {t('inspect.metadata.matches', {
+              visible: formatNumber(visible.length, language),
+              total: formatNumber(rows.length, language),
+            })}
+          </p>
+        </>
+      ) : null}
 
       {extracting && progress !== null ? (
-        <Card title={t('metadata.reading')}>
+        <Panel title={t('metadata.reading')}>
           <Progress
             label={t('metadata.reading')}
             value={
@@ -417,13 +357,13 @@ export function Metadata() {
                 : Math.round((progress.processed / progress.total) * 100)
             }
           />
-          <p className={styles.metaRow}>
+          <p className={local.metaRow}>
             {tPlural('scan.objects', progress.processed, {
               count: formatNumber(progress.processed, language),
             })}{' '}
             · {formatNumber(progress.total, language)}
           </p>
-        </Card>
+        </Panel>
       ) : null}
 
       {error !== null ? (
@@ -439,22 +379,64 @@ export function Metadata() {
         />
       ) : null}
 
-      {rows.length === 0 && !extracting && error === null ? (
+      {partial ? <Banner tone="warning">{t('error.operation_partial')}</Banner> : null}
+
+      {!extracting && error === null && visible.length === 0 ? (
         <EmptyState title={t('metadata.empty')} />
       ) : null}
 
-      {rows.length > 0 ? (
-        <Card title={t('metadata.details')}>
-          <DataTable
-            label={t('nav.metadata')}
-            rows={visible}
-            columns={columns}
-            rowKey={(row) => `${row.metadata.node_id}-${row.metadata.path}`}
-            loading={extracting}
-            height={420}
-            empty={t('metadata.empty')}
-          />
-        </Card>
+      {visible.length > 0 ? (
+        <section className={local.results} aria-label={t('metadata.details')}>
+          {visible.map((row) => {
+            const status = statusOf(row.metadata);
+
+            return (
+              <Panel
+                key={`${row.metadata.node_id}-${row.metadata.path}`}
+                title={
+                  <span className={local.fileTitle} title={row.metadata.path}>
+                    {row.metadata.path}
+                  </span>
+                }
+                actions={
+                  <span className={local.badgeRow}>
+                    <Badge tone="neutral">{t(kindKey(row.metadata.kind))}</Badge>
+                    <StatusBadge status={status} />
+                    {row.metadata.source_key !== '' ? (
+                      <Badge tone="info">{t(row.metadata.source_key)}</Badge>
+                    ) : null}
+                    {row.metadata.truncated ? (
+                      <Badge tone="warning">{t('inspect.metadata.truncated')}</Badge>
+                    ) : null}
+                  </span>
+                }
+              >
+                <div className={local.metaRow}>
+                  <span>
+                    {t('metadata.size')}:{' '}
+                    <strong>{formatBytes(row.metadata.size_bytes, units)}</strong>
+                  </span>
+                  <span>
+                    {t('details.modified')}:{' '}
+                    <strong>{formatDate(row.metadata.modified_at, language)}</strong>
+                  </span>
+                </div>
+                {row.metadata.tags.length === 0 ? (
+                  <p className={local.note}>{t('inspect.metadata.tags_empty')}</p>
+                ) : (
+                  <dl className={local.tagList}>
+                    {row.metadata.tags.map((tag) => (
+                      <div className={local.tagRow} key={tag.key}>
+                        <dt className={local.tagKey}>{tag.key}</dt>
+                        <dd className={local.tagValue}>{tag.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </Panel>
+            );
+          })}
+        </section>
       ) : null}
     </div>
   );

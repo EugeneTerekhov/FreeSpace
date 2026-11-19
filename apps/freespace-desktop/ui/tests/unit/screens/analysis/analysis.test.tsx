@@ -2,10 +2,9 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TopFiles } from '../../../../src/screens/TopFiles';
-import { Types } from '../../../../src/screens/Types';
-import { Duplicates } from '../../../../src/screens/Duplicates';
+import { Analysis } from '../../../../src/screens/Analysis';
 import { Cleanup } from '../../../../src/screens/Cleanup';
+import { Duplicates } from '../../../../src/screens/Duplicates';
 import { Snapshots } from '../../../../src/screens/Snapshots';
 import { FilterBar } from '../../../../src/components/FilterBar';
 import { emptyFilter } from '../../../../src/lib/filters';
@@ -26,6 +25,14 @@ const volume = {
   is_elevated: true,
 };
 
+/** Mounted tab panel; every panel stays in the DOM (contract §4.2). */
+function panel(id: string): HTMLElement {
+  const element = document.getElementById(`analysis-panel-${id}`);
+  if (element === null) throw new Error(`missing analysis panel: ${id}`);
+
+  return element;
+}
+
 beforeEach(() => {
   useSnapshotStore.getState().setSnapshot(2, volume);
 });
@@ -35,52 +42,159 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('analysis screens', () => {
-  it('lists top files, filters them and opens the preview', async () => {
+describe('analysis screen', () => {
+  it('renders the three tabs and switches the visible panel', async () => {
     const user = userEvent.setup();
-    renderWithI18n(<TopFiles />);
+    renderWithI18n(<Analysis />);
 
-    expect(await screen.findByText('pagefile.sys')).toBeInTheDocument();
-    await user.type(screen.getByRole('searchbox', { name: 'Текст' }), 'crash');
-    expect(await screen.findByText('crash.dmp')).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Крупнейшие файлы',
+      'Типы файлов',
+      'Владельцы',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Крупнейшие файлы' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(panel('top')).not.toHaveAttribute('hidden');
+    expect(panel('types')).toHaveAttribute('hidden');
+    expect(panel('owners')).toHaveAttribute('hidden');
 
-    await user.click(screen.getByRole('checkbox', { name: /crash\.dmp/ }));
-    await user.click(await screen.findByRole('button', { name: 'Удалить выбранные (1)' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/Объектов: 1/)).toBeInTheDocument();
+    expect(await within(panel('top')).findByText('pagefile.sys')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Владельцы' }));
+
+    expect(screen.getByRole('tab', { name: 'Владельцы' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(panel('owners')).not.toHaveAttribute('hidden');
+    expect(panel('top')).toHaveAttribute('hidden');
+    expect(
+      within(panel('owners')).getByText(
+        'Нажмите «Построить отчёт», чтобы прочитать владельцев файлов.',
+      ),
+    ).toBeInTheDocument();
   });
 
-  it('shows type totals and drills into files', async () => {
+  it('filters each tab and keeps the filter after a tab switch', async () => {
     const user = userEvent.setup();
-    renderWithI18n(<Types />);
+    renderWithI18n(<Analysis />);
 
-    const zip = await screen.findByRole('button', { name: '.zip' });
-    await user.click(zip);
-    expect(await screen.findByText('archive.zip')).toBeInTheDocument();
+    const top = panel('top');
+    expect(await within(top).findByText('pagefile.sys')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: 'По категориям' }));
-    expect(
-      (await screen.findAllByRole('button', { name: 'Архивы' })).length,
-    ).toBeGreaterThan(0);  });
+    await user.type(within(top).getByRole('searchbox', { name: 'Текст' }), 'crash');
+    await waitFor(() => {
+      expect(within(top).getByText('crash.dmp')).toBeInTheDocument();
+      expect(within(top).queryByText('pagefile.sys')).not.toBeInTheDocument();
+    });
 
-  it('finds duplicates, keeps one copy and opens the guarded preview', async () => {
+    await user.click(screen.getByRole('tab', { name: 'Типы файлов' }));
+    const types = panel('types');
+    await user.type(within(types).getByRole('searchbox', { name: 'Текст' }), 'zip');
+
+    await waitFor(() => {
+      expect(within(types).queryByRole('button', { name: '.sys' })).not.toBeInTheDocument();
+    });
+    expect(within(types).getByRole('button', { name: '.zip' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Крупнейшие файлы' }));
+
+    expect(within(top).getByText('crash.dmp')).toBeInTheDocument();
+    expect(within(top).queryByText('pagefile.sys')).not.toBeInTheDocument();
+  });
+
+  it('shows the per-tab counts and totals', async () => {
+    renderWithI18n(<Analysis />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analysis-top-shown')).toHaveTextContent('13');
+    });
+    expect(screen.getByTestId('analysis-top-total')).toHaveTextContent('13');
+    expect(screen.getByTestId('analysis-top-size')).toHaveTextContent('77.3 GiB');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analysis-types-groups')).toHaveTextContent('8');
+    });
+    expect(screen.getByTestId('analysis-types-files')).toHaveTextContent('13');
+    expect(screen.getByTestId('analysis-types-size')).toHaveTextContent('77.3 GiB');
+
+    // The report only counts once the owner totals have been read.
+    expect(screen.queryByTestId('analysis-owners-count')).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: 'Владельцы' }));
+    await user.click(
+      within(panel('owners')).getAllByRole('button', {
+        name: 'Построить отчёт по владельцам',
+      })[0]!,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analysis-owners-count')).toHaveTextContent('7');
+    });
+    expect(screen.getByTestId('analysis-owners-size')).toHaveTextContent('83 GiB');
+    expect(screen.getByTestId('analysis-owners-unknown')).toHaveTextContent('0 B');
+  });
+});
+
+describe('duplicates screen', () => {
+  it('preselects copies from the keep rule and opens the guarded preview', async () => {
     const user = userEvent.setup();
     renderWithI18n(<Duplicates />);
 
     await user.click(screen.getByRole('button', { name: 'Найти дубликаты' }));
-    expect(
-      await screen.findByText(/backup-1\.bin/, {}, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/backup-2\.bin/)).toBeInTheDocument();
+    const oldest = await screen.findByRole(
+      'checkbox',
+      { name: 'удалить: backup-1.bin' },
+      { timeout: 5000 },
+    );
+    const newest = screen.getByRole('checkbox', { name: 'удалить: backup-2.bin' });
 
-    const group = screen.getByRole('table', { name: 'Дубликаты' });
-    const checkboxes = within(group).getAllByRole('checkbox');
-    await user.click(checkboxes[0]!);
+    // backup-2 is the older copy, so it is kept and everything else is preselected.
+    expect(oldest).toBeChecked();
+    expect(newest).not.toBeChecked();
+    expect(screen.getByTestId('duplicates-groups')).toHaveTextContent('1');
+    expect(screen.getByTestId('duplicates-copies')).toHaveTextContent('2');
+    expect(screen.getByTestId('duplicates-reclaimable')).toHaveTextContent('512 MiB');
+    expect(screen.getByTestId('duplicates-selected')).toHaveTextContent('1 · 512 MiB');
+    expect(screen.getByTestId('duplicates-group-1-size')).toHaveTextContent('512 MiB');
+
+    // Changing the rule re-applies the preselection without a new search.
+    await user.selectOptions(screen.getByLabelText('Правило выбора копии'), 'newest');
+
+    expect(oldest).not.toBeChecked();
+    expect(newest).toBeChecked();
+    expect(screen.getByTestId('duplicates-selected')).toHaveTextContent('1 · 512 MiB');
+
+    // The kept copy cannot join the deletion list: at least one must stay.
+    await user.click(oldest);
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Хотя бы одна копия в каждой группе должна остаться.',
     );
+
+    await user.click(screen.getByRole('button', { name: 'Удалить выбранные (1)' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText(/Объектов: 1/)).toBeInTheDocument();
   });
 
+  it('filters duplicate groups by path', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Duplicates />);
+
+    await user.click(screen.getByRole('button', { name: 'Найти дубликаты' }));
+    await screen.findByTestId('duplicates-group-1-size', {}, { timeout: 5000 });
+
+    await user.type(screen.getByRole('searchbox', { name: 'Текст' }), 'nope');
+
+    expect(await screen.findByText('По фильтру ничего не найдено.')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: 'удалить: backup-1.bin' }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('absorbed analysis screens', () => {
   it('recommends cleanup candidates and opens the preview', async () => {
     const user = userEvent.setup();
     renderWithI18n(<Cleanup />);

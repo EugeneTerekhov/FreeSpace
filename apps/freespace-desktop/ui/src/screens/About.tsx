@@ -4,12 +4,12 @@ import type { AboutInfo, LicenseInfo, UiError } from '../api/dto';
 import { aboutInfo, aboutLicenses } from '../api/settingsOps';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card, StatCard } from '../components/Card';
 import { DataTable, type Column } from '../components/DataTable';
 import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
 import { t } from '../i18n';
-import styles from './screens.module.css';
-import local from './settings.module.css';
+import { Panel } from './ScreenFrame';
+import screen from './screen.module.css';
+import local from './settings-screen.module.css';
 
 /**
  * Version, build, WebView2, data directory and third-party licences.
@@ -84,9 +84,9 @@ export function About() {
   return (
     <div className={local.page}>
       {loading ? (
-        <Card title={t('about.title')}>
+        <Panel title={t('about.title')}>
           <Loading label={t('common.loading')} rows={3} />
-        </Card>
+        </Panel>
       ) : null}
 
       {error !== null ? (
@@ -104,30 +104,32 @@ export function About() {
 
       {info !== null ? (
         <>
-          <Card title={t('about.title')}>
-            <p className={local.note}>{t('about.intro')}</p>
+          <Panel title={t('about.title')}>
+            <p className={screen.panelHint}>{t('about.intro')}</p>
             <Banner tone="info">{t('about.offline')}</Banner>
-            <section className={styles.stats} aria-label={t('about.title')}>
-              <StatCard label={t('about.version')} value={info.version} />
-              <StatCard label={t('about.build')} value={info.build} />
-              <StatCard
-                label={t('about.webview')}
-                value={info.webview_version ?? t('metadata.none')}
-              />
-            </section>
-          </Card>
+            <dl className={local.specList}>
+              <dt className={local.specTerm}>{t('about.version')}</dt>
+              <dd className={local.specValue}>{info.version}</dd>
+              <dt className={local.specTerm}>{t('about.build')}</dt>
+              <dd className={local.specValue}>{info.build}</dd>
+              <dt className={local.specTerm}>{t('about.webview')}</dt>
+              <dd className={local.specValue}>
+                {info.webview_version ?? t('metadata.none')}
+              </dd>
+            </dl>
+          </Panel>
 
-          <Card title={t('about.data_dir')}>
-            <div className={local.inline}>
+          <Panel title={t('about.data_dir')}>
+            <div className={local.copyRow}>
               <code className={local.code}>{info.data_dir}</code>
               <Button variant="secondary" onClick={() => void copy()}>
                 {t('about.copy')}
               </Button>
             </div>
             {copied ? <Banner tone="info">{t('about.copied')}</Banner> : null}
-          </Card>
+          </Panel>
 
-          <Card title={t('about.licenses')}>
+          <Panel title={t('about.licenses')}>
             <DataTable
               label={t('about.licenses')}
               rows={licenses}
@@ -136,7 +138,7 @@ export function About() {
               height={licenses.length > 0 ? 320 : 160}
               empty={<EmptyState title={t('about.licenses')} />}
             />
-          </Card>
+          </Panel>
         </>
       ) : null}
     </div>

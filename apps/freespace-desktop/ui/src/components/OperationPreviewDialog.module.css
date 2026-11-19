@@ -15,8 +15,9 @@
   gap: var(--fs-space-2);
   margin: 0;
   padding: var(--fs-space-3);
-  border: 1px solid var(--fs-line);
-  border-radius: var(--fs-radius-md);
+  border: 1px solid var(--fs-line-faint);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface);
 }
 
 .modeRow {
@@ -35,8 +36,9 @@
 .targets {
   max-height: 240px;
   overflow: auto;
-  border: 1px solid var(--fs-line);
-  border-radius: var(--fs-radius-md);
+  border: 1px solid var(--fs-line-faint);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface);
 }
 
 .table {
@@ -47,8 +49,9 @@
 
 .table th,
 .table td {
-  padding: var(--fs-space-2);
-  border-bottom: 1px solid var(--fs-line);
+  padding: var(--fs-space-2) var(--fs-space-3);
+  border-bottom: 1px solid var(--fs-line-faint);
+  font-size: var(--fs-text-sm);
   text-align: start;
   vertical-align: top;
 }

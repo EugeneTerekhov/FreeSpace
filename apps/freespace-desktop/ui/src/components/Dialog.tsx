@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 
 import { useFocusTrap } from '../app/focus';
 import { t } from '../i18n';
+import { cx } from '../lib/cx';
 import { Button, IconButton } from './Button';
 import styles from './kit.module.css';
 
@@ -13,6 +14,8 @@ export interface DialogProps {
   children: ReactNode;
   footer?: ReactNode;
   busy?: boolean;
+  /** `sm` is the compact confirmation used by row context menus. */
+  size?: 'md' | 'sm';
 }
 
 /**
@@ -26,6 +29,7 @@ export function Dialog({
   children,
   footer,
   busy = false,
+  size = 'md',
 }: DialogProps) {
   const titleId = useId();
   const close = useRef(onClose);
@@ -55,7 +59,7 @@ export function Dialog({
         aria-labelledby={titleId}
         aria-busy={busy || undefined}
         tabIndex={-1}
-        className={styles.dialog}
+        className={cx(styles.dialog, size === 'sm' && styles.dialogSmall)}
       >
         <header className={styles.dialogHeader}>
           <h2 id={titleId} className={styles.dialogTitle}>

@@ -4,19 +4,25 @@ import type { RenamePreview, UiError } from '../api/dto';
 import { applyRename, requestRenamePreview } from '../api/filesystem';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Badge, Checkbox } from '../components/Choice';
-import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
+import { Banner, EmptyState, Loading } from '../components/Feedback';
 import { Field } from '../components/Fields';
 import { t } from '../i18n';
-import { formatNumber } from '../i18n/format';
+import { formatBytes, formatNumber } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
-import styles from './screens.module.css';
-import local from './filesystem.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import local from './fileops.module.css';
 
-/** Bulk rename with an old-to-new diff and conflict highlighting. */
+/**
+ * Bulk rename with an old-to-new diff and conflict highlighting.
+ *
+ * The preview is the only thing the user edits: the pattern, the replacement
+ * and the optional scope produce a plan, conflicts disable the apply button and
+ * the token is single-use, so a second click can never rename twice.
+ */
 export function Rename() {
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
+  const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const [targets, setTargets] = useState('');
   const [pattern, setPattern] = useState('');
   const [replacement, setReplacement] = useState('');
@@ -94,13 +100,11 @@ export function Rename() {
   };
 
   const blocked = preview !== null && preview.conflicts.length > 0;
-  const canApply =
-    preview !== null && !blocked && confirmed && applied === null && !applying;
+  const canApply = preview !== null && !blocked && confirmed && applied === null && !applying;
 
   return (
-    <div className={styles.stack}>
-      <Card title={t('nav.rename')}>
-        <p className={local.note}>{t('rename.intro')}</p>
+    <div className={local.stack}>
+      <Panel title={t('nav.rename')} hint={t('fileops.rename.hint')}>
         <div className={local.form}>
           <Field id="rename-targets" label={t('rename.files')}>
             <textarea
@@ -114,7 +118,7 @@ export function Rename() {
             />
           </Field>
         </div>
-        <div className={local.form}>
+        <div className={local.fields}>
           <Field id="rename-pattern" label={t('rename.pattern')}>
             <input
               id="rename-pattern"
@@ -154,108 +158,151 @@ export function Rename() {
             </Button>
           </div>
         </div>
-        {notice !== null ? <p role="status">{notice}</p> : null}
-      </Card>
+        {notice !== null ? <Banner tone="info">{notice}</Banner> : null}
+      </Panel>
 
       {error !== null ? (
-        <ErrorState
-          title={t(error.message_key)}
-          code={error.code}
-          details={error.details ?? undefined}
-          actions={
-            <Button variant="primary" loading={loading} onClick={() => void previewNow()}>
+        <Banner
+          tone="error"
+          action={
+            <Button variant="ghost" loading={loading} onClick={() => void previewNow()}>
               {t('rename.preview')}
             </Button>
           }
-        />
+        >
+          {t(error.message_key)}
+        </Banner>
       ) : null}
 
-      <Card title={t('rename.preview')}>
-        {loading && preview === null ? <Loading label={t('common.loading')} /> : null}
+      {loading && preview === null ? (
+        <Panel title={t('rename.preview')}>
+          <Loading label={t('common.loading')} rows={2} />
+        </Panel>
+      ) : null}
 
-        {!loading && preview === null && notice === null && error === null ? (
-          <EmptyState title={t('rename.preview')} description={t('rename.intro')} />
-        ) : null}
+      {preview === null && !loading && error === null && notice === null ? (
+        <EmptyState title={t('rename.preview')} description={t('fileops.rename.empty')} />
+      ) : null}
 
-        {preview !== null ? (
-          <>
-            <p className={local.note}>
-              {t('rename.plan', {
-                count: formatNumber(preview.change_count, language),
-                conflicts: formatNumber(preview.conflicts.length, language),
-              })}
-            </p>
-            {blocked ? <Banner tone="error">{t('error.validation')}</Banner> : null}
-            {preview.requires_elevation ? (
-              <Banner tone="warning">{t('confirm.elevation_required')}</Banner>
-            ) : null}
-            {preview.warnings.length > 0 ? (
-              <ul className={local.warnings}>
-                {preview.warnings.map((warning) => (
-                  <li key={warning}>{t(warning)}</li>
-                ))}
-              </ul>
-            ) : null}
-            <table className={local.table} aria-label={t('rename.preview')}>
-              <thead>
-                <tr>
-                  <th scope="col">{t('details.path')}</th>
-                  <th scope="col">{t('long_paths.new_name')}</th>
-                  <th scope="col">{t('journal.result_label')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.rows.map((row) => (
-                  <tr
-                    key={row.old_path}
-                    aria-invalid={row.conflict || undefined}
-                    className={row.conflict ? local.conflictRow : undefined}
-                  >
-                    <td>
-                      <span className={local.pathText} title={row.old_path}>
-                        {row.old_path}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={local.pathText} title={row.new_path}>
-                        {row.new_path}
-                      </span>
-                    </td>
-                    <td>
-                      {row.conflict ? (
-                        <Badge tone="danger">{t('error.validation')}</Badge>
-                      ) : (
-                        <Badge tone="success">{t('journal.result.success')}</Badge>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <Checkbox
-              id="rename-confirm"
-              checked={confirmed}
-              disabled={blocked || applying}
-              label={t('rename.confirm')}
-              onChange={(event) => {
-                setConfirmed(event.target.checked);
-              }}
+      {preview !== null ? (
+        <Panel
+          title={t('rename.preview')}
+          actions={
+            blocked ? (
+              <Badge tone="danger">{t('fileops.rename.blocked')}</Badge>
+            ) : (
+              <Badge tone="success">{t('journal.result.success')}</Badge>
+            )
+          }
+        >
+          <StatRow>
+            <Stat
+              label={t('fileops.rename.changes')}
+              value={formatNumber(preview.change_count, language)}
             />
+            <Stat
+              label={t('fileops.rename.conflicts')}
+              value={formatNumber(preview.conflicts.length, language)}
+            />
+            <Stat label={t('top.size')} value={formatBytes(preview.total_size, units)} />
+          </StatRow>
+          <p className={local.note}>
+            {t('rename.plan', {
+              count: formatNumber(preview.change_count, language),
+              conflicts: formatNumber(preview.conflicts.length, language),
+            })}
+          </p>
+          {blocked ? (
+            <Banner tone="error">{t('fileops.rename.blocked')}</Banner>
+          ) : null}
+          {preview.requires_elevation ? (
+            <Banner tone="warning">{t('confirm.elevation_required')}</Banner>
+          ) : null}
+          {preview.warnings.length > 0 ? (
+            <ul className={local.warnings}>
+              {preview.warnings.map((warning) => (
+                <li key={warning}>{t(warning)}</li>
+              ))}
+            </ul>
+          ) : null}
+          <table className={local.table} aria-label={t('rename.preview')}>
+            <thead>
+              <tr>
+                <th scope="col">{t('details.path')}</th>
+                <th scope="col">{t('fileops.rename.before')}</th>
+                <th scope="col">{t('fileops.rename.after')}</th>
+                <th scope="col">{t('fileops.rename.new_path')}</th>
+                <th scope="col">{t('journal.result_label')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {preview.rows.map((row) => (
+                <tr key={row.old_path} aria-invalid={row.conflict || undefined}>
+                  <td>
+                    <span className={local.pathText} title={row.old_path}>
+                      {row.old_path}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={local.pathText} title={row.old_name}>
+                      {row.old_name}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={local.pathText} title={row.new_name}>
+                      {row.new_name}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={local.pathText} title={row.new_path}>
+                      {row.new_path}
+                    </span>
+                  </td>
+                  <td>
+                    {row.conflict ? (
+                      <Badge tone="danger">{t('error.validation')}</Badge>
+                    ) : (
+                      <Badge tone="success">{t('journal.result.success')}</Badge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-            <div className={local.actionsEnd}>
-              <Button
-                variant="primary"
-                loading={applying}
-                disabled={!canApply}
-                onClick={() => void apply()}
-              >
-                {t('rename.apply')}
-              </Button>
-            </div>
-          </>
-        ) : null}
-      </Card>
+          {preview.conflicts.length > 0 ? (
+            <ul className={local.warnings}>
+              {preview.conflicts.map((conflict) => (
+                <li key={`${conflict.path}-${conflict.reason}`}>
+                  {t(conflict.reason_key)}
+                  {conflict.target === null ? '' : ` · ${conflict.target}`}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          <Checkbox
+            id="rename-confirm"
+            checked={confirmed}
+            disabled={blocked || applying}
+            label={t('rename.confirm')}
+            onChange={(event) => {
+              setConfirmed(event.target.checked);
+            }}
+          />
+
+          <div className={local.actionsEnd}>
+            <Button
+              variant="primary"
+              loading={applying}
+              disabled={!canApply}
+              onClick={() => void apply()}
+            >
+              {t('rename.apply')}
+            </Button>
+          </div>
+        </Panel>
+      ) : null}
     </div>
   );
 }

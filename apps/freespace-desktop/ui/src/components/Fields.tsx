@@ -17,6 +17,8 @@ export interface FieldProps {
   hint?: string;
   error?: string;
   required?: boolean;
+  inline?: boolean;
+  className?: string | undefined;
   children: ReactNode;
 }
 
@@ -27,19 +29,38 @@ export function Field({
   hint,
   error,
   required = false,
+  inline = false,
+  className,
   children,
 }: FieldProps) {
+  const labelContent = (
+    <>
+      {label}
+      {required ? (
+        <span className={styles.required} aria-hidden="true">
+          {' *'}
+        </span>
+      ) : null}
+    </>
+  );
+
   return (
-    <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
-        {label}
-        {required ? (
-          <span className={styles.required} aria-hidden="true">
-            {' *'}
-          </span>
-        ) : null}
-      </label>
-      {children}
+    <div className={cx(styles.field, inline && styles.fieldInline, className)}>
+      {inline ? (
+        <div className={styles.fieldRow}>
+          <label className={styles.label} htmlFor={id}>
+            {labelContent}
+          </label>
+          <div className={styles.fieldControl}>{children}</div>
+        </div>
+      ) : (
+        <>
+          <label className={styles.label} htmlFor={id}>
+            {labelContent}
+          </label>
+          {children}
+        </>
+      )}
       {hint !== undefined ? (
         <span className={styles.hint} id={`${id}-hint`}>
           {hint}

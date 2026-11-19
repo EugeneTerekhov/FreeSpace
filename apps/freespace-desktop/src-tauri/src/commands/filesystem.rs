@@ -6,6 +6,8 @@
 //! preview tokens and file-system work live in those services; nothing here
 //! touches a path directly and nothing here computes a size.
 
+use std::path::{Path, PathBuf};
+
 use freespace_app::{
     dto::{
         AttributeChangeSet, AttributesPreviewRequest, DEFAULT_PAGE_SIZE, FileOperationApplied,
@@ -65,6 +67,22 @@ pub fn long_paths_page(
 #[tauri::command(rename_all = "snake_case")]
 pub fn long_paths_validate(path: String) -> Result<LongPathValidation, UiError> {
     long_paths::validate(&path)
+}
+
+/// Opens an object of the current snapshot in Windows Explorer.
+///
+/// The command only reveals an existing object inside the scanned area; it
+/// never changes anything. A directory opens as a folder and a file opens its
+/// parent with the file selected.
+#[tauri::command(rename_all = "snake_case")]
+pub fn reveal_in_explorer(state: State<'_, AppState>, path: String) -> Result<(), UiError> {
+    let root = freespace_platform::paths::normalize(&snapshot_root(&state)?)?;
+    // Resolve `..` before the scope comparison, exactly like the operation
+    // layer does; a path may never escape the scanned area.
+    let target = freespace_platform::paths::normalize(Path::new(&path))?;
+    freespace_platform::paths::ensure_within(&root, &target)?;
+
+    freespace_platform::reveal::reveal(&target).map_err(UiError::from)
 }
 
 /// Builds a bulk-rename plan and stores its one-time token.
@@ -173,4 +191,14 @@ pub fn attributes_apply(
             now_millis(),
         )
     })
+}
+
+/// Root of the current snapshot: the scan root or the volume mount point.
+fn snapshot_root(state: &AppState) -> Result<PathBuf, UiError> {
+    let snapshot = state.snapshot()?;
+    if let Some(root) = snapshot.root_id() {
+        return Ok(PathBuf::from(snapshot.node_row(root)?.path));
+    }
+
+    Ok(PathBuf::from(snapshot.volume().mount_point.as_os_str()))
 }

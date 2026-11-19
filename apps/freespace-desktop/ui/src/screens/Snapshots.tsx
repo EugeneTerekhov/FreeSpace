@@ -7,25 +7,32 @@ import type {
   SnapshotDiffSort,
   SnapshotSummary,
   UiError,
+  UnitSystem,
 } from '../api/dto';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card, StatCard } from '../components/Card';
 import { Badge } from '../components/Choice';
 import { DataTable, type Column } from '../components/DataTable';
-import { Banner, EmptyState, ErrorState } from '../components/Feedback';
-import { Select } from '../components/Fields';
+import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
+import { Field, Select } from '../components/Fields';
 import { t } from '../i18n';
-import { formatBytes } from '../i18n/format';
+import { formatBytes, formatNumber } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
-import local from './analysis.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import styles from './cleanup.module.css';
+
+/** Signed size delta with the typographic minus used across the interface. */
+function signedBytes(delta: number, units: UnitSystem): string {
+  const sign = delta > 0 ? '+' : delta < 0 ? '−' : '';
+  return `${sign}${formatBytes(Math.abs(delta), units)}`;
+}
 
 /** Stored snapshots, creation and the comparison table. */
 export function Snapshots() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
+  const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [base, setBase] = useState('');
   const [target, setTarget] = useState('');
@@ -35,11 +42,13 @@ export function Snapshots() {
     descending: true,
   });
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState<UiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setError(null);
+    setListLoading(true);
     try {
       const list = await api.snapshotsList();
       setSnapshots(list);
@@ -47,6 +56,8 @@ export function Snapshots() {
       setTarget((current) => (current !== '' ? current : list[1]?.snapshot_id ?? ''));
     } catch (cause) {
       setError(normalizeError(cause));
+    } finally {
+      setListLoading(false);
     }
   }, []);
 
@@ -101,12 +112,26 @@ export function Snapshots() {
     }
   };
 
+  const snapshotBytes = snapshots.reduce((sum, snapshot) => sum + snapshot.file_size, 0);
+  const grown =
+    diff === null
+      ? 0
+      : diff.rows.filter((row) => row.change === 'changed' && row.size_delta > 0).length;
+  const shrunk =
+    diff === null
+      ? 0
+      : diff.rows.filter((row) => row.change === 'changed' && row.size_delta < 0).length;
+
   const columns: Column<SnapshotDiffRow>[] = [
     {
       id: 'path',
       header: t('top.path'),
       width: 'minmax(240px, 2fr)',
-      render: (row) => <span className={styles.pathCell} title={row.path}>{row.path}</span>,
+      render: (row) => (
+        <span className={styles.path} title={row.path}>
+          {row.path}
+        </span>
+      ),
     },
     {
       id: 'change',
@@ -125,10 +150,7 @@ export function Snapshots() {
       header: t('snapshots.delta'),
       width: '140px',
       align: 'end',
-      render: (row) => {
-        const sign = row.size_delta > 0 ? '+' : row.size_delta < 0 ? '−' : '';
-        return `${sign}${formatBytes(Math.abs(row.size_delta), units)}`;
-      },
+      render: (row) => signedBytes(row.size_delta, units),
     },
     {
       id: 'base',
@@ -148,8 +170,7 @@ export function Snapshots() {
 
   return (
     <div className={styles.stack}>
-      <Card title={t('nav.snapshots')}>
-        <p>{t('snapshots.intro')}</p>
+      <Panel title={t('nav.snapshots')} hint={t('snapshots.intro')}>
         <div className={styles.toolbar}>
           <Button
             variant="primary"
@@ -162,86 +183,53 @@ export function Snapshots() {
           <Button variant="secondary" onClick={() => void refresh()}>
             {t('journal.refresh')}
           </Button>
-          {generation === null ? <span>{t('snapshots.scan_required')}</span> : null}
+          {generation === null ? (
+            <span className={styles.hint}>{t('snapshots.scan_required')}</span>
+          ) : null}
         </div>
         {notice !== null ? <Banner tone="info">{notice}</Banner> : null}
-      </Card>
+      </Panel>
 
       {error !== null ? (
         <ErrorState
           title={t(error.message_key)}
           code={error.code}
           details={error.details ?? undefined}
-          actions={<Button variant="primary" onClick={() => void refresh()}>{t('error.retry')}</Button>}
+          actions={
+            <Button variant="primary" onClick={() => void refresh()}>
+              {t('error.retry')}
+            </Button>
+          }
         />
       ) : null}
 
-      <Card title={t('snapshots.compare')}>
-        <div className={styles.toolbar}>
-          <label>
-            {t('snapshots.base')}{' '}
-            <Select
-              aria-label={t('snapshots.base')}
-              value={base}
-              options={snapshots.map((snapshot) => ({
-                value: snapshot.snapshot_id,
-                label: `${snapshot.created_at} · ${snapshot.snapshot_id}`,
-              }))}
-              onChange={(event) => setBase(event.target.value)}
-            />
-          </label>
-          <label>
-            {t('snapshots.target')}{' '}
-            <Select
-              aria-label={t('snapshots.target')}
-              value={target}
-              options={snapshots.map((snapshot) => ({
-                value: snapshot.snapshot_id,
-                label: `${snapshot.created_at} · ${snapshot.snapshot_id}`,
-              }))}
-              onChange={(event) => setTarget(event.target.value)}
-            />
-          </label>
-          <label>
-            {t('snapshots.sort')}{' '}
-            <Select
-              aria-label={t('snapshots.sort')}
-              value={sort.key}
-              options={[
-                { value: 'size_delta', label: t('snapshots.delta') },
-                { value: 'path', label: t('top.path') },
-                { value: 'change', label: t('snapshots.change_label') },
-              ]}
-              onChange={(event) =>
-                setSort((current) => ({
-                  ...current,
-                  key: event.target.value as SnapshotDiffSort['key'],
-                }))
-              }
-            />
-          </label>
-          <Button
-            variant="primary"
-            loading={loading}
-            disabled={base === '' || target === '' || base === target}
-            onClick={() => void compare()}
-          >
-            {t('snapshots.diff')}
-          </Button>
-        </div>
-      </Card>
-
-      <Card title={t('snapshots.list')}>
-        {snapshots.length === 0 ? (
-          <EmptyState title={t('snapshots.none')} />
+      <Panel title={t('snapshots.list')}>
+        <StatRow>
+          <Stat
+            label={t('cleanup.panels.snapshot_count')}
+            value={formatNumber(snapshots.length, language)}
+          />
+          <Stat
+            label={t('cleanup.panels.snapshot_size')}
+            value={formatBytes(snapshotBytes, units)}
+          />
+        </StatRow>
+        {listLoading && snapshots.length === 0 ? (
+          <Loading label={t('common.loading')} rows={3} />
+        ) : snapshots.length === 0 ? (
+          <EmptyState title={t('snapshots.none')} description={t('snapshots.intro')} />
         ) : (
-          <table className={local.table}>
+          <table className={styles.table} aria-label={t('snapshots.list')}>
             <thead>
               <tr>
                 <th scope="col">{t('snapshots.created_at')}</th>
                 <th scope="col">{t('snapshots.mount')}</th>
-                <th scope="col">{t('snapshots.nodes')}</th>
-                <th scope="col">{t('details.size')}</th>
+                <th scope="col" className={styles.numeric}>
+                  {t('snapshots.nodes')}
+                </th>
+                <th scope="col" className={styles.numeric}>
+                  {t('details.size')}
+                </th>
                 <th scope="col">{t('snapshots.actions')}</th>
               </tr>
             </thead>
@@ -249,9 +237,13 @@ export function Snapshots() {
               {snapshots.map((snapshot) => (
                 <tr key={snapshot.snapshot_id}>
                   <td>{snapshot.created_at}</td>
-                  <td>{snapshot.mount_point}</td>
-                  <td>{snapshot.node_count}</td>
-                  <td>{formatBytes(snapshot.file_size, units)}</td>
+                  <td className={styles.path} title={snapshot.path}>
+                    {snapshot.mount_point}
+                  </td>
+                  <td className={styles.numeric}>
+                    {formatNumber(snapshot.node_count, language)}
+                  </td>
+                  <td className={styles.numeric}>{formatBytes(snapshot.file_size, units)}</td>
                   <td>
                     <Button variant="ghost" onClick={() => void remove(snapshot.snapshot_id)}>
                       {t('confirm.apply')}
@@ -262,20 +254,92 @@ export function Snapshots() {
             </tbody>
           </table>
         )}
-      </Card>
+      </Panel>
+
+      <Panel title={t('snapshots.compare')}>
+        <div className={styles.toolbar}>
+          <div className={styles.fieldWide}>
+            <Field id="snapshot-base" label={t('snapshots.base')}>
+              <Select
+                id="snapshot-base"
+                aria-label={t('snapshots.base')}
+                value={base}
+                options={snapshots.map((snapshot) => ({
+                  value: snapshot.snapshot_id,
+                  label: `${snapshot.created_at} · ${snapshot.snapshot_id}`,
+                }))}
+                onChange={(event) => setBase(event.target.value)}
+              />
+            </Field>
+          </div>
+          <div className={styles.fieldWide}>
+            <Field id="snapshot-target" label={t('snapshots.target')}>
+              <Select
+                id="snapshot-target"
+                aria-label={t('snapshots.target')}
+                value={target}
+                options={snapshots.map((snapshot) => ({
+                  value: snapshot.snapshot_id,
+                  label: `${snapshot.created_at} · ${snapshot.snapshot_id}`,
+                }))}
+                onChange={(event) => setTarget(event.target.value)}
+              />
+            </Field>
+          </div>
+          <div className={styles.fieldNarrow}>
+            <Field id="snapshot-sort" label={t('snapshots.sort')}>
+              <Select
+                id="snapshot-sort"
+                aria-label={t('snapshots.sort')}
+                value={sort.key}
+                options={[
+                  { value: 'size_delta', label: t('snapshots.delta') },
+                  { value: 'path', label: t('top.path') },
+                  { value: 'change', label: t('snapshots.change_label') },
+                ]}
+                onChange={(event) =>
+                  setSort((current) => ({
+                    ...current,
+                    key: event.target.value as SnapshotDiffSort['key'],
+                  }))
+                }
+              />
+            </Field>
+          </div>
+          <Button
+            variant="primary"
+            loading={loading}
+            disabled={base === '' || target === '' || base === target}
+            onClick={() => void compare()}
+          >
+            {t('snapshots.diff')}
+          </Button>
+        </div>
+      </Panel>
 
       {diff !== null ? (
         <>
-          <section className={styles.stats} aria-label={t('snapshots.summary')}>
-            <StatCard label={t('snapshots.added')} value={diff.added} />
-            <StatCard label={t('snapshots.removed')} value={diff.removed} />
-            <StatCard label={t('snapshots.changed')} value={diff.changed} />
-            <StatCard
+          <StatRow>
+            <Stat label={t('snapshots.added')} value={formatNumber(diff.added, language)} />
+            <Stat label={t('snapshots.removed')} value={formatNumber(diff.removed, language)} />
+            <Stat label={t('cleanup.panels.grown')} value={formatNumber(grown, language)} />
+            <Stat label={t('cleanup.panels.shrunk')} value={formatNumber(shrunk, language)} />
+            <Stat
               label={t('snapshots.total_growth')}
-              value={`${diff.total_growth_bytes > 0 ? '+' : diff.total_growth_bytes < 0 ? '−' : ''}${formatBytes(Math.abs(diff.total_growth_bytes), units)}`}
+              value={signedBytes(diff.total_growth_bytes, units)}
             />
-          </section>
-          <Card title={t('snapshots.diff')}>
+          </StatRow>
+          <Panel
+            title={t('snapshots.diff')}
+            hint={
+              diff.next_cursor !== null
+                ? t('cleanup.panels.diff_page_hint', {
+                    loaded: diff.rows.length,
+                    total: diff.total_estimate,
+                  })
+                : undefined
+            }
+          >
             <DataTable
               label={t('snapshots.diff')}
               rows={diff.rows}
@@ -284,18 +348,22 @@ export function Snapshots() {
               height={360}
               empty={t('snapshots.no_diff')}
             />
-          </Card>
+          </Panel>
           {diff.growth_by_directory.length > 0 ? (
-            <Card title={t('snapshots.growth')}>
-              <ul>
+            <Panel title={t('snapshots.growth')}>
+              <ul className={styles.growthList}>
                 {diff.growth_by_directory.map((entry) => (
-                  <li key={entry.path}>
-                    {entry.path}: {entry.delta > 0 ? '+' : '−'}
-                    {formatBytes(Math.abs(entry.delta), units)}
+                  <li key={entry.path} className={styles.growthRow}>
+                    <span className={styles.growthPath} title={entry.path}>
+                      {entry.path}
+                    </span>
+                    <span className={styles.growthValue}>
+                      {signedBytes(entry.delta, units)}
+                    </span>
                   </li>
                 ))}
               </ul>
-            </Card>
+            </Panel>
           ) : null}
         </>
       ) : null}

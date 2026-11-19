@@ -11,5 +11,4 @@ pub mod scan;
 pub mod settings;
 pub mod shred;
 pub mod tree;
-pub mod treemap;
 pub mod volumes;

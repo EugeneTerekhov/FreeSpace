@@ -75,6 +75,21 @@ pub fn scan_start(
                 .with_details(error.to_string())
         })?;
 
+    // Announce the running task right away; without this the interface only
+    // learns about a scan when it finishes.
+    let queue = TaskQueueEvent {
+        tasks: state.tasks(),
+    };
+    let _ = app.emit(
+        "task-queue-changed",
+        EventEnvelope::new(
+            "task-queue-changed",
+            Sequence::default().advance(),
+            None,
+            queue,
+        ),
+    );
+
     Ok(ScanStarted {
         task_id,
         generation,

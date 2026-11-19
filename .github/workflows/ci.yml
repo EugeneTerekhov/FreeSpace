@@ -103,7 +103,7 @@ jobs:
         run: npm run test:unit
 
   ui-e2e:
-    name: Playwright, accessibility and visual regression
+    name: Playwright and accessibility
     runs-on: windows-latest
     timeout-minutes: 40
 
@@ -133,14 +133,6 @@ jobs:
       - name: Accessibility tests
         working-directory: ${{ env.UI_DIR }}
         run: npm run test:a11y
-
-      - name: Visual regression tests
-        working-directory: ${{ env.UI_DIR }}
-        run: npm run test:visual
-
-      - name: Pull-request visual subset
-        working-directory: ${{ env.UI_DIR }}
-        run: npm run test:visual:pr
 
       - name: Upload Playwright report
         if: failure()

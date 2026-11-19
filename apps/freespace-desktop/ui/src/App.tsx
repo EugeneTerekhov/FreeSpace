@@ -1,4 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  Activity,
+  BarChart3,
+  Command,
+  Copy,
+  FilePenLine,
+  FolderTree,
+  HardDrive,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ScrollText,
+  Settings,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react';
+import { Broom, PaperShredder } from './icons';
 
 import { api } from './api/runtime';
 import type {
@@ -9,21 +25,42 @@ import type {
   Task,
   UiSettings,
 } from './api/dto';
-import { AppShell, Header, Sidebar, StatusBar } from './app/AppShell';
+import { AppShell, Header, Sidebar, SidebarDrive, StatusBar } from './app/AppShell';
 import { CommandPalette, type PaletteCommand } from './app/CommandPalette';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { useHotkeys } from './app/hotkeys';
-import { SCREENS, SCREEN_BY_ID, isScreenId, screensInBatch } from './app/routing';
+import {
+  GROUPS,
+  SCREENS,
+  SCREEN_BY_ID,
+  groupEntries,
+  normalizeScreenId,
+} from './app/routing';
 import { startSystemThemeSync } from './app/theme';
-import { Button } from './components/Button';
+import { Button, IconButton } from './components/Button';
 import { ErrorState, Loading } from './components/Feedback';
 import { setLanguage, t } from './i18n';
-import { formatNumber } from './i18n/format';
+import { formatBytes, formatNumber } from './i18n/format';
 import { ScreenRouter } from './screens/ScreenRouter';
 import { useSettingsStore } from './stores/settingsStore';
 import { useShellStore } from './stores/shellStore';
 import { useSnapshotStore } from './stores/snapshotStore';
 import { useTasksStore } from './stores/tasksStore';
+
+/** One glyph per screen; the shared Lucide set keeps the navigation coherent. */
+const SCREEN_ICON: Record<ScreenId, LucideIcon> = {
+  overview: HardDrive,
+  tree: FolderTree,
+  analysis: BarChart3,
+  duplicates: Copy,
+  cleanup: Broom,
+  journal: ScrollText,
+  shred: PaperShredder,
+  monitor: Activity,
+  inspect: Wrench,
+  fileops: FilePenLine,
+  settings: Settings,
+};
 
 /** Application root: bootstrap, shell, events and the command palette. */
 export function App() {
@@ -41,6 +78,8 @@ export function App() {
   const updateState = useTasksStore((state) => state.updateState);
   const setSettings = useSettingsStore((state) => state.setSettings);
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
+  const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
+  const volume = useSnapshotStore((state) => state.volume);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const history = useRef<{ entries: ScreenId[]; index: number }>({
     entries: [screen],
@@ -122,8 +161,9 @@ export function App() {
         node_id: number | null;
         path: string | null;
       }>('navigation-request', (envelope) => {
-        if (isScreenId(envelope.payload.screen)) {
-          setScreen(envelope.payload.screen);
+        const target = normalizeScreenId(envelope.payload.screen);
+        if (target !== null) {
+          setScreen(target);
         }
       });
 
@@ -146,7 +186,7 @@ export function App() {
   }, [applyProgress, setScreen, setSettings, setTasks, updateState]);
 
   useEffect(() => {
-    if (!ready || screen === 'dashboard') return;
+    if (!ready || screen === 'overview') return;
     void api.appSettingsSet({ last_screen: screen });
   }, [ready, screen]);
 
@@ -184,7 +224,7 @@ export function App() {
       setScreen('settings');
     },
     F1: () => {
-      setScreen('about');
+      setScreen('settings');
     },
     F6: () => {
       document.querySelector<HTMLElement>('[data-status-bar]')?.focus();
@@ -203,11 +243,11 @@ export function App() {
       navigateHistory(1);
     },
     ...Object.fromEntries(
-      Array.from({ length: 9 }, (_, index) => [
+      GROUPS.map((group, index) => [
         `Ctrl+${index + 1}`,
         () => {
-          const target = screensInBatch(SCREEN_BY_ID[screen].batch)[index];
-          if (target !== undefined) setScreen(target.id);
+          const target = group.screens[0];
+          if (target !== undefined) setScreen(target);
         },
       ]),
     ),
@@ -216,7 +256,7 @@ export function App() {
   const commands: PaletteCommand[] = SCREENS.map((item) => ({
     id: item.id,
     label: t(item.titleKey),
-    hint: item.batch,
+    hint: t(`nav.group.${item.group}`),
     run: () => {
       setScreen(item.id);
     },
@@ -233,34 +273,57 @@ export function App() {
       <AppShell
         sidebar={
           <Sidebar
-            items={SCREENS.map((item) => ({
-              id: item.id,
-              label: t(item.titleKey),
+            groups={groupEntries().map(({ group, screens }) => ({
+              id: group.id,
+              label: t(group.titleKey),
+              items: screens.map((item) => {
+                const Icon = SCREEN_ICON[item.id];
+
+                return {
+                  id: item.id,
+                  label: t(item.titleKey),
+                  icon: <Icon size={16} strokeWidth={1.7} />,
+                };
+              }),
             }))}
             active={screen}
             collapsed={sidebarCollapsed}
             onSelect={(id) => {
-              if (id in SCREEN_BY_ID) setScreen(id as ScreenId);
+              const target = normalizeScreenId(id);
+              if (target !== null) setScreen(target);
             }}
+            footer={
+              volume === null ? undefined : (
+                <SidebarDrive
+                  mount={volume.mount_point}
+                  free={formatBytes(volume.free_bytes, units)}
+                  total={formatBytes(volume.total_bytes, units)}
+                />
+              )
+            }
           />
         }
         header={
           <Header
             title={t(meta.titleKey)}
-            subtitle={bootstrap?.about.version ?? undefined}
             actions={
               <>
-                <Button
-                  variant="ghost"
+                <IconButton
+                  label={t('a11y.toggle_sidebar')}
                   onClick={() => {
                     toggleSidebar();
                     void api.appSettingsSet({ sidebar_collapsed: !sidebarCollapsed });
                   }}
                 >
-                  {sidebarCollapsed ? '»' : '«'}
-                </Button>
+                  {sidebarCollapsed ? (
+                    <PanelLeftOpen size={16} strokeWidth={1.6} />
+                  ) : (
+                    <PanelLeftClose size={16} strokeWidth={1.6} />
+                  )}
+                </IconButton>
                 <Button
                   variant="secondary"
+                  icon={<Command size={14} strokeWidth={1.6} aria-hidden="true" />}
                   onClick={() => {
                     setPaletteOpen(true);
                   }}
@@ -275,9 +338,11 @@ export function App() {
           <StatusBar
             message={running === undefined ? t('status.ready') : undefined}
             task={
-              progress === null
-                ? undefined
-                : `${t(progress.phase_key)} · ${formatNumber(progress.processed)}`
+              progress !== null
+                ? `${t(progress.phase_key)} · ${formatNumber(progress.processed)}`
+                : running !== undefined
+                  ? t('status.running')
+                  : undefined
             }
             right={bootstrap === null ? undefined : `v${bootstrap.app_version}`}
           />

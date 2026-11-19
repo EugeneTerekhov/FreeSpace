@@ -187,7 +187,7 @@ export interface FocusTrapOptions {
 export function useFocusTrap<T extends HTMLElement>(
   open: boolean,
   options: FocusTrapOptions = {},
-): RefObject<T> {
+): RefObject<T | null> {
   const container = useRef<T>(null);
   const latest = useRef(options);
   latest.current = options;

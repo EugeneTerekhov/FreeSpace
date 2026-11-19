@@ -1,7 +1,6 @@
-//! File-category keys shared by filters and Treemap colours.
+//! File-category keys shared by filters, type summaries and category labels.
 //!
-//! The keys are stable on the wire and map to the palette in
-//! `ui/src/treemap/palettes.ts`.
+//! The keys are stable on the wire and map to localised labels.
 
 /// Category key used when a name has no known extension.
 pub const OTHER: &str = "other";

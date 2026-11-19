@@ -174,7 +174,7 @@ impl ScreenId {
     }
 }
 
-/// Size metric used for sorting and Treemap areas.
+/// Size metric used for sorting.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Metric {
@@ -359,88 +359,6 @@ pub struct TreePage {
     pub sort: SortSpec,
     /// True when the cursor is stale and the first page must be requested.
     pub stale_cursor: bool,
-}
-
-/// Treemap request in viewport coordinates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TreemapRequest {
-    /// Parent node; `None` for the scan root.
-    pub node_id: Option<u32>,
-    /// Viewport width in pixels.
-    pub width: u32,
-    /// Viewport height in pixels.
-    pub height: u32,
-    /// Metric used for areas.
-    pub metric: Metric,
-    /// Maximum depth.
-    pub max_depth: u8,
-    /// Smallest tile edge in pixels.
-    pub min_tile_px: u16,
-    /// Maximum number of tiles.
-    pub max_tiles: u16,
-}
-
-impl Default for TreemapRequest {
-    fn default() -> Self {
-        Self {
-            node_id: None,
-            width: 1024,
-            height: 768,
-            metric: Metric::OnDisk,
-            max_depth: 6,
-            min_tile_px: 4,
-            max_tiles: 2000,
-        }
-    }
-}
-
-/// Rectangle of a tile in request coordinates.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct TreemapRect {
-    /// Left edge.
-    pub x: f32,
-    /// Top edge.
-    pub y: f32,
-    /// Width, strictly positive.
-    pub w: f32,
-    /// Height, strictly positive.
-    pub h: f32,
-}
-
-/// One rectangle of the canvas Treemap.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TreemapTile {
-    /// Node shown by the tile; `None` for the aggregate "other" tile.
-    pub node_id: Option<u32>,
-    /// Rectangle in viewport coordinates.
-    pub rect: TreemapRect,
-    /// Depth from the requested root.
-    pub depth: u8,
-    /// Size under the selected metric.
-    pub size: u64,
-    /// Fraction of the parent size in `0.0..=1.0`.
-    pub fraction: f32,
-    /// Category key used for colouring.
-    pub color_key: String,
-    /// Short label; empty for tiny tiles.
-    pub label: String,
-    /// True for the aggregate "other" tile.
-    pub is_aggregate: bool,
-    /// Number of direct children for drill-down.
-    pub child_count: u32,
-}
-
-/// Treemap response for one generation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TreemapResponse {
-    /// Generation the tiles belong to.
-    pub generation: u64,
-    /// Tiles, at most `max_tiles`.
-    pub tiles: Vec<TreemapTile>,
-    /// True when some tiles were merged into the aggregate tile.
-    pub truncated: bool,
-    /// Size of the requested parent.
-    pub total_size: u64,
 }
 
 /// Filter shared by every table screen.
@@ -1478,8 +1396,8 @@ pub struct OperationOutcome {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppCapabilities, Language, Metric, ScreenId, SortSpec, ThemePreference, TreemapTile,
-        UiSettings, UiSettingsPatch, WindowState,
+        AppCapabilities, Language, Metric, ScreenId, SortSpec, ThemePreference, UiSettings,
+        UiSettingsPatch, WindowState,
     };
 
     #[test]
@@ -1528,7 +1446,7 @@ mod tests {
     }
 
     #[test]
-    fn serialises_capabilities_and_tiles() {
+    fn serialises_capabilities() {
         let capabilities = AppCapabilities {
             commands: vec!["app_bootstrap".to_owned()],
             events: vec!["scan-progress".to_owned()],
@@ -1537,26 +1455,6 @@ mod tests {
         let value = serde_json::to_value(&capabilities).expect("serialise");
         assert_eq!(value["commands"][0], "app_bootstrap");
         assert_eq!(value["csp_version"], 1);
-
-        let tile = TreemapTile {
-            node_id: Some(7),
-            rect: super::TreemapRect {
-                x: 0.0,
-                y: 0.0,
-                w: 10.0,
-                h: 20.0,
-            },
-            depth: 1,
-            size: 42,
-            fraction: 0.5,
-            color_key: "video".to_owned(),
-            label: "clip.mp4".to_owned(),
-            is_aggregate: false,
-            child_count: 0,
-        };
-        let value = serde_json::to_value(&tile).expect("serialise");
-        assert_eq!(value["node_id"], 7);
-        assert_eq!(value["rect"]["w"], 10.0);
     }
 }
 

@@ -3,42 +3,39 @@ import { expect, type Page } from '@playwright/test';
 import type { ScreenId } from '../../../src/api/dto';
 
 export const SCREEN_IDS: ScreenId[] = [
-  'dashboard',
-  'scan',
+  'overview',
   'tree',
-  'treemap',
-  'top_files',
-  'types',
+  'analysis',
   'duplicates',
   'cleanup',
-  'snapshots',
   'journal',
-  'size_details',
-  'long_paths',
-  'rename',
-  'permissions',
-  'metadata',
-  'owners',
-  'archives',
-  'export',
-  'unlock',
   'shred',
   'monitor',
-  'elevation',
+  'inspect',
+  'fileops',
   'settings',
-  'about',
 ];
+
+/** Sidebar group order; every group starts with its first screen. */
+export const SCREEN_GROUPS = [
+  { id: 'overview', screens: ['overview'] },
+  { id: 'analysis', screens: ['tree', 'analysis', 'duplicates'] },
+  { id: 'cleanup', screens: ['cleanup'] },
+  { id: 'operations', screens: ['journal', 'shred', 'monitor'] },
+  { id: 'tools', screens: ['inspect', 'fileops'] },
+  { id: 'system', screens: ['settings'] },
+] as const;
 
 /** Interface language used by the page objects. */
 export type UiLanguage = 'ru' | 'en';
 
 const LABELS = {
-  startScan: { ru: 'Начать сканирование', en: 'Start scan' },
+  analyze: { ru: 'Анализировать этот том', en: 'Analyze this volume' },
   scanCompleted: { ru: 'Сканирование завершено', en: 'Scan completed' },
-  openTree: { ru: 'Открыть дерево', en: 'Open in tree' },
+  openTree: { ru: 'Открыть дерево', en: 'Open tree' },
 } as const;
 
-/** Page object shared by the 24 screens. */
+/** Page object shared by the 11 screens. */
 export class ScreensPage {
   constructor(readonly page: Page) {}
 
@@ -51,30 +48,25 @@ export class ScreensPage {
     return (await this.page.getByRole('heading', { level: 1 }).textContent()) ?? '';
   }
 
-  /** Runs the mock scan and waits for the completed banner. */
+  /** Runs the mock scan from the overview and waits for the completed banner. */
   async runScan(language: UiLanguage = 'ru'): Promise<void> {
-    await this.open('scan');
+    await this.open('overview');
     await this.page
-      .getByRole('button', { name: LABELS.startScan[language] })
+      .getByRole('button', { name: LABELS.analyze[language] })
+      .first()
       .click();
     await expect(this.page.getByText(LABELS.scanCompleted[language])).toBeVisible({
       timeout: 15_000,
     });
   }
 
-  /** Runs a scan and opens the tree or the map. */
-  async withSnapshot(
-    screen: 'tree' | 'treemap',
-    language: UiLanguage = 'ru',
-  ): Promise<void> {
+  /** Runs a scan and opens the tree. */
+  async withSnapshot(language: UiLanguage = 'ru'): Promise<void> {
     await this.runScan(language);
-    if (screen === 'tree') {
-      await this.page
-        .getByRole('button', { name: LABELS.openTree[language] })
-        .click();
-    } else {
-      await this.open('treemap');
-    }
+    await this.page
+      .getByRole('button', { name: LABELS.openTree[language] })
+      .click();
+    await expect(this.page.getByRole('heading', { level: 1 })).toBeVisible();
   }
 
   /** Opens the root row in the tree. */
@@ -84,7 +76,7 @@ export class ScreensPage {
 
   /** Runs a mock scan and opens an analysis screen that needs a generation. */
   async withAnalysis(
-    screen: 'top_files' | 'types' | 'duplicates' | 'cleanup' | 'snapshots',
+    screen: 'tree' | 'analysis' | 'duplicates' | 'cleanup' | 'inspect' | 'fileops',
     language: UiLanguage = 'ru',
   ): Promise<void> {
     await this.runScan(language);

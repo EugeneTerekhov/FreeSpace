@@ -14,9 +14,7 @@ async function focusedInsideDialog(page: Page): Promise<boolean> {
 test.describe('keyboard only', () => {
   test('the skip link is the first tab stop and focuses main', async ({ page }) => {
     await page.goto('/');
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Диски' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Обзор' })).toBeVisible();
 
     await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Перейти к основному содержимому' });
@@ -34,9 +32,7 @@ test.describe('keyboard only', () => {
     await journal.focus();
     await page.keyboard.press('Enter');
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Журнал' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Журнал' })).toBeVisible();
     await expect(journal).toHaveAttribute('aria-current', 'page');
   });
 
@@ -47,7 +43,7 @@ test.describe('keyboard only', () => {
     const opener = page.getByRole('button', { name: 'Команды' });
     await opener.click();
 
-    const dialog = page.getByRole('dialog', { name: 'Command palette' });
+    const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
     const input = page.getByRole('combobox', { name: 'Введите команду…' });
@@ -69,18 +65,16 @@ test.describe('keyboard only', () => {
 
     const input = page.getByRole('combobox', { name: 'Введите команду…' });
     await expect(input).toBeFocused();
-    await input.fill('Карта');
+    await input.fill('Журнал');
     await page.keyboard.press('Enter');
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Карта' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Журнал' })).toBeVisible();
   });
 
   test('tree grid moves with a roving tabindex and activates rows', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.withSnapshot('tree');
+    await app.withSnapshot();
 
     const grid = page.getByRole('treegrid', { name: 'Дерево' });
     await expect(grid).toBeVisible();
@@ -90,10 +84,11 @@ test.describe('keyboard only', () => {
     await first.focus();
 
     await page.keyboard.press(' ');
-    await expect(page.locator('p.mono').first()).toHaveText('C:\\');
+    const details = page.locator('dl').filter({ hasText: 'Жёсткие ссылки' });
+    await expect(details.getByText('C:\\', { exact: true })).toBeVisible();
 
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('row', { name: /Windows/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Windows(?!\.)/ })).toBeVisible();
 
     await page.keyboard.press('ArrowDown');
     const second = page.locator('[data-row-index="1"]');
@@ -104,33 +99,10 @@ test.describe('keyboard only', () => {
     await expect(first).toBeFocused();
   });
 
-  test('treemap navigates tiles, drills with Enter and goes up with Escape', async ({
-    page,
-  }) => {
+  test('operation preview keeps focus inside and restores it', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await app.withSnapshot('treemap');
-
-    const canvas = page.getByRole('img', { name: /Щёлкните плитку/ });
-    await expect(canvas).toBeVisible();
-    await canvas.focus();
-
-    await page.keyboard.press('ArrowDown');
-    await expect(page.locator('dl')).toContainText('Размер на диске');
-
-    const crumbs = page
-      .getByRole('navigation', { name: 'Навигационная цепочка' })
-      .first();
-    await page.keyboard.press('Enter');
-    await expect(crumbs).toContainText('Windows');
-
-    await page.keyboard.press('Escape');
-    await expect(crumbs).not.toContainText('Windows');
-  });
-
-  test('operation preview keeps focus inside and restores it', async ({ page }) => {    await page.goto('/');
-    const app = screens(page);
-    await app.withAnalysis('top_files');
+    await app.withAnalysis('analysis');
 
     await page.getByRole('searchbox', { name: 'Текст' }).fill('crash');
     await page.getByRole('checkbox', { name: 'Выбрано: crash.dmp' }).check();
@@ -149,43 +121,61 @@ test.describe('keyboard only', () => {
     await expect(trigger).toBeFocused();
   });
 
-  test('shell shortcuts open settings, help, search, status and history', async ({
-    page,
-  }) => {
+  test('Ctrl+1..6 open the first screen of every group', async ({ page }) => {
+    await page.goto('/');
+
+    const groups = [
+      { key: '1', screen: 'overview', heading: 'Обзор' },
+      { key: '2', screen: 'tree', heading: 'Дерево' },
+      { key: '3', screen: 'cleanup', heading: 'Очистка' },
+      { key: '4', screen: 'journal', heading: 'Журнал' },
+      { key: '5', screen: 'inspect', heading: 'Инспекция' },
+      { key: '6', screen: 'settings', heading: 'Настройки' },
+    ] as const;
+
+    for (const group of groups) {
+      await page.keyboard.press(`Control+${group.key}`);
+      await expect(
+        page.getByRole('heading', { level: 1, name: group.heading }),
+      ).toBeVisible();
+      await expect(page.locator(`[data-screen="${group.screen}"]`)).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    }
+  });
+
+  test('shell shortcuts open settings, help, search, status and history', async ({ page }) => {
     await page.goto('/');
     const app = screens(page);
-    await expect(page.getByRole('heading', { level: 1, name: 'Диски' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Обзор' })).toBeVisible();
 
     await page.keyboard.press('Control+,');
     await expect(
       page.getByRole('heading', { level: 1, name: 'Настройки' }),
     ).toBeVisible();
 
+    // F1 opens the reference screen, which is the settings screen now that
+    // About is its tab.
     await page.keyboard.press('F1');
     await expect(
-      page.getByRole('heading', { level: 1, name: 'О программе' }),
+      page.getByRole('heading', { level: 1, name: 'Настройки' }),
     ).toBeVisible();
 
     await page.locator('[data-screen="journal"]').click();
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Журнал' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Журнал' })).toBeVisible();
 
     await page.keyboard.press('Alt+ArrowLeft');
     await expect(
-      page.getByRole('heading', { level: 1, name: 'О программе' }),
+      page.getByRole('heading', { level: 1, name: 'Настройки' }),
     ).toBeVisible();
     await page.keyboard.press('Alt+ArrowRight');
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Журнал' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Журнал' })).toBeVisible();
 
     await page.keyboard.press('Control+2');
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Детали размера' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Дерево' })).toBeVisible();
 
-    await app.withAnalysis('top_files');
+    await app.withAnalysis('analysis');
     await page.keyboard.press('Control+F');
     await expect(page.getByRole('searchbox', { name: 'Текст' })).toBeFocused();
 

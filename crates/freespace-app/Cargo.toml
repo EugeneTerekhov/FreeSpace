@@ -19,13 +19,7 @@ toml = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-criterion = { workspace = true }
 tempfile = { workspace = true }
-
-[[bench]]
-name = "treemap"
-path = "../../benches/treemap.rs"
-harness = false
 
 [lints]
 workspace = true

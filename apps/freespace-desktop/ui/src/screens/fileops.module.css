@@ -1,0 +1,211 @@
+/*
+ * File operations screen: rename preview and NTFS permissions (T071).
+ *
+ * The two tabs sit side by side in one shell; both keep their own state, so
+ * nothing here may depend on the active tab.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+  min-width: 0;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--fs-space-3);
+  align-items: end;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+
+.toolbar > :first-child {
+  flex: 1 1 320px;
+  min-width: 220px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.actionsEnd {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--fs-space-2) var(--fs-space-3);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font: inherit;
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding: var(--fs-space-2) var(--fs-space-3);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  resize: vertical;
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.note {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-snug);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: var(--fs-space-3);
+  align-items: start;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-text-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  padding: 0 var(--fs-space-2) var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line);
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table td {
+  height: var(--fs-row-height);
+  padding: 0 var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line-faint);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tr[aria-invalid='true'] td {
+  background: var(--fs-danger-soft);
+}
+
+.pathText {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  margin: 0;
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.metricList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--fs-space-3);
+  margin: 0;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metricLabel {
+  margin: 0;
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+}
+
+.metricValue {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--fs-space-2);
+  align-items: center;
+}
+
+.warnings {
+  margin: 0;
+  padding-inline-start: var(--fs-space-4);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+}
+
+.diffValue {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}

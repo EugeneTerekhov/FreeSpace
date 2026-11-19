@@ -2,10 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { ScreenId } from '../../src/api/dto';
 import { SCREEN_IDS, screens } from '../e2e/pages/screens';
-import { setTheme } from '../visual/harness';
+import { setTheme } from '../e2e/theme';
 import { expectNoViolations } from './axe';
 
-/** All 24 screens take part in the final accessibility matrix. */
+/** All 11 screens take part in the final accessibility matrix. */
 const SCREENS = SCREEN_IDS;
 
 type ScreenName = ScreenId;
@@ -13,36 +13,19 @@ type ScreenName = ScreenId;
 const THEMES = ['dark', 'light'] as const;
 
 /** Screens whose data requires a finished scan before they render. */
-const NEEDS_SCAN: ScreenId[] = [
-  'size_details',
-  'long_paths',
-  'rename',
-  'permissions',
-  'metadata',
-  'owners',
-  'export',
-];
+const NEEDS_SCAN: ScreenId[] = ['inspect', 'fileops'];
 
-const ANALYSIS_SCREENS: ScreenId[] = [
-  'top_files',
-  'types',
-  'duplicates',
-  'cleanup',
-  'snapshots',
-];
+/** Screens whose first tab needs a finished scan; the rest render empty states. */
+const ANALYSIS_SCREENS: ScreenId[] = ['tree', 'analysis', 'duplicates', 'cleanup'];
 
 async function openScreen(page: Page, id: ScreenName): Promise<void> {
   await page.goto('/');
   const app = screens(page);
 
-  if (id === 'tree' || id === 'treemap') {
-    await app.withSnapshot(id);
+  if (id === 'tree') {
+    await app.withSnapshot();
   } else if (ANALYSIS_SCREENS.includes(id)) {
-    await app.withAnalysis(
-      id as 'top_files' | 'types' | 'duplicates' | 'cleanup' | 'snapshots',
-    );
-  } else if (id === 'dashboard') {
-    // Nothing else to prepare.
+    await app.withAnalysis(id as 'analysis' | 'duplicates' | 'cleanup');
   } else if (NEEDS_SCAN.includes(id)) {
     await app.runScan();
     await app.open(id);
@@ -72,8 +55,8 @@ test.describe('screen accessibility', () => {
     });
   }
 
-  test('all 24 screens are part of the audit matrix', () => {
-    expect(SCREENS).toHaveLength(24);
-    expect(new Set(SCREENS).size).toBe(24);
+  test('all 11 screens are part of the audit matrix', () => {
+    expect(SCREENS).toHaveLength(11);
+    expect(new Set(SCREENS).size).toBe(11);
   });
 });

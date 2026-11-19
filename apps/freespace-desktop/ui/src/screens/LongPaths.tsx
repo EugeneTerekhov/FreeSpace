@@ -11,7 +11,6 @@ import type {
 import { fetchLongPathsPage, validateLongPath } from '../api/filesystem';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Badge } from '../components/Choice';
 import { DataTable, type Column } from '../components/DataTable';
 import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
@@ -26,10 +25,18 @@ import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
-import local from './filesystem.module.css';
+import { Panel } from './ScreenFrame';
+import local from './inspect.module.css';
 
-/** Objects beyond the 260-character limit with rename, move, copy and delete. */
+/**
+ * Objects beyond the 260-character limit with validation, rename, move, copy
+ * and delete.
+ *
+ * The validated path is shown twice: the verbatim form (`\\?\C:\…`) is what the
+ * operations layer receives and what the user must be able to inspect, and the
+ * display form is what Windows shows. Neither is ever truncated or rewritten.
+ * Every change goes through the shared preview and confirmation dialog.
+ */
 export function LongPaths() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -142,7 +149,7 @@ export function LongPaths() {
       header: t('long_paths.path'),
       width: 'minmax(320px, 2fr)',
       render: (row) => (
-        <span className={local.pathText} title={row.path}>
+        <span className={local.pathCell} title={row.path}>
           {row.path}
         </span>
       ),
@@ -172,12 +179,11 @@ export function LongPaths() {
     return (
       <EmptyState
         title={t('analysis.scan_required')}
-        description={t('scan.required')}
         actions={
           <Button
             variant="primary"
             onClick={() => {
-              useShellStore.getState().setScreen('scan');
+              useShellStore.getState().setScreen('overview');
             }}
           >
             {t('scan.start')}
@@ -188,10 +194,9 @@ export function LongPaths() {
   }
 
   return (
-    <div className={styles.stack}>
-      <Card title={t('nav.long_paths')}>
-        <p className={local.note}>{t('long_paths.intro')}</p>
-        <div className={styles.toolbar}>
+    <div className={local.stack}>
+      <Panel title={t('nav.long_paths')} hint={t('inspect.long_paths.hint')}>
+        <div className={local.toolbar}>
           <Field id="long-paths-path" label={t('long_paths.path')}>
             <input
               id="long-paths-path"
@@ -213,21 +218,35 @@ export function LongPaths() {
           <Button variant="secondary" loading={validating} onClick={() => void checkPath()}>
             {t('details.inspect')}
           </Button>
-          {path !== '' ? <p className={local.mono}>{path}</p> : null}
         </div>
 
         {validation !== null ? (
-          <Banner tone={validation.valid ? 'info' : 'error'}>
-            {validation.valid
-              ? t('status.ready')
-              : t(validation.reason_key ?? 'error.validation')}
-            {validation.display !== null || validation.normalized !== null
-              ? ` · ${validation.display ?? validation.normalized ?? ''}`
-              : ''}
-          </Banner>
+          <>
+            <Banner tone={validation.valid ? 'info' : 'error'}>
+              {validation.valid
+                ? t('status.ready')
+                : t(validation.reason_key ?? 'error.validation')}
+            </Banner>
+            {validation.normalized !== null || validation.display !== null ? (
+              <dl className={local.definitionList}>
+                {validation.normalized !== null ? (
+                  <div>
+                    <dt>{t('inspect.long_paths.verbatim')}</dt>
+                    <dd className={local.mono}>{validation.normalized}</dd>
+                  </div>
+                ) : null}
+                {validation.display !== null ? (
+                  <div>
+                    <dt>{t('inspect.long_paths.display')}</dt>
+                    <dd className={local.mono}>{validation.display}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
+          </>
         ) : null}
 
-        <div className={local.form}>
+        <div className={local.toolbar}>
           <Field id="long-paths-name" label={t('long_paths.new_name')}>
             <input
               id="long-paths-name"
@@ -238,14 +257,12 @@ export function LongPaths() {
               }}
             />
           </Field>
-          <div className={local.actions}>
-            <Button variant="secondary" onClick={rename}>
-              {t('long_paths.rename')}
-            </Button>
-          </div>
+          <Button variant="secondary" onClick={rename}>
+            {t('long_paths.rename')}
+          </Button>
         </div>
 
-        <div className={local.form}>
+        <div className={local.toolbar}>
           <Field id="long-paths-destination" label={t('long_paths.destination')}>
             <input
               id="long-paths-destination"
@@ -257,31 +274,29 @@ export function LongPaths() {
               }}
             />
           </Field>
-          <div className={local.actions}>
+          <div className={`${local.actions} ${local.grow}`}>
             <Button variant="secondary" onClick={() => move('move')}>
               {t('long_paths.move')}
             </Button>
             <Button variant="secondary" onClick={() => move('move')}>
               {t('long_paths.copy')}
             </Button>
-            <span className={styles.spacer} />
+            <span className={local.spacer} />
             <Button variant="danger" onClick={() => openPreview('delete')}>
               {t('long_paths.delete')}
             </Button>
           </div>
         </div>
 
-        {formError !== null ? (
-          <Banner tone="error">{t(formError)}</Banner>
-        ) : null}
+        {formError !== null ? <Banner tone="error">{t(formError)}</Banner> : null}
 
         {selected !== null ? (
-          <div className={local.statusRow}>
+          <div className={local.metaRow}>
             <Badge tone="info">{t(`kind.${selected.kind}`)}</Badge>
-            <span className={local.note}>{t('tree.selected')}</span>
+            <span>{t('tree.selected')}</span>
           </div>
         ) : null}
-      </Card>
+      </Panel>
 
       <FilterBar screen="long_paths" filter={filter} onChange={setFilter} />
 
@@ -302,7 +317,7 @@ export function LongPaths() {
         <Banner tone="error">{t(operation.error.message_key)}</Banner>
       ) : null}
 
-      <Card title={t('nav.long_paths')}>
+      <Panel title={t('inspect.long_paths.list')}>
         <DataTable
           label={t('nav.long_paths')}
           rows={rows}
@@ -321,13 +336,13 @@ export function LongPaths() {
           }
         />
         {page !== null && page.next_cursor !== null ? (
-          <div className={styles.analyzeRow}>
+          <div className={local.actions}>
             <Button variant="secondary" loading={loading} onClick={() => void load(page.next_cursor)}>
               {t('tree.load_more')}
             </Button>
           </div>
         ) : null}
-      </Card>
+      </Panel>
 
       {operation.progress !== null ? (
         <OperationProgressView

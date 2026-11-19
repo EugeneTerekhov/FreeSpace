@@ -5,26 +5,26 @@ import type { FilterSet, NodeRow, SortKey, SortSpec, TreePage, UiError } from '.
 import { normalizeError } from '../app/errors';
 import { openInTree } from '../app/navigation';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { DataTable, type Column, type SortState } from '../components/DataTable';
-import { EmptyState, ErrorState } from '../components/Feedback';
+import { Banner, EmptyState, ErrorState, Progress } from '../components/Feedback';
 import { FilterBar } from '../components/FilterBar';
-import { emptyFilter } from '../lib/filters';
 import { Select } from '../components/Fields';
+import { emptyFilter } from '../lib/filters';
 import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
 import { t } from '../i18n';
-import { formatBytes, formatDate } from '../i18n/format';
+import { formatBytes, formatDate, formatNumber } from '../i18n/format';
 import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import styles from './analysis-screen.module.css';
 
 const LIMITS = [100, 1000, 5000];
 const DEFAULT_FILTER = emptyFilter();
 
-/** Largest files with shared filters and the common operation preview. */
+/** Largest files tab: N, filters, a stat row and the shared delete preview. */
 export function TopFiles() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -69,6 +69,7 @@ export function TopFiles() {
     },
     [applyFilter, generation, limit, sort],
   );
+
   useEffect(() => {
     if (generation !== null) void load();
   }, [generation, limit, applyFilter, sort, load]);
@@ -84,6 +85,15 @@ export function TopFiles() {
     () => rows.filter((row) => selected.has(row.id)),
     [rows, selected],
   );
+  const totalSize = useMemo(
+    () => rows.reduce((sum, row) => sum + row.logical_size, 0),
+    [rows],
+  );
+  const inaccessible = useMemo(
+    () => rows.filter((row) => !row.accessible).length,
+    [rows],
+  );
+  const totalEstimate = page?.total_estimate ?? rows.length;
 
   const columns: Column<NodeRow>[] = [
     {
@@ -109,11 +119,11 @@ export function TopFiles() {
     {
       id: 'name',
       header: t('top.path'),
-      width: 'minmax(240px, 2fr)',
+      width: 'minmax(220px, 1.6fr)',
       sortable: true,
       render: (row) => (
-        <span className={styles.pathCell} title={row.path}>
-          <span>{row.name}</span>
+        <span className={`${styles.pathCell} ${styles.fileName}`} title={row.path}>
+          {row.name}
         </span>
       ),
     },
@@ -121,7 +131,11 @@ export function TopFiles() {
       id: 'path',
       header: t('details.path'),
       width: 'minmax(200px, 1.4fr)',
-      render: (row) => <span className={styles.pathCell}>{row.path}</span>,
+      render: (row) => (
+        <span className={styles.pathCell} title={row.path}>
+          {row.path}
+        </span>
+      ),
     },
     {
       id: 'size',
@@ -159,12 +173,11 @@ export function TopFiles() {
     return (
       <EmptyState
         title={t('analysis.scan_required')}
-        description={t('scan.required')}
         actions={
           <Button
             variant="primary"
             onClick={() => {
-              useShellStore.getState().setScreen('scan');
+              useShellStore.getState().setScreen('overview');
             }}
           >
             {t('scan.start')}
@@ -176,9 +189,36 @@ export function TopFiles() {
 
   return (
     <div className={styles.stack}>
+      <p className={styles.context} data-testid="analysis-context-top">
+        {t('analysis_ui.context_top', {
+          shown: formatNumber(rows.length, language),
+          total: formatNumber(totalEstimate, language),
+          size: formatBytes(totalSize, units),
+        })}
+      </p>
+
+      <StatRow>
+        <Stat
+          label={t('analysis_ui.stat_files')}
+          value={<span data-testid="analysis-top-shown">{formatNumber(rows.length, language)}</span>}
+        />
+        <Stat
+          label={t('analysis_ui.stat_size')}
+          value={<span data-testid="analysis-top-size">{formatBytes(totalSize, units)}</span>}
+        />
+        <Stat
+          label={t('analysis_ui.stat_total')}
+          value={
+            <span data-testid="analysis-top-total">
+              {formatNumber(totalEstimate, language)}
+            </span>
+          }
+        />
+      </StatRow>
+
       <div className={styles.toolbar}>
-        <label>
-          {t('top.limit')}{' '}
+        <label className={styles.field}>
+          {t('top.limit')}
           <Select
             aria-label={t('top.limit')}
             value={String(limit)}
@@ -220,20 +260,47 @@ export function TopFiles() {
         />
       ) : null}
 
-      <Card title={t('nav.top')}>
-        <DataTable
-          label={t('nav.top')}
-          rows={rows}
-          columns={columns}
-          rowKey={(row) => row.id}
-          sort={sort}
-          onSortChange={setSort}
-          loading={loading}
-          height={520}
-          empty={t('top.empty')}
-        />
+      {inaccessible > 0 ? (
+        <Banner tone="warning">
+          {t('analysis_ui.partial')} · {t('tree.access_denied')}: {inaccessible}
+        </Banner>
+      ) : null}
+
+      <Panel title={t('nav.top')}>
+        {loading && rows.length === 0 ? (
+          <Progress label={t('common.loading')} state="indeterminate" />
+        ) : null}
+
+        {!loading && rows.length === 0 && error === null ? (
+          <EmptyState
+            title={t('top.empty')}
+            actions={
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setFilter(DEFAULT_FILTER);
+                }}
+              >
+                {t('filter.reset')}
+              </Button>
+            }
+          />
+        ) : (
+          <DataTable
+            label={t('nav.top')}
+            rows={rows}
+            columns={columns}
+            rowKey={(row) => row.id}
+            sort={sort}
+            onSortChange={setSort}
+            loading={loading}
+            height={520}
+            empty={t('top.empty')}
+          />
+        )}
+
         {page?.next_cursor !== null && page?.next_cursor !== undefined ? (
-          <div className={styles.analyzeRow}>
+          <div className={styles.loadMore}>
             <Button
               variant="secondary"
               loading={loading}
@@ -245,7 +312,7 @@ export function TopFiles() {
             </Button>
           </div>
         ) : null}
-      </Card>
+      </Panel>
 
       {operation.progress !== null ? (
         <OperationProgressView

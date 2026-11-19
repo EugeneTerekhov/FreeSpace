@@ -1,0 +1,253 @@
+/*
+ * Inspection screen: metadata, archives, unlock and long paths (T070).
+ *
+ * Layout only. Every value comes from a token so both themes and all four DPI
+ * steps keep the same rhythm.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+
+.toolbar > :first-child {
+  flex: 1 1 320px;
+  min-width: 220px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.grow {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--fs-space-2) var(--fs-space-3);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--fs-space-3);
+  align-items: end;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  flex-wrap: wrap;
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-muted);
+}
+
+.metaRow strong {
+  color: var(--fs-text);
+  font-weight: var(--fs-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-snug);
+}
+
+.mono {
+  margin: 0;
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Metadata groups: one raised panel per file, label/value rows inside. */
+
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--fs-space-3);
+  align-items: start;
+}
+
+.fileTitle {
+  display: block;
+  max-width: 56ch;
+  overflow: hidden;
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  font-weight: var(--fs-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badgeRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+}
+
+.tagList {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--fs-space-1) var(--fs-space-3);
+  margin: 0;
+}
+
+.tagRow {
+  display: contents;
+}
+
+.tagKey {
+  margin: 0;
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+}
+
+.tagValue {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Plain data tables (lock list, largest archive entries). */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-text-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  padding: 0 var(--fs-space-2) var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line);
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table td {
+  height: var(--fs-row-height);
+  padding: 0 var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line-faint);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.numeric {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.pathCell {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Long paths: verbatim value and its display form, side by side with labels. */
+
+.definitionList {
+  display: grid;
+  grid-template-columns: minmax(170px, max-content) minmax(0, 1fr);
+  gap: var(--fs-space-2) var(--fs-space-4);
+  margin: 0;
+  padding: var(--fs-space-3);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-surface);
+}
+
+.definitionList dt {
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-xs);
+}
+
+.definitionList dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.warnings {
+  margin: 0;
+  padding-inline-start: var(--fs-space-4);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+}
+
+.archiveName {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .definitionList {
+    grid-template-columns: 1fr;
+  }
+}

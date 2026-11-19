@@ -3,11 +3,11 @@
 //! Application layer shared by the FreeSpace desktop client and its Tauri commands.
 //!
 //! The crate is deliberately thin and free of WinAPI and UI dependencies: it owns
-//! the data transfer objects, validation, pagination, Treemap aggregation and the
-//! persistence of interface settings, while `freespace-core`, `freespace-ops` and
+//! the data transfer objects, validation, pagination and the persistence of
+//! interface settings, while `freespace-core`, `freespace-ops` and
 //! `freespace-platform` remain the owners of domain logic and native calls.
 //!
-//! * [`dto`] — serialisable page, node, tile, operation and journal payloads;
+//! * [`dto`] — serialisable page, node, operation and journal payloads;
 //! * [`error`] — the `E_*` error envelope returned by every command;
 //! * [`paging`] — opaque cursors bound to a generation;
 //! * [`top_types`] — top-file and file-type projections;
@@ -16,7 +16,6 @@
 //! * [`snapshots`] — stored `.fssnap` files and comparison pages;
 //! * [`operations`] — preview tokens, operation progress, journal and undo;
 //! * [`settings`] — the `[ui]` section, its migration and the pre-migration backup;
-//! * [`treemap`] — pure geometry and aggregation for the canvas Treemap;
 //! * [`validation`] — limits applied before any file-system access;
 //! * [`window_state`] — window geometry in `data/ui-state.toml`.
 
@@ -32,7 +31,6 @@ pub mod settings;
 pub mod snapshots;
 pub mod top_types;
 pub mod tree;
-pub mod treemap;
 pub mod validation;
 pub mod volumes;
 pub mod window_state;

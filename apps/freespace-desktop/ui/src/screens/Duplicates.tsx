@@ -1,35 +1,92 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, File, Trash2, TriangleAlert } from 'lucide-react';
 
 import { api } from '../api/runtime';
 import type {
   DuplicateGroupView,
+  DuplicateMemberView,
   DuplicateTask,
   FilterSet,
   UiError,
 } from '../api/dto';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { Badge, Checkbox } from '../components/Choice';
-import { EmptyState, ErrorState, Progress } from '../components/Feedback';
+import { ExportAction } from '../components/ExportAction';
+import { Banner, EmptyState, ErrorState, Progress } from '../components/Feedback';
 import { FilterBar } from '../components/FilterBar';
-import { emptyFilter } from '../lib/filters';
 import { Field, Select } from '../components/Fields';
 import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
+import { emptyFilter } from '../lib/filters';
 import { t } from '../i18n';
 import { formatBytes, formatDate, formatNumber } from '../i18n/format';
 import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
-import styles from './screens.module.css';
-import local from './analysis.module.css';
+import { Panel, Stat, StatRow } from './ScreenFrame';
+import styles from './duplicates.module.css';
 
 const TERMINAL = new Set(['completed', 'partial', 'failed', 'cancelled']);
 const RULES = ['oldest', 'newest', 'shortest', 'original-dir'];
 
-/** Duplicate groups with explicit copy selection and a guarded delete preview. */
+/** Copy kept by a rule, mirrored locally so the preselection follows the select. */
+function keptMember(
+  group: DuplicateGroupView,
+  rule: string,
+): DuplicateMemberView | undefined {
+  const [first, ...rest] = group.members;
+  if (first === undefined) return undefined;
+
+  switch (rule) {
+    case 'newest':
+      return rest.reduce(
+        (best, member) => (member.modified_at > best.modified_at ? member : best),
+        first,
+      );
+    case 'shortest':
+      return rest.reduce(
+        (best, member) => (member.path.length < best.path.length ? member : best),
+        first,
+      );
+    case 'original-dir':
+      return (
+        group.members.find((member) => member.node_id === group.keep_node_id) ?? first
+      );
+    case 'oldest':
+    default:
+      return rest.reduce(
+        (best, member) => (member.modified_at < best.modified_at ? member : best),
+        first,
+      );
+  }
+}
+
+/** Everything except the kept copy is preselected for the preview. */
+function selectionFor(
+  groups: readonly DuplicateGroupView[],
+  rule: string,
+): Record<string, ReadonlySet<number>> {
+  return Object.fromEntries(
+    groups.map((group) => {
+      if (group.stale || !group.deletable) return [group.id, new Set<number>()];
+
+      const kept = keptMember(group, rule);
+
+      return [
+        group.id,
+        new Set(
+          group.members
+            .filter((member) => member.node_id !== kept?.node_id)
+            .map((member) => member.node_id),
+        ),
+      ];
+    }),
+  );
+}
+
+/** Duplicate groups with an explicit keep rule and a guarded delete preview. */
 export function Duplicates() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -46,21 +103,12 @@ export function Duplicates() {
   const [error, setError] = useState<UiError | null>(null);
   const [guardError, setGuardError] = useState<string | null>(null);
   const operation = useOperation();
+  const ruleRef = useRef(rule);
+  ruleRef.current = rule;
 
-  const applySelection = useCallback((nextGroups: DuplicateGroupView[]) => {
+  const applyGroups = useCallback((nextGroups: DuplicateGroupView[]) => {
     setGroups(nextGroups);
-    setSelection(
-      Object.fromEntries(
-        nextGroups.map((group) => [
-          group.id,
-          new Set(
-            group.members
-              .filter((member) => member.selected_for_deletion)
-              .map((member) => member.node_id),
-          ),
-        ]),
-      ),
-    );
+    setSelection(selectionFor(nextGroups, ruleRef.current));
   }, []);
 
   const start = async () => {
@@ -68,6 +116,7 @@ export function Duplicates() {
     setLoading(true);
     setError(null);
     setGuardError(null);
+    setTask(null);
     setGroups([]);
     setSelection({});
     try {
@@ -98,7 +147,7 @@ export function Duplicates() {
         if (TERMINAL.has(status.state)) {
           const page = await api.duplicatesGroupsPage(taskId, { pageSize: 500 });
           if (!active) return;
-          applySelection(page.groups);
+          applyGroups(page.groups);
           setLoading(false);
         } else {
           timer = setTimeout(() => void tick(), 400);
@@ -117,7 +166,7 @@ export function Duplicates() {
       active = false;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [applySelection, taskId]);
+  }, [applyGroups, taskId]);
 
   const visibleGroups = useMemo(() => {
     const needle = filter.text.trim().toLowerCase();
@@ -128,41 +177,60 @@ export function Duplicates() {
     );
   }, [filter.text, groups]);
 
-  const targetPaths = useMemo(
+  const selectedMembers = useMemo(
     () =>
       visibleGroups.flatMap((group) =>
-        group.members
-          .filter((member) => selection[group.id]?.has(member.node_id) === true)
-          .map((member) => member.path),
+        group.members.filter(
+          (member) => selection[group.id]?.has(member.node_id) === true,
+        ),
       ),
     [selection, visibleGroups],
   );
+  const targetPaths = useMemo(
+    () => selectedMembers.map((member) => member.path),
+    [selectedMembers],
+  );
+  const selectedSize = useMemo(
+    () => selectedMembers.reduce((sum, member) => sum + member.size, 0),
+    [selectedMembers],
+  );
+  const copies = useMemo(
+    () => visibleGroups.reduce((sum, group) => sum + group.members.length, 0),
+    [visibleGroups],
+  );
+  const reclaimable = useMemo(
+    () => visibleGroups.reduce((sum, group) => sum + group.reclaimable_bytes, 0),
+    [visibleGroups],
+  );
+  const terminal = task !== null && TERMINAL.has(task.state);
+  const searching = loading || (task !== null && !terminal);
+
+  const changeRule = (nextRule: string) => {
+    setRule(nextRule);
+    setGuardError(null);
+    setSelection(selectionFor(groups, nextRule));
+  };
 
   const toggle = (group: DuplicateGroupView, nodeId: number, checked: boolean) => {
     setGuardError(null);
-    setSelection((current) => {
-      const members = new Set(current[group.id] ?? []);
-      if (checked) members.add(nodeId);
-      else members.delete(nodeId);
-      if (members.size >= group.members.length) {
-        setGuardError(t('duplicates.keep_one'));
-        return current;
-      }
-      if (members.size === 0) {
-        setGuardError(t('duplicates.keep_one'));
-        return current;
-      }
-      return { ...current, [group.id]: members };
-    });
+    const members = new Set(selection[group.id] ?? []);
+    if (checked) members.add(nodeId);
+    else members.delete(nodeId);
+    // A group always contributes at least one copy to the preview: deleting all
+    // copies is never allowed, and the previous flow also kept a group selected.
+    if (members.size >= group.members.length || members.size === 0) {
+      setGuardError(t('duplicates.keep_one'));
+      return;
+    }
+    setSelection((current) => ({ ...current, [group.id]: members }));
   };
 
   if (generation === null) {
     return (
       <EmptyState
         title={t('analysis.scan_required')}
-        description={t('scan.required')}
         actions={
-          <Button variant="primary" onClick={() => useShellStore.getState().setScreen('scan')}>
+          <Button variant="primary" onClick={() => useShellStore.getState().setScreen('overview')}>
             {t('scan.start')}
           </Button>
         }
@@ -172,13 +240,49 @@ export function Duplicates() {
 
   return (
     <div className={styles.stack}>
-      <Card title={t('nav.duplicates')}>
-        <p>{t('duplicates.intro')}</p>
+      <p className={styles.context} data-testid="duplicates-context">
+        {t('duplicates_ui.context', {
+          groups: formatNumber(task?.groups_count ?? visibleGroups.length, language),
+          copies: formatNumber(copies, language),
+          size: formatBytes(reclaimable, units),
+        })}
+      </p>
+
+      <StatRow>
+        <Stat
+          label={t('duplicates_ui.stat_groups')}
+          value={
+            <span data-testid="duplicates-groups">
+              {formatNumber(task?.groups_count ?? visibleGroups.length, language)}
+            </span>
+          }
+        />
+        <Stat
+          label={t('duplicates_ui.stat_copies')}
+          value={<span data-testid="duplicates-copies">{formatNumber(copies, language)}</span>}
+        />
+        <Stat
+          label={t('duplicates_ui.stat_reclaimable')}
+          value={
+            <span data-testid="duplicates-reclaimable">{formatBytes(reclaimable, units)}</span>
+          }
+        />
+        <Stat
+          label={t('duplicates_ui.stat_selected')}
+          value={
+            <span data-testid="duplicates-selected">
+              {formatNumber(selectedMembers.length, language)} · {formatBytes(selectedSize, units)}
+            </span>
+          }
+        />
+      </StatRow>
+
+      <Panel title={t('nav.duplicates')}>
         <div className={styles.toolbar}>
           <Field id="duplicates-min-size" label={t('duplicates.min_size')}>
             <input
               id="duplicates-min-size"
-              className={local.input}
+              className={styles.input}
               type="number"
               min={1}
               value={minSize}
@@ -201,15 +305,17 @@ export function Duplicates() {
               id="duplicates-rule"
               value={rule}
               options={RULES.map((value) => ({ value, label: t(`duplicates.rule.${value}`) }))}
-              onChange={(event) => setRule(event.target.value)}
+              onChange={(event) => changeRule(event.target.value)}
             />
           </Field>
           <span className={styles.spacer} />
-          <Button variant="primary" loading={loading} onClick={() => void start()}>
+          <ExportAction sections={['duplicates']} />
+          <Button variant="primary" loading={searching} onClick={() => void start()}>
             {t('duplicates.search')}
           </Button>
         </div>
-      </Card>
+        <p className={styles.ruleHint}>{t('duplicates_ui.rule_hint')}</p>
+      </Panel>
 
       <FilterBar screen="duplicates" filter={filter} onChange={setFilter} />
 
@@ -218,105 +324,194 @@ export function Duplicates() {
           title={t(error.message_key)}
           code={error.code}
           details={error.details ?? undefined}
-          actions={<Button variant="primary" onClick={() => void start()}>{t('error.retry')}</Button>}
+          actions={
+            <Button variant="primary" onClick={() => void start()}>
+              {t('error.retry')}
+            </Button>
+          }
         />
       ) : null}
 
-      {loading || (task !== null && !TERMINAL.has(task.state)) ? (
-        <Card title={t('duplicates.searching')}>
-          <Progress label={t('duplicates.searching')} state="indeterminate" />
+      {searching ? (
+        <Panel title={t('duplicates.searching')}>
+          <Progress
+            label={t('duplicates.searching')}
+            state="indeterminate"
+          />
           {task !== null ? (
-            <p className={local.numeric}>
+            <p className={styles.context}>
               {t('duplicates.hashed', { count: formatNumber(task.hashed, language) })}
             </p>
           ) : null}
-        </Card>
+        </Panel>
       ) : null}
 
-      {task !== null && TERMINAL.has(task.state) ? (
-        <div className={styles.metaRow}>
-          <span>{t('duplicates.groups', { count: task.groups_count })}</span>
-          <span>{t('duplicates.reclaimable', { size: formatBytes(task.reclaimable_bytes, units) })}</span>
-          <span>{t('duplicates.hashed', { count: formatNumber(task.hashed, language) })}</span>
-          <Button
-            variant="danger"
-            disabled={targetPaths.length === 0}
-            onClick={() => {
-              if (taskId === null) return;
-              void operation.prepare({
-                kind: 'delete',
-                targets: targetPaths,
-                delete_mode: 'quarantine',
-                reason: 'duplicate cleanup',
-                task_id: taskId,
-              });
-            }}
+      {terminal && task !== null ? (
+        task.state === 'partial' ? (
+          <Banner tone="warning">{t('duplicates_ui.partial')}</Banner>
+        ) : task.state === 'failed' ? (
+          <Banner tone="error">
+            {t(task.error?.message_key ?? 'common.error')}
+            {task.error === null || task.error === undefined ? '' : ` · ${task.error.code}`}
+          </Banner>
+        ) : task.state === 'completed' ? (
+          <Banner tone="info">
+            {t('duplicates.hashed', { count: formatNumber(task.hashed, language) })}
+          </Banner>
+        ) : null
+      ) : null}
+
+      {guardError !== null ? (
+        <p className={styles.guard} role="alert">
+          {guardError}
+        </p>
+      ) : null}
+
+      {task !== null &&
+      (task.state === 'completed' || task.state === 'partial') &&
+      visibleGroups.length === 0 ? (
+        <EmptyState
+          title={filter.text.trim() === '' ? t('duplicates.empty') : t('tree.no_matches')}
+        />
+      ) : null}
+
+      {visibleGroups.map((group, index) => {
+        const verified = group.members.every((member) => member.verified);
+
+        return (
+          <Panel
+            key={group.id}
+            title={
+              <span className={styles.mono}>
+                <span data-testid={`duplicates-group-${index + 1}-size`}>
+                  {formatBytes(group.size, units)}
+                </span>
+                {' · '}
+                {group.hash.slice(0, 12)}…
+              </span>
+            }
+            actions={
+              group.stale ? (
+                <Badge tone="warning">
+                  <TriangleAlert size={11} strokeWidth={2} aria-hidden="true" />
+                  {t('duplicates.stale')}
+                </Badge>
+              ) : verified ? (
+                <Badge tone="success">
+                  <Check size={11} strokeWidth={2.4} aria-hidden="true" />
+                  {t('duplicates.identical')}
+                </Badge>
+              ) : (
+                <Badge tone="info">
+                  {t('duplicates.reclaimable', {
+                    size: formatBytes(group.reclaimable_bytes, units),
+                  })}
+                </Badge>
+              )
+            }
           >
-            {t('analysis.delete_selected', { count: targetPaths.length })}
-          </Button>
-        </div>
-      ) : null}
-
-      {guardError !== null ? <p role="alert">{guardError}</p> : null}
-
-      {task !== null && TERMINAL.has(task.state) && visibleGroups.length === 0 ? (
-        <EmptyState title={t('duplicates.empty')} />
-      ) : null}
-
-      {visibleGroups.map((group) => (
-        <Card
-          key={group.id}
-          title={
-            <span className={local.numeric}>
-              {formatBytes(group.size, units)} · {group.hash.slice(0, 12)}…
-            </span>
-          }
-          actions={
-            group.stale ? (
-              <Badge tone="warning">{t('duplicates.stale')}</Badge>
-            ) : (
-              <Badge tone="info">
-                {t('duplicates.reclaimable', { size: formatBytes(group.reclaimable_bytes, units) })}
-              </Badge>
-            )
-          }
-        >
-          <table className={local.table} aria-label={t('nav.duplicates')}>
-            <thead>
-              <tr>
-                <th scope="col">{t('duplicates.delete')}</th>
-                <th scope="col">{t('top.path')}</th>
-                <th scope="col" className={local.numeric}>{t('top.modified')}</th>
-                <th scope="col">{t('duplicates.kept_hint')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {group.members.map((member) => (
-                <tr key={member.node_id}>
-                  <td>
-                    <Checkbox
-                      id={`duplicate-${group.id}-${member.node_id}`}
-                      checked={selection[group.id]?.has(member.node_id) === true}
-                      disabled={group.stale || !group.deletable}
-                      label={<span className={local.visuallyHidden}>{t('duplicates.delete')}</span>}
-                      onChange={(event) => {
-                        toggle(group, member.node_id, event.target.checked);
-                      }}
-                    />
-                  </td>
-                  <td className={styles.pathCell} title={member.path}>
-                    {member.path}
-                  </td>
-                  <td className={local.numeric}>
-                    {formatDate(member.modified_at, language)}
-                  </td>
-                  <td>{member.reason}</td>
+            <table className={styles.groupTable} aria-label={t('nav.duplicates')}>
+              <thead>
+                <tr>
+                  <th scope="col" className={styles.checkCell}>
+                    <span className={styles.visuallyHidden}>{t('duplicates.delete')}</span>
+                  </th>
+                  <th scope="col">{t('top.path')}</th>
+                  <th scope="col">{t('top.modified')}</th>
+                  <th scope="col" className={styles.sizeCell}>
+                    {t('top.size')}
+                  </th>
+                  <th scope="col">{t('unlock.state')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      ))}
+              </thead>
+              <tbody>
+                {group.members.map((member) => {
+                  const dropped = selection[group.id]?.has(member.node_id) === true;
+                  const disabled = group.stale || !group.deletable;
+
+                  return (
+                    <tr
+                      key={member.node_id}
+                      className={dropped ? styles.dropRow : styles.keepRow}
+                    >
+                      <td className={styles.checkCell}>
+                        <Checkbox
+                          id={`duplicate-${group.id}-${member.node_id}`}
+                          checked={dropped}
+                          disabled={disabled}
+                          aria-label={`${t('duplicates.delete')}: ${member.name}`}
+                          label={<span className={styles.visuallyHidden}>{t('duplicates.delete')}</span>}
+                          onChange={(event) => {
+                            toggle(group, member.node_id, event.target.checked);
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <span className={styles.memberPath} title={member.path}>
+                          <span
+                            className={dropped ? styles.fileDrop : styles.fileKeep}
+                            aria-hidden="true"
+                          >
+                            {dropped ? (
+                              <Trash2 size={13} strokeWidth={1.7} />
+                            ) : (
+                              <File size={13} strokeWidth={1.7} />
+                            )}
+                          </span>
+                          <span className={styles.pathCell}>{member.path}</span>
+                        </span>
+                      </td>
+                      <td>{formatDate(member.modified_at, language)}</td>
+                      <td className={styles.sizeCell}>{formatBytes(member.size, units)}</td>
+                      <td className={styles.stateCell}>
+                        {dropped ? (
+                          <Badge tone="danger">{t('duplicates.delete')}</Badge>
+                        ) : (
+                          <Badge tone="success">{t('duplicates.keep')}</Badge>
+                        )}
+                        {member.reason === '' ? null : (
+                          <span className={styles.reason}>{member.reason}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Panel>
+        );
+      })}
+
+      {groups.length > 0 ? (
+        <Panel>
+          <div className={styles.summary}>
+            <span>
+              {t('duplicates_ui.selected', {
+                count: formatNumber(selectedMembers.length, language),
+                total: formatNumber(copies, language),
+                size: formatBytes(selectedSize, units),
+              })}
+            </span>
+            <span className={styles.summarySpacer} />
+            <Button
+              variant="danger"
+              disabled={targetPaths.length === 0}
+              onClick={() => {
+                if (taskId === null) return;
+                void operation.prepare({
+                  kind: 'delete',
+                  targets: targetPaths,
+                  delete_mode: 'quarantine',
+                  reason: 'duplicate cleanup',
+                  task_id: taskId,
+                });
+              }}
+            >
+              {t('analysis.delete_selected', { count: targetPaths.length })}
+            </Button>
+          </div>
+        </Panel>
+      ) : null}
 
       {operation.progress !== null ? (
         <OperationProgressView
