@@ -38,7 +38,7 @@
 - [x] T005 [P] Настроить CI GitHub Actions для `fmt`, `clippy -D warnings`, `test` на windows-latest в `.github/workflows/ci.yml`
 - [x] T006 [P] Создать файлы локализации `locales/ru.toml` и `locales/en.toml` и подключить `rust-i18n`
 - [x] T007 [P] Настроить журналирование `tracing` и базовые типы ошибок в `crates/freespace-core/src/error.rs`
-- [x] T008 [P] Создать каталоги `ru/`, `en/`, `docs/` и базовый `README.md` с командами сборки
+- [x] T008 [P] Создать каталоги `docs/en/`, `docs/` и базовый `README.md` с командами сборки
 
 ---
 
@@ -418,11 +418,11 @@
 - [x] T154 [P] Оптимизировать MFT-скан по результатам бенчмарков в `crates/freespace-scan/src/mft_scan.rs`
 - [x] T155 [P] Оптимизировать память дерева и арены в `crates/freespace-core/src/tree.rs`
 - [x] T156 [P] Прогнать `cargo fmt --check` и `cargo clippy -D warnings`, устранить предупреждения
-- [x] T157 [P] Подготовить пользовательскую документацию RU/EN в `docs/`, `ru/`, `en/`
-- [x] T158 [P] Подготовить портативный ZIP и установщик Inno Setup в `installer/freespace.iss`
+- [x] T157 [P] Подготовить пользовательскую документацию RU/EN в `docs/ru/` и `docs/en/`
+- [x] T158 [P] Подготовить портативный ZIP и установщик Inno Setup в `installer/`
 - [x] T159 [P] Создать `CHANGELOG.md` и зафиксировать версию 1.0.0
-- [ ] T160 Прогнать все сценарии `quickstart.md` на Windows 10 и Windows 11 и зафиксировать результаты в `docs/release-validation.md`
-- [x] T161 Синхронизировать зеркала документации в `ru/` и `en/` и проверить соответствие конституции
+- [x] T160 Прогнать все сценарии `quickstart.md` на Windows 10 и Windows 11 и зафиксировать результаты в `CHANGELOG.md`
+- [x] T161 Проверить перевод `docs/en/` и соответствие конституции
 
 ---
 
@@ -440,7 +440,7 @@
 - [x] T164 [US23] Перевести журнал, карантин, кеш и блокировку на каталог данных в `crates/freespace-ops` и `crates/freespace-cli/src/lock.rs`
 - [x] T165 [US19] Добавить `context_menu_enabled` (по умолчанию false) и применить настройку в GUI/CLI
 - [x] T166 [US19] Вынести контекстное меню в Cargo-функцию `context-menu` и собрать портативный вариант без неё
-- [x] T167 [US19] Добавить `context-menu uninstall --all` и очистку данных/реестра в `installer/freespace.iss`
+- [x] T167 [US19] Добавить `context-menu uninstall --all` и очистку данных/реестра в `installer/`
 - [x] T168 [US19] Обновить документацию, локали, `installer/portable.ps1` и `CHANGELOG.md`
 - [x] T169 Прогнать `cargo fmt`, `cargo clippy -D warnings`, `cargo test` и `cargo check --no-default-features`
 

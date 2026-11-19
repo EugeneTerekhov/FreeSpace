@@ -44,9 +44,10 @@ FreeSpace — нативная утилита для Windows (Rust + Tauri 2/Rea
 
 ### Двуязычность
 
-- Канонические артефакты — на русском в `specs/<feature>/`.
-- Любое изменение зеркалируется: `ru/` (копия) и `en/` (перевод).
-- В `en/` не должно оставаться кириллицы; ID (FR-, SC-, T-, CHK-) менять нельзя.
+- Канонические артефакты — на русском в `specs/<feature>/`; общие русские документы — в `docs/ru/`.
+- Любое изменение зеркалируется в `docs/en/` (перевод). Дубль `ru/` не создаётся и не
+  поддерживается: канонический русский уже лежит в `specs/<feature>/` и `docs/ru/`.
+- В `docs/en/` не должно оставаться кириллицы; ID (FR-, SC-, T-, CHK-) менять нельзя.
 
 ### Технические правила
 
@@ -80,7 +81,7 @@ FreeSpace — нативная утилита для Windows (Rust + Tauri 2/Rea
 - [ ] Код реализован в указанных файлах.
 - [ ] Тесты критических модулей написаны и проходят; для UI — ручная проверка по quickstart.
 - [ ] `cargo fmt`, `cargo clippy -D warnings`, `cargo test` — зелёные.
-- [ ] Документация обновлена на русском и английском (канон + `ru/` + `en/`).
+- [ ] Документация обновлена на русском и английском (канон + `docs/en/`).
 - [ ] Задача отмечена `[x]` в `tasks.md`.
 - [ ] Коммит по Conventional Commits.
 
@@ -98,6 +99,13 @@ cargo fmt --all -- --check
 - Ветки: `<###>-<feature-name>` (например, `001-freespace-disk-analyzer`).
 - Коммиты: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`.
 - Один коммит — одна логическая задача или группа.
+
+### ui-sdk
+
+- Перед использованием ui-sdk следуйте skill `ui-sdk`, если он установлен, и прочитайте
+  `node_modules/@ui-sdk/react/docs/llms.txt`.
+- Чтобы собрать новый компонент, дополнительно ищите по заголовкам в
+  `node_modules/@ui-sdk/react/docs/core.md` и прочитайте `rendering.md` рядом с ним.
 
 ---
 
@@ -135,9 +143,11 @@ constitution without explicit user approval and a version bump.
 
 ### Bilingual policy
 
-- Canonical artifacts are written in Russian in `specs/<feature>/`.
-- Every change is mirrored to `ru/` (copy) and `en/` (translation).
-- `en/` must contain no Cyrillic; IDs (FR-, SC-, T-, CHK-) must not change.
+- Canonical artifacts are written in Russian in `specs/<feature>/`; general Russian documents
+  live in `docs/ru/`.
+- Every change is mirrored to `docs/en/` (translation). No `ru/` duplicate is created or
+  maintained: the canonical Russian already lives in `specs/<feature>/` and `docs/ru/`.
+- `docs/en/` must contain no Cyrillic; IDs (FR-, SC-, T-, CHK-) must not change.
 
 ### Technical rules
 
@@ -171,7 +181,7 @@ constitution without explicit user approval and a version bump.
 - [ ] Code implemented in the specified files.
 - [ ] Tests for critical modules written and passing; UI verified manually per quickstart.
 - [ ] `cargo fmt`, `cargo clippy -D warnings`, `cargo test` are green.
-- [ ] Documentation updated in Russian and English (canonical + `ru/` + `en/`).
+- [ ] Documentation updated in Russian and English (canonical + `docs/en/`).
 - [ ] Task marked `[x]` in `tasks.md`.
 - [ ] Commit follows Conventional Commits.
 
@@ -189,3 +199,10 @@ cargo fmt --all -- --check
 - Branches: `<###>-<feature-name>` (for example, `001-freespace-disk-analyzer`).
 - Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`.
 - One commit per logical task or group.
+
+### ui-sdk
+
+- Before using ui-sdk, follow the `ui-sdk` skill if it is installed, and read
+  `node_modules/@ui-sdk/react/docs/llms.txt`.
+- To build a new component, also search `node_modules/@ui-sdk/react/docs/core.md` by heading, and
+  read `rendering.md` next to it.

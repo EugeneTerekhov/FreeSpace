@@ -16,8 +16,8 @@ TypeScript. Rust — единственный источник истины; UI 
 
 | Поле | Тип | Обязательность | Правила |
 |------|-----|----------------|---------|
-| `id` | enum (`dashboard`, `scan`, `tree`, `treemap`, `top_files`, `types`, `duplicates`, `cleanup`, `snapshots`, `journal`, `size_details`, `long_paths`, `rename`, `permissions`, `metadata`, `owners`, `archives`, `export`, `unlock`, `shred`, `monitor`, `elevation`, `settings`, `about`) | обязательно | Ровно 24 значения; неизвестный id — ошибка навигации |
-| `batch` | enum (`core`, `analysis`, `filesystem`, `inspection`, `settings`) | обязательно | Определяет порядок поставки |
+| `id` | enum (`overview`, `tree`, `analysis`, `duplicates`, `cleanup`, `journal`, `shred`, `monitor`, `inspect`, `fileops`, `settings`) | обязательно | Ровно 11 значений; неизвестный id — ошибка навигации |
+| `group` | enum (`overview`, `analysis`, `cleanup`, `operations`, `tools`, `system`) | обязательно | Группа сайдбара, определяет порядок в навигации |
 | `title_key` | `MessageKey` | обязательно | Ключ `nav.*` |
 | `requires_volume` | bool | обязательно | Если true и том не выбран — пустое состояние с выбором тома |
 | `requires_scan` | bool | обязательно | Если true и нет данных — предложить сканирование |
@@ -129,31 +129,18 @@ cancelled`; запрещено `completed → running`.
 Правило: UI не пересчитывает `logical_size`/`on_disk_size` и не суммирует строки для итогов;
 итоги приходят из Rust.
 
-### TreemapRequest / TreemapTile
+### NodeProgress
 
-| Поле `TreemapRequest` | Тип | Правила |
-|-----------------------|-----|---------|
-| `node_id` | `NodeId?` | null — корень тома |
-| `width` / `height` | u32 | 1..16 384 |
-| `metric` | enum | Как в `TreePage` |
-| `max_depth` | u8 | 1..12 |
-| `min_tile_px` | u16 | 2..64 |
-| `max_tiles` | u16 | 100..10 000 |
+Встроенный прогресс-бар узла дерева.
 
-| Поле `TreemapTile` | Тип | Правила |
-|---------------------|-----|---------|
-| `node_id` | `NodeId?` | null для агрегата «прочее» |
-| `rect` | `{x,y,w,h}` | В координатах запроса, `w,h > 0` |
-| `depth` | u8 | 0..max_depth |
-| `size` | u64 | ≥ 0 |
-| `fraction` | f32 | 0..1 от родителя |
-| `color_key` | строка | Категория типа/расширения |
-| `label` | строка | Может быть пустой для мелких плиток |
-| `is_aggregate` | bool | true — «прочее» |
-| `child_count` | u32 | Для погружения |
+| Поле | Тип | Правила |
+|------|-----|---------|
+| `node_id` | `NodeId` | Обязательно |
+| `share_of_parent` | f32 | 0..1, доля размера узла от родителя |
+| `share_of_volume` | f32 | 0..1, доля размера узла от всего тома |
 
-Правила: сумма `size` плиток одного уровня не превышает размер родителя; плитки не
-пересекаются; `max_tiles` соблюдается; пустой каталог возвращает пустой массив.
+Правила: доли вычисляются Rust и входят в `NodeRow`; UI использует их только для
+полупрозрачной заливки строки дерева и не пересчитывает суммы.
 
 ### FilterSet
 
@@ -315,7 +302,8 @@ cancelled`; запрещено `completed → running`.
 | `usage` | строка | Назначение |
 
 `Theme` = `resolved` (`dark`/`light`) + `preference` (`system`/`dark`/`light`) + набор токенов
-и палитра Treemap. Правило: продуктовые компоненты используют только `var(--fs-*)`.
+и палитра графиков и прогресс-баров дерева. Правило: продуктовые компоненты используют только
+`var(--fs-*)`.
 
 ### ScreenshotBaseline
 
@@ -354,7 +342,7 @@ ScanTask 1 ─── 1 TaskProgress
 ScanTask 1 ─── * TreePage (generation)
 
 TreePage 1 ─── * NodeRow
-TreePage 1 ─── 0..1 TreemapRequest → * TreemapTile
+NodeRow 1 ─── 0..1 NodeProgress
 
 OperationPreview 1 ─── * OperationTarget
 OperationPreview 1 ─── 1 OperationProgress (после подтверждения)
@@ -371,7 +359,7 @@ WindowState 1 ─── 1 UiSettings (отдельный файл рядом)
 1. **Один источник истины.** Размеры, суммы, результаты операций и журнал приходят из Rust;
    TypeScript не пересчитывает их и не «дополняет» отсутствующие значения.
 2. **Поколения.** Любая страница привязана к `generation`; после нового сканирования старые
-   страницы и тайлы инвалидируются, а `stale_cursor` заставляет UI начать с первой страницы.
+   страницы инвалидируются, а `stale_cursor` заставляет UI начать с первой страницы.
 3. **Курсоры.** Курсор непрозрачен для UI, ограничен 512 символами и не смешивается с
    курсором другой сортировки/фильтра/поколения.
 4. **Пагинация.** `page_size` 1..2000 (по умолчанию 500); `max_tiles` 100..10 000; полный
@@ -445,7 +433,8 @@ state preserved; messages re-rendered; generated catalogs keyed identically
 - Перечисления: неизвестное значение → `E_VALIDATION`.
 - Размеры: u64, неотрицательные; переполнение → `E_VALIDATION`.
 - Строки: имена ≤ 32 000, фильтры ≤ 256, курсоры ≤ 512, ключи сообщений ≤ 128.
-- Тайлы: `max_tiles` ≤ 10 000, `width/height` ≤ 16 384, `max_depth` ≤ 12.
+- Дерево: `page_size` ≤ 2000, `max_depth` ≤ 12; доли узлов (`share_of_parent`/`share_of_volume`) в
+  диапазоне 0..1.
 - Предпросмотр: TTL, одноразовый токен, непустой список целей, `total_size` = сумма целей.
 - Настройки: `schema_version` поддерживается; неизвестные поля сохраняются, но не ломают
   чтение; миграция идемпотентна.

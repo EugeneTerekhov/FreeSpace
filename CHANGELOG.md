@@ -4,6 +4,38 @@ All notable changes to FreeSpace are documented in this file. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Tree row context menu on right click and `Shift+F10`: open the object in
+  Explorer, copy its full path, rename it after a preview, or move it to the
+  Recycle Bin with an explicit confirmation. The confirmation is a compact
+  dialog with the object name, type, size and modification date. The context
+  menu never offers quarantine or permanent deletion; those stay on their own
+  screens.
+- `reveal_in_explorer` Tauri command backed by `freespace_platform::reveal`,
+  which opens a directory as a folder and selects a file inside its parent.
+
+### Changed
+
+- The interface is reduced to 11 screens in 6 sidebar groups. The Treemap
+  and the standalone scanning and export screens are gone: scanning progress is
+  shown inline, and export is a global action.
+
+### Fixed
+
+- Deleting an object that sits directly under a volume root (for example
+  `E:\file.txt`) no longer fails the scanned-area check: a root with a trailing
+  separator now matches its direct children. The same boundary check is used by
+  the operation preview and the Explorer command.
+- A successful recycle now removes the row from the tree immediately and
+  decreases the loaded ancestor totals, including operations that the shell
+  reports as finished only after the move. Deleted paths stay hidden after
+  leaving and re-entering the tree until the next scan. The result of the
+  Recycle Bin call follows the file-system state, so a shell error after a
+  successful move no longer leaves the row in the tree.
+
 ## [1.2.0] — 2026-11-16
 
 ### Added

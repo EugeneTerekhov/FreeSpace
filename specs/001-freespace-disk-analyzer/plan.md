@@ -2,8 +2,6 @@
 
 **Branch**: `001-freespace-disk-analyzer` | **Date**: 2026-11-15 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Спецификация функции из `/specs/001-freespace-disk-analyzer/spec.md`
-
 ## Summary
 
 FreeSpace — нативное Windows-приложение (Rust + egui/eframe) для анализа и управления дисковым
@@ -144,14 +142,13 @@ crates/
     ├── src/
     └── tests/
 apps/
-└── freespace-gui/                # egui/eframe: дерево, Treemap, экраны функций
-    ├── src/
-    └── tests/
+└── freespace-desktop/            # Tauri 2 + React: 11 экранов в 6 группах
+    ├── src-tauri/
+    └── ui/
 tests/                            # межкрейтовые интеграционные сценарии (CLI + ядро)
-benches/                          # общие бенчмарки сканирования и Treemap
-docs/                             # пользовательская документация (при необходимости)
-ru/                               # русская документация проекта
-en/                               # английская документация проекта
+benches/                          # общие бенчмарки сканирования и хеширования
+docs/ru/                          # общие русские документы
+docs/en/                          # английские переводы
 ```
 
 **Structure Decision**: Cargo workspace с разделением по ответственности. `freespace-core` не
@@ -171,7 +168,7 @@ GUI и CLI — тонкие фронтенды над общими крейта�
 Нарушений конституции нет; сложность структуры оправдана требованиями изоляции WinAPI и паритета
 CLI/GUI.
 
-## Amendment 2026-11-16 — Storage and context-menu policy
+## Storage and context-menu policy
 
 - `freespace-core::settings::data_root()` — единственная точка вычисления каталога данных:
   `<exe_dir>\data`. Через неё разрешаются `settings.toml`, `freespace.db`, `Quarantine` и

@@ -19,7 +19,7 @@ cargo build --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
-cargo run -p freespace-gui
+cd apps/freespace-desktop/ui; npm ci; npm run tauri dev
 ```
 
 CLI:
@@ -210,7 +210,7 @@ cargo run -p freespace-cli -- context-menu uninstall --all --yes
 
 Ожидается: после установки пунктов нет; включение настройки добавляет их, выключение убирает;
 `uninstall --all` идемпотентен. Портативная сборка (`cargo build --release --no-default-features
--p freespace-cli -p freespace-gui`) не содержит команды `context-menu`.
+-p freespace-cli`) не содержит команды `context-menu`.
 
 ### 19. Мониторинг (US20)
 

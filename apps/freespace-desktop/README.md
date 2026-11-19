@@ -14,11 +14,10 @@ Rust core and a React 18 + TypeScript + Vite interface (`ui/`).
 | `ui/public/splash.png` | Startup splash artwork, shown while settings load |
 | `ui/public/boot.js` | Synchronous theme/language bootstrap executed before the first paint |
 
-The artwork is derived from `free-space-image.png` in the repository root.
 `icon.png` is a square crop around the black hole so the ring stays readable at
 16×16; `splash.png` keeps the full artwork. The ICO contains PNG-compressed
 frames for 16, 24, 32, 48, 64, 128 and 256 pixels. Tauri embeds the ICO through
-`tauri-build`, so the historical `embed-resource` build script is not needed.
+`tauri-build`, so the `embed-resource` build script is not needed.
 
 ## Security and offline guarantees
 
@@ -28,16 +27,10 @@ frames for 16, 24, 32, 48, 64, 128 and 256 pixels. Tauri embeds the ICO through
   and http plugins are never registered.
 - `withGlobalTauri` is disabled. Devtools are enabled by Tauri only in debug
   builds and stay disabled in release builds.
-- The WebView2 profile and all state move into `data` next to the executable in
-  Phase 2 (T031); `%APPDATA%`, `%LOCALAPPDATA%` and `localStorage` are never used.
+- The WebView2 profile and all state live in `data` next to the executable;
+  `%APPDATA%`, `%LOCALAPPDATA%` and `localStorage` are never used.
 - `npm run check:network`, `npm run check:tokens` and `npm run check:i18n` enforce
   the offline, token and localization rules in CI.
-
-## Parity source
-
-The retired egui client (`apps/freespace-gui`) is not kept in the tree: its
-sources remain in git history and are the reference for the 24 screens when the
-React screens are ported. No second UI is built or shipped.
 
 ## Commands
 

@@ -89,7 +89,7 @@
 Правила: одновременно один активный `scan` на том; повторный запуск возвращает `E_BUSY`.
 `generation` растёт после каждого завершённого/частичного сканирования.
 
-## 5. Дерево, поиск и Treemap
+## 5. Дерево, поиск и доли узлов
 
 | Команда | Вход | Выход | Ошибки |
 |---------|------|-------|--------|
@@ -98,12 +98,10 @@
 | `tree_search` | `{ generation, query, filter, sort, cursor?, page_size }` | `TreePage` | `E_VALIDATION`, `E_STALE_CURSOR` |
 | `tree_node` | `{ generation, node_id }` | `NodeRow` | `E_STALE_NODE`, `E_NOT_FOUND` |
 | `tree_path` | `{ generation, node_id }` | `NodeRow[]` (предки) | `E_STALE_NODE` |
-| `treemap_tiles` | `{ generation, node_id?, width, height, metric, max_depth, min_tile_px, max_tiles }` | `{ generation, tiles, truncated, total_size }` | `E_STALE_NODE`, `E_VALIDATION` |
-| `treemap_node` | `{ generation, node_id }` | `NodeRow` | `E_STALE_NODE` |
 
-`TreePage` и `TreemapTile` — по [data-model.md](../data-model.md). `treemap_tiles` не
-возвращает больше `max_tiles`; мелкие узлы агрегируются в плитку «прочее». `truncated=true`
-означает, что часть плиток агрегирована.
+`TreePage` и `NodeRow` — по [data-model.md](../data-model.md). Доля узла от родителя и от тома
+вычисляется нативным слоем и входит в `NodeRow`, поэтому встроенные прогресс-бары дерева не
+требуют отдельных команд. `size_details` (раздел 7) отдаёт детализацию для карточки по наведению.
 
 ## 6. Анализ и очистка
 
@@ -148,6 +146,7 @@
 | `long_paths_validate` | `{ path }` | `{ valid, reason_key?, normalized? }` | `E_VALIDATION` |
 | `rename_preview` | `{ targets, regex, replacement, scope }` | `RenamePreview` | `E_VALIDATION`, `E_BUSY` |
 | `rename_apply` | `{ preview_id, confirmation_token }` | `{ operation_id }` | `E_PREVIEW_EXPIRED`, `E_BUSY` |
+| `reveal_in_explorer` | `{ path }` | `{}` | `E_ACCESS_DENIED`, `E_NOT_FOUND` |
 | `permissions_get` | `{ path }` | `PermissionsView` | `E_ACCESS_DENIED` |
 | `permissions_preview` | `{ path, changes }` | `PermissionsPreview` | `E_VALIDATION`, `E_ACCESS_DENIED` |
 | `permissions_apply` | `{ preview_id, confirmation_token }` | `{ operation_id }` | `E_PREVIEW_EXPIRED`, `E_ELEVATION_REQUIRED` |
@@ -157,6 +156,12 @@
 `SizeDetails` содержит `logical_size`, `on_disk_size`, `physical_size`, `allocated_size`,
 `hardlink_contribution`, `ads_size`, `compression_savings`, `sparse_savings`, `link_target`,
 `metric_label`. UI не пересчитывает эти значения.
+
+`reveal_in_explorer` только открывает каталог в Проводнике или показывает файл выбранным в родительском
+каталоге. Команда ничего не меняет, принимает путь лишь внутри просканированной области и не имеет
+CLI-аналога: это навигационное действие оболочки, а не операция над данными. Удаление из дерева идёт
+через `operation_preview`/`operation_confirm` с `delete_mode = recycle_bin`, переименование — через
+`rename_preview`/`rename_apply`.
 
 ## 8. Инспекция, отчёты и разблокировка
 
@@ -202,7 +207,7 @@
 `shred` всегда безвозвратен и требует отдельного подтверждения; `operation_cancel` может
 вернуть `E_UNSUPPORTED`, если операция прошла точку невозврата.
 
-## 10. Настройки и «О программе»
+## 10. Настройки, elevation и «О программе»
 
 | Команда | Вход | Выход | Ошибки |
 |---------|------|-------|--------|
