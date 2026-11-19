@@ -13,15 +13,15 @@ instructions conflict, precedence is: constitution → specification → plan �
 
 ### Контекст
 
-FreeSpace — нативная утилита для Windows (Rust + egui/eframe) для анализа и освобождения дискового
-пространства. Репозиторий сейчас содержит только SDD-документацию; исходного кода ещё нет.
+FreeSpace — нативная утилита для Windows (Rust + Tauri 2/React) для анализа и освобождения дискового
+пространства. Исходный код, тесты и SDD-документация находятся в репозитории.
 
 ### Обязательный порядок чтения
 
 1. `.specify/memory/constitution.md` — 7 принципов, нарушать нельзя.
-2. `specs/001-freespace-disk-analyzer/spec.md` — 23 истории, 95 FR, 16 SC.
+2. `specs/001-freespace-disk-analyzer/spec.md` — 23 истории, 96 FR, 18 SC.
 3. `specs/001-freespace-disk-analyzer/plan.md`, `research.md`, `data-model.md`, `contracts/`.
-4. `specs/001-freespace-disk-analyzer/tasks.md` — 161 задача, порядок и зависимости.
+4. `specs/001-freespace-disk-analyzer/tasks.md` — 169 задач, порядок и зависимости.
 5. `specs/001-freespace-disk-analyzer/quickstart.md` — сценарии проверки.
 6. `checklists/requirements.md` — ворота качества; `checklists/quality.md` принадлежит ревьюеру.
 
@@ -44,13 +44,14 @@ FreeSpace — нативная утилита для Windows (Rust + egui/eframe
 
 ### Двуязычность
 
-- Канонические артефакты — на русском в `specs/<feature>/`.
-- Любое изменение зеркалируется: `ru/` (копия) и `en/` (перевод).
-- В `en/` не должно оставаться кириллицы; ID (FR-, SC-, T-, CHK-) менять нельзя.
+- Канонические артефакты — на русском в `specs/<feature>/`; общие русские документы — в `docs/ru/`.
+- Любое изменение зеркалируется в `docs/en/` (перевод). Дубль `ru/` не создаётся и не
+  поддерживается: канонический русский уже лежит в `specs/<feature>/` и `docs/ru/`.
+- В `docs/en/` не должно оставаться кириллицы; ID (FR-, SC-, T-, CHK-) менять нельзя.
 
 ### Технические правила
 
-- Rust stable 1.85+, edition 2024; workspace из `crates/*` и `apps/freespace-gui`.
+- Rust stable 1.85+, edition 2024; workspace из `crates/*` и `apps/freespace-desktop`.
 - Все вызовы WinAPI — только в `crates/freespace-platform`. Остальные крейты не используют
   `windows` напрямую.
 - Разрушающие операции — только через `crates/freespace-ops`: предпросмотр, подтверждение,
@@ -80,7 +81,7 @@ FreeSpace — нативная утилита для Windows (Rust + egui/eframe
 - [ ] Код реализован в указанных файлах.
 - [ ] Тесты критических модулей написаны и проходят; для UI — ручная проверка по quickstart.
 - [ ] `cargo fmt`, `cargo clippy -D warnings`, `cargo test` — зелёные.
-- [ ] Документация обновлена на русском и английском (канон + `ru/` + `en/`).
+- [ ] Документация обновлена на русском и английском (канон + `docs/en/`).
 - [ ] Задача отмечена `[x]` в `tasks.md`.
 - [ ] Коммит по Conventional Commits.
 
@@ -99,21 +100,28 @@ cargo fmt --all -- --check
 - Коммиты: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`.
 - Один коммит — одна логическая задача или группа.
 
+### ui-sdk
+
+- Перед использованием ui-sdk следуйте skill `ui-sdk`, если он установлен, и прочитайте
+  `node_modules/@ui-sdk/react/docs/llms.txt`.
+- Чтобы собрать новый компонент, дополнительно ищите по заголовкам в
+  `node_modules/@ui-sdk/react/docs/core.md` и прочитайте `rendering.md` рядом с ним.
+
 ---
 
 ## 🇬🇧 English version
 
 ### Context
 
-FreeSpace is a native Windows utility (Rust + egui/eframe) for analyzing and reclaiming disk space.
-The repository currently contains only the SDD documentation; there is no source code yet.
+FreeSpace is a native Windows utility (Rust + Tauri 2/React) for analyzing and reclaiming disk space.
+The repository contains the source code, tests and the SDD documentation.
 
 ### Mandatory reading order
 
 1. `.specify/memory/constitution.md` — 7 principles that must not be violated.
-2. `specs/001-freespace-disk-analyzer/spec.md` — 23 stories, 95 FRs, 16 SCs.
+2. `specs/001-freespace-disk-analyzer/spec.md` — 23 stories, 96 FRs, 18 SCs.
 3. `specs/001-freespace-disk-analyzer/plan.md`, `research.md`, `data-model.md`, `contracts/`.
-4. `specs/001-freespace-disk-analyzer/tasks.md` — 161 tasks, their order and dependencies.
+4. `specs/001-freespace-disk-analyzer/tasks.md` — 169 tasks, their order and dependencies.
 5. `specs/001-freespace-disk-analyzer/quickstart.md` — validation scenarios.
 6. `checklists/requirements.md` — quality gate; `checklists/quality.md` belongs to the reviewer.
 
@@ -135,13 +143,15 @@ constitution without explicit user approval and a version bump.
 
 ### Bilingual policy
 
-- Canonical artifacts are written in Russian in `specs/<feature>/`.
-- Every change is mirrored to `ru/` (copy) and `en/` (translation).
-- `en/` must contain no Cyrillic; IDs (FR-, SC-, T-, CHK-) must not change.
+- Canonical artifacts are written in Russian in `specs/<feature>/`; general Russian documents
+  live in `docs/ru/`.
+- Every change is mirrored to `docs/en/` (translation). No `ru/` duplicate is created or
+  maintained: the canonical Russian already lives in `specs/<feature>/` and `docs/ru/`.
+- `docs/en/` must contain no Cyrillic; IDs (FR-, SC-, T-, CHK-) must not change.
 
 ### Technical rules
 
-- Rust stable 1.85+, edition 2024; workspace of `crates/*` plus `apps/freespace-gui`.
+- Rust stable 1.85+, edition 2024; workspace of `crates/*` plus `apps/freespace-desktop`.
 - All WinAPI calls live in `crates/freespace-platform` only. Other crates must not use `windows`
   directly.
 - Destructive operations go through `crates/freespace-ops` only: preview, confirmation, deletion
@@ -171,7 +181,7 @@ constitution without explicit user approval and a version bump.
 - [ ] Code implemented in the specified files.
 - [ ] Tests for critical modules written and passing; UI verified manually per quickstart.
 - [ ] `cargo fmt`, `cargo clippy -D warnings`, `cargo test` are green.
-- [ ] Documentation updated in Russian and English (canonical + `ru/` + `en/`).
+- [ ] Documentation updated in Russian and English (canonical + `docs/en/`).
 - [ ] Task marked `[x]` in `tasks.md`.
 - [ ] Commit follows Conventional Commits.
 
@@ -189,3 +199,10 @@ cargo fmt --all -- --check
 - Branches: `<###>-<feature-name>` (for example, `001-freespace-disk-analyzer`).
 - Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`.
 - One commit per logical task or group.
+
+### ui-sdk
+
+- Before using ui-sdk, follow the `ui-sdk` skill if it is installed, and read
+  `node_modules/@ui-sdk/react/docs/llms.txt`.
+- To build a new component, also search `node_modules/@ui-sdk/react/docs/core.md` by heading, and
+  read `rendering.md` next to it.

@@ -1,0 +1,34 @@
+[package]
+name = "freespace-cli"
+description = "FreeSpace command line interface"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["context-menu"]
+context-menu = ["freespace-platform/context-menu"]
+
+[[bin]]
+name = "freespace"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+freespace-analysis = { workspace = true }
+freespace-core = { workspace = true }
+freespace-ops = { workspace = true }
+freespace-platform = { workspace = true }
+freespace-report = { workspace = true }
+freespace-scan = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+zip = { workspace = true }
+
+[lints]
+workspace = true

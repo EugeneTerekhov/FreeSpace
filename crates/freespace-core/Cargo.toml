@@ -1,0 +1,23 @@
+[package]
+name = "freespace-core"
+description = "FreeSpace domain model, tree arena and shared services"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+globset = { workspace = true }
+rust-i18n = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

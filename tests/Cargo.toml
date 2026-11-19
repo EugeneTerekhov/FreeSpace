@@ -1,0 +1,159 @@
+[package]
+name = "freespace-tests"
+description = "Cross-crate FreeSpace integration tests and shared filesystem fixtures"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dev-dependencies]
+clap = { workspace = true }
+csv = { workspace = true }
+flate2 = { workspace = true }
+freespace-analysis = { workspace = true }
+freespace-app = { workspace = true }
+freespace-core = { workspace = true }
+freespace-cli = { workspace = true }
+freespace-ops = { workspace = true }
+freespace-platform = { workspace = true }
+freespace-report = { workspace = true }
+freespace-scan = { workspace = true }
+quick-xml = { workspace = true }
+serde_json = { workspace = true }
+sevenz-rust = { workspace = true }
+tar = { workspace = true }
+tempfile = { workspace = true }
+toml = { workspace = true }
+uuid = { workspace = true }
+zip = { workspace = true }
+
+[[test]]
+name = "fixtures"
+path = "fixtures.rs"
+
+[[test]]
+name = "scan_walk"
+path = "scan_walk.rs"
+
+[[test]]
+name = "scan_mft"
+path = "scan_mft.rs"
+
+[[test]]
+name = "unlock"
+path = "unlock.rs"
+
+[[test]]
+name = "top_types"
+path = "top_types.rs"
+
+[[test]]
+name = "duplicates"
+path = "duplicates.rs"
+
+[[test]]
+name = "shred"
+path = "shred.rs"
+
+[[test]]
+name = "cleanup"
+path = "cleanup.rs"
+
+[[test]]
+name = "snapshot"
+path = "snapshot.rs"
+
+[[test]]
+name = "safe_ops"
+path = "safe_ops.rs"
+
+[[test]]
+name = "accounting"
+path = "accounting.rs"
+
+[[test]]
+name = "long_paths"
+path = "long_paths.rs"
+
+[[test]]
+name = "rename"
+path = "rename.rs"
+
+[[test]]
+name = "permissions"
+path = "permissions.rs"
+
+[[test]]
+name = "metadata"
+path = "metadata.rs"
+
+[[test]]
+name = "owners"
+path = "owners.rs"
+
+[[test]]
+name = "archives"
+path = "archives.rs"
+
+[[test]]
+name = "export"
+path = "export.rs"
+
+[[test]]
+name = "cli_contract"
+path = "cli_contract.rs"
+
+[[test]]
+name = "context_menu"
+path = "context_menu.rs"
+
+[[test]]
+name = "monitor"
+path = "monitor.rs"
+
+[[test]]
+name = "elevation"
+path = "elevation.rs"
+
+[[test]]
+name = "dashboard"
+path = "dashboard.rs"
+
+[[test]]
+name = "settings"
+path = "settings.rs"
+
+[[test]]
+name = "privacy"
+path = "privacy.rs"
+
+[[test]]
+name = "contract_fixtures"
+path = "contract/contract_fixtures.rs"
+
+[[test]]
+name = "core_commands"
+path = "contract/core_commands.rs"
+
+[[test]]
+name = "analysis_commands"
+path = "contract/analysis_commands.rs"
+
+[[test]]
+name = "operations_commands"
+path = "contract/operations_commands.rs"
+
+[[test]]
+name = "filesystem_commands"
+path = "contract/filesystem_commands.rs"
+
+[[test]]
+name = "inspection_commands"
+path = "contract/inspection_commands.rs"
+
+[[test]]
+name = "settings_commands"
+path = "contract/settings_commands.rs"
+
+[lints]
+workspace = true

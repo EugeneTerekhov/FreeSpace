@@ -1,0 +1,6 @@
+# FreeSpace builds on the stable channel; the minimum supported version
+# (Rust 1.85, edition 2024) is declared as `rust-version` in Cargo.toml.
+[toolchain]
+channel = "stable"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

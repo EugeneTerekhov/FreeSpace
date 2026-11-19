@@ -1,0 +1,185 @@
+/*
+ * Duplicates screen: group panels, keep/drop rows and the selection footer.
+ * Only tokens from `styles/tokens.css`.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.context {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.input {
+  padding: var(--fs-space-2);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font: inherit;
+}
+
+.ruleHint {
+  margin: 0;
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-xs);
+}
+
+.guard {
+  margin: 0;
+  color: var(--fs-danger);
+  font-size: var(--fs-text-xs);
+}
+
+.groupTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-text-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+.groupTable th,
+.groupTable td {
+  padding: var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line-faint);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.groupTable thead th {
+  border-bottom-color: var(--fs-line);
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.groupTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Keep and drop rows read as a pair: the icon and the label carry the meaning,
+ * the background only reinforces it. */
+.keepRow,
+.dropRow {
+  transition: background var(--fs-motion-hover) var(--fs-ease);
+}
+
+.keepRow:hover,
+.dropRow:hover {
+  background: var(--fs-surface-overlay);
+}
+
+.dropRow {
+  box-shadow: inset 2px 0 0 var(--fs-accent-strong);
+}
+
+.checkCell {
+  width: 40px;
+}
+
+.sizeCell {
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pathCell {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberPath {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.stateCell {
+  white-space: nowrap;
+}
+
+.reason {
+  display: block;
+  margin-top: var(--fs-space-1);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-2xs);
+  white-space: normal;
+}
+
+.fileKeep,
+.fileDrop {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--fs-radius-md);
+}
+
+.fileKeep {
+  background: var(--fs-surface);
+  box-shadow: inset 0 0 0 1px var(--fs-success-ring);
+  color: var(--fs-success);
+}
+
+.fileDrop {
+  background: var(--fs-surface);
+  box-shadow: inset 0 0 0 1px var(--fs-accent-ring);
+  color: var(--fs-accent-strong);
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  flex-wrap: wrap;
+  font-size: var(--fs-text-xs);
+  color: var(--fs-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary strong {
+  color: var(--fs-text);
+  font-weight: var(--fs-weight-semibold);
+}
+
+.summarySpacer {
+  flex: 1;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -1,0 +1,18 @@
+{
+  "command": "scan_start",
+  "input": {
+    "request": {
+      "path": "C:\\",
+      "method": "auto",
+      "incremental": false,
+      "exclusions": [],
+      "include_ads": false,
+      "metric": "on_disk"
+    }
+  },
+  "result": {
+    "task_id": "00000000-0000-4000-8000-000000000001",
+    "generation": 1
+  },
+  "error": null
+}

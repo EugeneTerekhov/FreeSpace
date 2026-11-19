@@ -1,0 +1,251 @@
+/*
+ * Operations group: journal, shredder and write monitor.
+ *
+ * The shared frame (`Screen`, `Panel`, `Stat`) owns the page rhythm; this file
+ * only adds the aligned toolbars and the dense tables that those three screens
+ * need. Only `--fs-*` tokens are used.
+ */
+
+/* ---------- Layout ---------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--fs-space-2) var(--fs-space-3);
+}
+
+.search {
+  width: 220px;
+}
+
+.selectField {
+  width: 180px;
+}
+
+.number {
+  max-width: 200px;
+}
+
+/* ---------- Forms ---------- */
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--fs-space-3) var(--fs-space-4);
+  align-items: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.control {
+  width: 100%;
+  padding: var(--fs-space-2);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font: inherit;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 1px;
+}
+
+textarea.control {
+  min-height: calc(var(--fs-row-comfortable) * 3);
+  resize: vertical;
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2);
+}
+
+/* ---------- Text ---------- */
+
+.note {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-sm);
+}
+
+.hint {
+  margin: 0;
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-xs);
+}
+
+.mono {
+  font-family: var(--fs-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.numeric {
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pathCell {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2) var(--fs-space-4);
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Result text ---------- */
+
+.resultText {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  white-space: nowrap;
+}
+
+.resultTextSuccess {
+  color: var(--fs-success);
+}
+
+.resultTextWarning {
+  color: var(--fs-warning);
+}
+
+.resultTextDanger {
+  color: var(--fs-danger);
+}
+
+.resultTextNeutral {
+  color: var(--fs-text-muted);
+}
+
+/* ---------- Journal ---------- */
+
+.details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--fs-space-2) var(--fs-space-3);
+  margin: 0;
+  font-size: var(--fs-text-xs);
+}
+
+.details dt {
+  color: var(--fs-text-subtle);
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2);
+}
+
+/* ---------- Monitor ---------- */
+
+.stateRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fs-space-2) var(--fs-space-3);
+}
+
+.owner {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.monitorAction {
+  min-inline-size: 14rem;
+}
+
+/*
+ * Threshold and interval share one grid so both inputs line up in a single
+ * column: `Field` is only a label→control wiring here, so it dissolves into
+ * the cells (`display: contents`) and its label/input become grid items.
+ */
+.paramGrid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--fs-space-3) var(--fs-space-4);
+  align-items: center;
+}
+
+.paramGrid > div {
+  display: contents;
+}
+
+/* ---------- Tables (preview targets) ---------- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-line);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.table th {
+  color: var(--fs-text-muted);
+  font-weight: var(--fs-weight-semibold);
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--fs-space-5);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-sm);
+}
+
+@media (max-width: 900px) {
+  .search,
+  .selectField {
+    width: 100%;
+  }
+}

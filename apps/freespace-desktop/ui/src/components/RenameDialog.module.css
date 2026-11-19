@@ -1,0 +1,88 @@
+/* Rename of one tree object: path, name field and the old → new preview. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+}
+
+.path {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--fs-text-subtle);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-2xs);
+  line-height: 15px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.hint {
+  margin: 0;
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-xs);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+  padding-top: var(--fs-space-3);
+  border-top: 1px solid var(--fs-line);
+}
+
+.previewHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fs-space-2);
+}
+
+.meta {
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.diff {
+  display: grid;
+  gap: var(--fs-space-2);
+  margin: 0;
+  padding: var(--fs-space-3);
+  border: 1px solid var(--fs-line-faint);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-surface);
+}
+
+.diff > div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--fs-space-2);
+  align-items: baseline;
+}
+
+.diff dt {
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+}
+
+.diff dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-text-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-1);
+  margin: 0;
+  padding-inline-start: var(--fs-space-5);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+}

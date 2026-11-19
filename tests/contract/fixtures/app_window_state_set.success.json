@@ -1,0 +1,15 @@
+{
+  "command": "app_window_state_set",
+  "input": {
+    "window_state": {
+      "width": 1280,
+      "height": 800,
+      "x": null,
+      "y": null,
+      "maximized": false,
+      "monitor_id": "primary"
+    }
+  },
+  "result": {},
+  "error": null
+}

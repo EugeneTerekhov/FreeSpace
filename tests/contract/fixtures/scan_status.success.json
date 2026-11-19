@@ -1,0 +1,26 @@
+{
+  "command": "scan_status",
+  "input": {
+    "task_id": "00000000-0000-4000-8000-000000000001"
+  },
+  "result": {
+    "task_id": "00000000-0000-4000-8000-000000000001",
+    "kind": "scan",
+    "state": "running",
+    "volume_id": "11111111-1111-1111-1111-111111111111",
+    "progress": {
+      "processed": 1000,
+      "total": 180000,
+      "current_path": "C:\\Windows",
+      "bytes_per_second": 420000000,
+      "items_per_second": 12000,
+      "phase_key": "scan.phase.enumerating",
+      "updated_at": 1763222400000
+    },
+    "started_at": 1763222400000,
+    "finished_at": null,
+    "cancelable": true,
+    "error": null
+  },
+  "error": null
+}

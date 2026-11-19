@@ -1,0 +1,201 @@
+/*
+ * Shared hover card of a table row (`DataTable` hover hooks).
+ *
+ * Denser than a side panel: a muted uppercase caption over each value, two
+ * columns, 10–12 px type. It is anchored to the pointer row and never takes
+ * pointer events. Only `--fs-*` tokens are used.
+ */
+
+.card {
+  position: fixed;
+  z-index: var(--fs-z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface-raised);
+  box-shadow: var(--fs-shadow-2);
+  color: var(--fs-text);
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
+  animation: hoverIn var(--fs-motion-hover) var(--fs-ease);
+}
+
+@keyframes hoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-text-xs);
+  font-weight: var(--fs-weight-medium);
+}
+
+.meta {
+  flex: none;
+  color: var(--fs-text-subtle);
+  font-size: 10px;
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+}
+
+.path {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--fs-text-subtle);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-2xs);
+  line-height: 13px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px var(--fs-space-3);
+  margin: 2px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--fs-line-faint);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/*
+ * Single-column variant: every field is its own line, the label sits on the
+ * left and the value is aligned to the right edge of the card.
+ */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--fs-line-faint);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--fs-space-3);
+  min-width: 0;
+}
+
+.row dt {
+  color: var(--fs-text-subtle);
+  font-size: 10px;
+  font-weight: var(--fs-weight-regular);
+  letter-spacing: var(--fs-tracking-caps);
+  line-height: 14px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.row dd {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.metric dt {
+  overflow: hidden;
+  color: var(--fs-text-subtle);
+  font-size: 10px;
+  font-weight: var(--fs-weight-regular);
+  letter-spacing: var(--fs-tracking-caps);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.metric dd {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--fs-line-faint);
+  color: var(--fs-danger);
+}
+
+.errorTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--fs-space-2);
+  font-size: 10px;
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+}
+
+.errorCode {
+  color: var(--fs-text-subtle);
+  font-family: var(--fs-font-mono);
+  font-size: 10px;
+  font-weight: var(--fs-weight-regular);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.errorMessage {
+  color: var(--fs-text);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.errorDetails {
+  color: var(--fs-text-muted);
+  font-family: var(--fs-font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  overflow-wrap: anywhere;
+}

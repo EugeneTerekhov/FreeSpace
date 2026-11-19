@@ -1,0 +1,22 @@
+{
+  "command": "volumes_summary",
+  "input": {
+    "volume_id": "11111111-1111-1111-1111-111111111111"
+  },
+  "result": {
+    "volume_id": "11111111-1111-1111-1111-111111111111",
+    "mount_point": "C:\\",
+    "label": "System",
+    "file_system": "ntfs",
+    "total_bytes": 1000000000000,
+    "free_bytes": 240000000000,
+    "used_bytes": 760000000000,
+    "is_removable": false,
+    "status": "available",
+    "scan_method": "mft",
+    "is_elevated": true,
+    "cluster_size": 4096,
+    "used_fraction": 0.76
+  },
+  "error": null
+}

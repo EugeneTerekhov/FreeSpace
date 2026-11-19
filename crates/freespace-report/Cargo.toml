@@ -1,0 +1,26 @@
+[package]
+name = "freespace-report"
+description = "FreeSpace report export and snapshot formats"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ciborium = { workspace = true }
+csv = { workspace = true }
+freespace-analysis = { workspace = true }
+freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+quick-xml = { workspace = true }
+rust_xlsxwriter = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+zstd = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

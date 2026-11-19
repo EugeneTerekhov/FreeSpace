@@ -1,0 +1,18 @@
+{
+  "command": "app_about_info",
+  "input": {},
+  "result": {
+    "version": "1.1.0",
+    "build": "golden",
+    "webview_version": "130.0.2849.68",
+    "licenses": [
+      {
+        "name": "Tauri",
+        "license": "MIT / Apache-2.0",
+        "url": null
+      }
+    ],
+    "data_dir": "C:\\FreeSpace\\data"
+  },
+  "error": null
+}

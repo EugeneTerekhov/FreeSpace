@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FreeSpace",
+  "version": "1.3.0",
+  "identifier": "com.freespace.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../ui/dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'",
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "FreeSpace",
+    "shortDescription": "Disk space analyzer and cleanup tool for Windows",
+    "longDescription": "FreeSpace analyzes disk usage, builds a size tree, finds duplicates and stale data, and reclaims space through previewed, journaled operations. It works fully offline and keeps every file in the application folder.",
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      },
+      "minimumWebview2Version": "109.0.1518.78",
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "languages": ["English", "Russian"],
+        "displayLanguageSelector": true,
+        "startMenuFolder": "FreeSpace",
+        "installerHooks": "../../../installer/nsis/hooks.nsh"
+      }
+    }
+  }
+}

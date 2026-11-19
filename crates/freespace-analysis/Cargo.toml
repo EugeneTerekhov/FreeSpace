@@ -1,0 +1,43 @@
+[package]
+name = "freespace-analysis"
+description = "FreeSpace duplicate, cleanup, metadata and owner analysis"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+flate2 = { workspace = true }
+iso9660 = { workspace = true }
+kamadak-exif = { workspace = true }
+lofty = { workspace = true }
+md-5 = { workspace = true }
+mp4parse = { workspace = true }
+pelite = { workspace = true }
+rayon = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+sevenz-rust = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+unrar = { workspace = true, optional = true }
+zip = { workspace = true }
+
+[features]
+default = []
+rar = ["dep:unrar"]
+
+[dev-dependencies]
+criterion = { workspace = true }
+tempfile = { workspace = true }
+
+[[bench]]
+name = "hash"
+path = "../../benches/hash.rs"
+harness = false
+
+[lints]
+workspace = true

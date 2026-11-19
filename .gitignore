@@ -12,7 +12,27 @@ Thumbs.db
 # Logs and local state
 *.log
 /.opencode/state/
+/.opencode/skills/
+/data/
+/Quarantine/
 node_modules/
 
 # Local binaries
 *.pdb
+
+# Coverage and profiling artifacts
+/coverage/
+lcov.info
+*.profraw
+*.profdata
+
+# Packaging output
+/dist/
+
+# Desktop client build and test artifacts
+/apps/freespace-desktop/src-tauri/gen/
+/apps/freespace-desktop/ui/dist/
+/apps/freespace-desktop/ui/test-results/
+/apps/freespace-desktop/ui/playwright-report/
+/apps/freespace-desktop/ui/blob-report/
+*.tsbuildinfo

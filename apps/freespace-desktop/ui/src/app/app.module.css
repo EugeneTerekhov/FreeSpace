@@ -1,0 +1,427 @@
+/*
+ * Application chrome: a quiet sidebar with grouped navigation, a compact header
+ * and a status line. Everything is token-driven so both themes stay identical in
+ * structure; colour and motion are functional only.
+ */
+
+.shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr var(--fs-status);
+  grid-template-areas:
+    "sidebar main"
+    "status status";
+  height: 100%;
+  background: var(--fs-bg);
+}
+
+.skipLink {
+  position: absolute;
+  top: var(--fs-space-2);
+  left: var(--fs-space-2);
+  z-index: var(--fs-z-toast);
+  padding: var(--fs-space-2) var(--fs-space-4);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-accent);
+  box-shadow: var(--fs-ring-accent);
+  color: var(--fs-accent-ink);
+  font-size: var(--fs-text-snug);
+  font-weight: var(--fs-weight-semibold);
+  text-decoration: none;
+  transform: translateY(-300%);
+  transition: transform var(--fs-motion-hover) var(--fs-ease);
+}
+
+.skipLink:focus,
+.skipLink:focus-visible {
+  transform: none;
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  width: var(--fs-sidebar);
+  min-width: var(--fs-sidebar);
+  border-right: 1px solid var(--fs-line-faint);
+  background: var(--fs-surface);
+  transition: width var(--fs-motion-panel) var(--fs-ease);
+}
+
+.sidebarCollapsed {
+  width: var(--fs-sidebar-collapsed);
+  min-width: var(--fs-sidebar-collapsed);
+}
+
+.sidebar > nav {
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  margin: 10px 12px 14px;
+  padding: 0 6px;
+  font-size: 15px;
+  font-weight: var(--fs-weight-semibold);
+  letter-spacing: var(--fs-tracking-tight);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--fs-radius-md);
+  overflow: hidden;
+}
+
+.brandIcon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.brandText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navGroup + .navGroup {
+  margin-top: 16px;
+}
+
+.navGroupLabel {
+  padding: 0 10px 4px;
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-semibold);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+  color: var(--fs-text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--fs-radius-md);
+  background: transparent;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-snug);
+  letter-spacing: -0.005em;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    background var(--fs-motion-hover) var(--fs-ease),
+    box-shadow var(--fs-motion-hover) var(--fs-ease),
+    color var(--fs-motion-hover) var(--fs-ease);
+}
+
+.navItem:hover {
+  background: var(--fs-surface-overlay);
+  color: var(--fs-text);
+}
+
+.navItemActive {
+  background: var(--fs-selection);
+  box-shadow: var(--fs-ring-accent);
+  color: var(--fs-text);
+}
+
+.navItemActive .navIcon {
+  color: var(--fs-accent-strong);
+}
+
+.navIcon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--fs-text-subtle);
+}
+
+.navItem:hover .navIcon {
+  color: var(--fs-text-muted);
+}
+
+.navItemActive:hover .navIcon {
+  color: var(--fs-accent);
+}
+
+.navLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collapsed .navLabel,
+.collapsed .brandText,
+.collapsed .navBadge,
+.collapsed .sidebarDrive,
+.sidebarCollapsed .navLabel,
+.sidebarCollapsed .brandText,
+.sidebarCollapsed .navBadge,
+.sidebarCollapsed .sidebarDrive,
+.sidebarCollapsed .navGroupLabel {
+  display: none;
+}
+
+.navBadge {
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-2xs);
+  letter-spacing: var(--fs-tracking-mono);
+  color: var(--fs-text-subtle);
+}
+
+.sidebarFooter {
+  padding: 10px;
+  border-top: 1px solid var(--fs-line-faint);
+}
+
+.sidebarDrive {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px 0;
+  white-space: nowrap;
+}
+
+.driveDot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--fs-success);
+  box-shadow: 0 0 8px var(--fs-success-ring);
+}
+
+.driveText {
+  min-width: 0;
+  font-family: var(--fs-font-mono);
+  font-size: 10px;
+  letter-spacing: var(--fs-tracking-mono);
+  color: var(--fs-text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.driveTotal {
+  margin-left: auto;
+  font-family: var(--fs-font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--fs-tracking-mono);
+  color: var(--fs-text-subtle);
+  flex: none;
+}
+
+/* ---------- Main ---------- */
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  min-height: var(--fs-header);
+  padding: 0 var(--fs-space-5);
+  border-bottom: 1px solid var(--fs-line-faint);
+  background: var(--fs-panel-glow), var(--fs-surface);
+}
+
+.headerText {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--fs-font-display);
+  font-size: 16px;
+  font-weight: var(--fs-weight-semibold);
+  letter-spacing: var(--fs-tracking-display);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--fs-surface-overlay);
+  box-shadow: var(--fs-ring-faint);
+  color: var(--fs-text-muted);
+  font-family: var(--fs-font-mono);
+  font-size: 10px;
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  margin-left: auto;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 20px;
+}
+
+.statusBar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  padding: 0 var(--fs-space-3);
+  border-top: 1px solid var(--fs-line-faint);
+  background: var(--fs-surface);
+  color: var(--fs-text-subtle);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-2xs);
+  letter-spacing: 0.015em;
+}
+
+.statusContent {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.statusSpacer {
+  margin-left: auto;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fs-text-muted);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  letter-spacing: var(--fs-tracking-mono);
+}
+
+.breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+}
+
+.crumbButton {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 2px 4px;
+  border-radius: var(--fs-radius-sm);
+  transition:
+    background var(--fs-motion-hover) var(--fs-ease),
+    color var(--fs-motion-hover) var(--fs-ease);
+}
+
+.crumbButton:hover {
+  background: var(--fs-surface-overlay);
+  color: var(--fs-text);
+}
+
+.crumbSeparator {
+  color: var(--fs-text-subtle);
+}
+
+.split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.splitPane {
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.splitHandle {
+  width: 6px;
+  cursor: col-resize;
+  background: var(--fs-line-faint);
+  border: 0;
+  padding: 0;
+  transition: background var(--fs-motion-hover) var(--fs-ease);
+}
+
+.splitHandle:hover,
+.splitHandle:focus-visible {
+  background: var(--fs-accent-ring);
+}
+
+/* High DPI shrinks the CSS viewport: keep the navigation compact instead of
+ * letting the shell squeeze the content. */
+@media (max-width: 900px) {
+  .sidebar {
+    width: var(--fs-sidebar-collapsed);
+    min-width: var(--fs-sidebar-collapsed);
+  }
+
+  .brandText,
+  .navLabel,
+  .sidebarDrive {
+    display: none;
+  }
+}

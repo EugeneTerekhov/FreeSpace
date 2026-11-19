@@ -1,0 +1,38 @@
+[package]
+name = "freespace-platform"
+description = "FreeSpace Windows platform layer; the only crate allowed to call WinAPI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["context-menu"]
+context-menu = ["dep:winreg"]
+
+[dependencies]
+ferrisetw = { workspace = true }
+freespace-core = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+winreg = { workspace = true, optional = true }
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+    "Win32_System_ProcessStatus",
+    "Win32_System_RestartManager",
+    "Win32_System_SystemServices",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

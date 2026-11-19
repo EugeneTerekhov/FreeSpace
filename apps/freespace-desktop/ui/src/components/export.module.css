@@ -1,0 +1,151 @@
+/*
+ * Report export action (T081): the dialog body and its preview/progress blocks.
+ *
+ * The trigger is the shared `Button`; the modal chrome comes from `Dialog`.
+ * Everything here is layout on tokens — no decoration.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+
+.intro {
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-sm);
+  line-height: var(--fs-text-sm);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: var(--fs-space-3) var(--fs-space-4);
+  align-items: start;
+}
+
+.input {
+  width: 100%;
+  padding: var(--fs-space-2);
+  color: var(--fs-text);
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 1px;
+}
+
+.composition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+  margin: 0;
+  padding: var(--fs-space-3) var(--fs-space-4);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-lg);
+}
+
+.legend {
+  padding: 0 var(--fs-space-1);
+  color: var(--fs-text-subtle);
+  font-size: var(--fs-text-2xs);
+  font-weight: var(--fs-weight-medium);
+  letter-spacing: var(--fs-tracking-caps);
+  text-transform: uppercase;
+}
+
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--fs-space-1) var(--fs-space-4);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+  padding: var(--fs-space-4);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-surface);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+}
+
+.sectionTitle {
+  font-size: var(--fs-text-xs);
+  font-weight: var(--fs-weight-semibold);
+  color: var(--fs-text);
+}
+
+.path {
+  margin: 0;
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: var(--fs-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fs-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  padding: 2px var(--fs-space-2);
+  border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius-sm);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-2xs);
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.warnings {
+  margin: 0;
+  padding-left: var(--fs-space-5);
+  color: var(--fs-text-muted);
+  font-size: var(--fs-text-xs);
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

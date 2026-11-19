@@ -1,0 +1,16 @@
+{
+  "command": "volumes_summary",
+  "input": {
+    "volume_id": "missing"
+  },
+  "result": null,
+  "error": {
+    "code": "E_NOT_FOUND",
+    "category": "io",
+    "message_key": "error.not_found",
+    "details": "unknown volume",
+    "retryable": false,
+    "task_id": null,
+    "journal_entry_id": null
+  }
+}

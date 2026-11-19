@@ -1,0 +1,55 @@
+{
+  "command": "tree_search",
+  "input": {
+    "generation": 1,
+    "query": "Windows",
+    "metric": "on_disk",
+    "sort": {
+      "key": "size",
+      "descending": true
+    },
+    "page_size": 500,
+    "cursor": null
+  },
+  "result": {
+    "generation": 1,
+    "parent_id": null,
+    "cursor": null,
+    "next_cursor": null,
+    "rows": [
+      {
+        "id": 0,
+        "parent_id": null,
+        "name": "C:\\",
+        "path": "C:\\",
+        "kind": "directory",
+        "logical_size": 760000000000,
+        "on_disk_size": 760000000000,
+        "physical_size": 760000000000,
+        "ads_size": 0,
+        "child_count": 6,
+        "file_count": 180000,
+        "modified_at": 1763222400000,
+        "accessed_at": 1763222400000,
+        "attributes": {
+          "read_only": false,
+          "hidden": false,
+          "system": false,
+          "compressed": false,
+          "sparse": false,
+          "reparse": false
+        },
+        "accessible": true,
+        "link_target": null
+      }
+    ],
+    "total_estimate": 1,
+    "metric": "on_disk",
+    "sort": {
+      "key": "size",
+      "descending": true
+    },
+    "stale_cursor": false
+  },
+  "error": null
+}

@@ -1,0 +1,191 @@
+@import "./tokens.css";
+@import "./themes.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--fs-bg);
+  color: var(--fs-text);
+  font: var(--fs-weight-regular) var(--fs-text-base) var(--fs-font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/*
+ * Text controls share one base shape even when a screen uses a bare input
+ * instead of the kit component. Checkboxes, radios and ranges keep the native
+ * control so their semantics and keyboard behaviour stay intact.
+ */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-surface);
+  box-shadow: var(--fs-ring);
+  transition:
+    border-color var(--fs-motion-hover) var(--fs-ease),
+    box-shadow var(--fs-motion-hover) var(--fs-ease);
+}
+
+textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--fs-line);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--fs-accent-ring);
+  box-shadow: 0 0 0 2px var(--fs-accent-ring);
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--fs-accent-strong);
+}
+
+:focus-visible {
+  outline: 2px solid var(--fs-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--fs-selection);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fs-line-strong);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--fs-radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fs-accent-ring);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mono {
+  font-family: var(--fs-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--fs-tracking-mono);
+}
+
+/* Numbers keep a fixed advance width everywhere: sizes, counts, timings. */
+.fs-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Large headline ink; used sparingly for the biggest single number on a screen. */
+.fs-gradient-text {
+  background: var(--fs-gradient-text);
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * Motion is functional only: reduced motion removes transitions and animations
+ * both through the token overrides in tokens.css and as a hard fallback.
+ */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after,
+*:where(:root[data-reduced-motion="true"]) {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * High-contrast mode strengthens lines and muted text without introducing new
+ * colours outside the theme files.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --fs-line: var(--fs-line-strong);
+    --fs-text-muted: var(--fs-text);
+    --fs-text-subtle: var(--fs-text);
+  }
+
+  :focus-visible {
+    outline-width: 3px;
+  }
+}
+
+img,
+canvas,
+svg {
+  max-width: 100%;
+}

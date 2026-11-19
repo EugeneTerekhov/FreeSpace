@@ -1,0 +1,66 @@
+import { create } from 'zustand';
+
+import type { ApiClient } from '../api/client';
+import type { AppBootstrap, ScreenId, UiError } from '../api/dto';
+import { normalizeError, logLocal } from '../app/errors';
+import { resolveInitialScreen } from '../app/routing';
+import { applySettingsToDocument } from './settingsStore';
+
+interface ShellState {
+  ready: boolean;
+  bootstrap: AppBootstrap | null;
+  error: UiError | null;
+  screen: ScreenId;
+  sidebarCollapsed: boolean;
+  pendingNodeId: number | null;
+  load: (api: ApiClient) => Promise<void>;
+  setScreen: (screen: ScreenId) => void;
+  setPendingNode: (nodeId: number | null) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
+}
+
+/** Shell state: bootstrap, active screen and sidebar. */
+export const useShellStore = create<ShellState>()((set, get) => ({
+  ready: false,
+  bootstrap: null,
+  error: null,
+  screen: 'overview',
+  sidebarCollapsed: false,
+  pendingNodeId: null,
+
+  async load(api) {
+    try {
+      const bootstrap = await api.appBootstrap();
+      applySettingsToDocument(bootstrap.settings);
+      const screen = resolveInitialScreen(bootstrap.settings.last_screen, true);
+      set({
+        ready: true,
+        bootstrap,
+        error: null,
+        screen,
+        sidebarCollapsed: bootstrap.settings.sidebar_collapsed,
+      });
+    } catch (error) {
+      const normalized = normalizeError(error);
+      logLocal('error', 'bootstrap failed', normalized);
+      set({ ready: true, error: normalized });
+    }
+  },
+
+  setScreen(screen) {
+    set({ screen });
+  },
+
+  setPendingNode(nodeId) {
+    set({ pendingNodeId: nodeId });
+  },
+
+  setSidebarCollapsed(collapsed) {
+    set({ sidebarCollapsed: collapsed });
+  },
+
+  toggleSidebar() {
+    set({ sidebarCollapsed: !get().sidebarCollapsed });
+  },
+}));

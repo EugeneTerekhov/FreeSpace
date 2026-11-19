@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal capability set for the FreeSpace main window: core events and window APIs only. No fs, shell, http or remote URL permissions are granted.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

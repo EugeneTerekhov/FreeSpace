@@ -1,0 +1,17 @@
+{
+  "command": "tree_node",
+  "input": {
+    "generation": 99,
+    "node_id": 42
+  },
+  "result": null,
+  "error": {
+    "code": "E_STALE_NODE",
+    "category": "stale",
+    "message_key": "error.stale_node",
+    "details": "node 42 is not part of generation 99",
+    "retryable": false,
+    "task_id": null,
+    "journal_entry_id": null
+  }
+}

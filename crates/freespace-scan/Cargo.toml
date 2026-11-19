@@ -1,0 +1,27 @@
+[package]
+name = "freespace-scan"
+description = "FreeSpace MFT and directory-walk scanners"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+freespace-core = { workspace = true }
+freespace-platform = { workspace = true }
+globset = { workspace = true }
+jwalk = { workspace = true }
+rayon = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+tempfile = { workspace = true }
+
+[[bench]]
+name = "scan"
+path = "../../benches/scan.rs"
+harness = false
+
+[lints]
+workspace = true

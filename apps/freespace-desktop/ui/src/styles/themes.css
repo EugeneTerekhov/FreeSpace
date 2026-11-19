@@ -1,0 +1,209 @@
+/*
+ * Colour themes for the 002 visual language.
+ *
+ * Five anchors per theme (plan.md §2.1.1):
+ *   dark:  #344b52 #587983 #9db3b4 #cfd3ca #fae8da
+ *   light: #362E23 #3A3C26 #6D6C3C #A9AC5D #E8E1DB
+ *
+ * Surfaces and labels are derived from the anchors; semantic colours stay
+ * functional and muted. Text, muted, subtle, accent, status pairs are checked by
+ * tests/unit/tokens.test.ts (WCAG AA: 4.5:1). `boot.js` sets data-theme before
+ * the first paint; the React runtime only updates it on an explicit change.
+ */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Anchors */
+  --fs-teal-900: #344b52;
+  --fs-teal-700: #587983;
+  --fs-teal-300: #9db3b4;
+  --fs-mist: #cfd3ca;
+  --fs-cream: #fae8da;
+
+  --fs-bg: #344b52;
+  --fs-surface: #3a535a;
+  --fs-surface-raised: #405d65;
+  --fs-surface-overlay: #4a6b74;
+
+  --fs-line: rgb(250 232 218 / 12%);
+  --fs-line-strong: rgb(250 232 218 / 20%);
+  --fs-line-faint: rgb(250 232 218 / 7%);
+
+  --fs-text: #fae8da;
+  --fs-text-muted: #cfd3ca;
+  --fs-text-subtle: #c6d3d2;
+
+  --fs-accent: #fae8da;
+  --fs-accent-strong: #fae8da;
+  --fs-accent-ink: #344b52;
+  --fs-focus: #cfd3ca;
+  --fs-selection: rgb(250 232 218 / 10%);
+
+  --fs-success: #b8dcc0;
+  --fs-danger: #f5c4b4;
+  --fs-warning: #edcf92;
+  --fs-info: #b9d6da;
+
+  /* Custom select chevron: the native one hugs the right border, so the kit
+   * paints its own arrow from this mask-friendly data URI. */
+  --fs-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23cfd3ca' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  /* Decorative effect slots kept for compatibility; the language has no
+   * gradients, glows or aurora backdrops (plan.md §2.5). */
+  --fs-aurora: none;
+  --fs-panel-glow: none;
+  --fs-accent-glow: none;
+  --fs-rec-fill: none;
+  --fs-brand-gradient: var(--fs-accent);
+  --fs-button-gradient: var(--fs-accent);
+  --fs-button-gradient-hover: color-mix(in oklch, var(--fs-accent) 88%, var(--fs-text));
+  --fs-gradient-text: none;
+  --fs-shadow-accent: none;
+
+  /* Tinted fills and rings for badges, notices and the selected nav item. */
+  --fs-accent-soft: rgb(250 232 218 / 10%);
+  --fs-accent-ring: rgb(250 232 218 / 24%);
+  --fs-accent-text: #fae8da;
+  --fs-violet: #9db3b4;
+  --fs-violet-soft: rgb(157 179 180 / 10%);
+  --fs-violet-ring: rgb(157 179 180 / 24%);
+  --fs-success-soft: rgb(184 220 192 / 10%);
+  --fs-success-ring: rgb(184 220 192 / 30%);
+  --fs-warning-soft: rgb(237 207 146 / 10%);
+  --fs-warning-ring: rgb(237 207 146 / 32%);
+  --fs-danger-soft: rgb(245 196 180 / 10%);
+  --fs-danger-ring: rgb(245 196 180 / 32%);
+  --fs-info-soft: rgb(185 214 218 / 10%);
+  --fs-info-ring: rgb(185 214 218 / 30%);
+
+  /* Meters, progress and the scan line: one accent, lightness carries the rest. */
+  --fs-meter-gradient: var(--fs-accent);
+  --fs-meter-warning-gradient: var(--fs-warning);
+  --fs-meter-danger-gradient: var(--fs-danger);
+  --fs-scan-gradient: var(--fs-accent);
+  --fs-num-accent: var(--fs-text);
+
+  /* Inline tree progress bar: a translucent wash inside the palette. */
+  --fs-tree-fill: rgb(250 232 218 / 9%);
+  --fs-tree-fill-strong: rgb(250 232 218 / 15%);
+
+  /* Terminal / CLI */
+  --fs-term-bg: #2c4046;
+  --fs-term-prompt: #fae8da;
+  --fs-term-text: #fae8da;
+  --fs-term-ok: #b8dcc0;
+  --fs-term-err: #f5c4b4;
+  --fs-term-dim: #9db3b4;
+  --fs-term-key: #cfd3ca;
+  --fs-term-num: #9db3b4;
+  --fs-term-str: #b8dcc0;
+
+  /* ui-sdk base mapping */
+  --ui-background: var(--fs-surface);
+  --ui-foreground: var(--fs-text);
+  --ui-muted: var(--fs-surface-overlay);
+  --ui-muted-foreground: var(--fs-text-muted);
+  --ui-border: var(--fs-line);
+  --ui-input: var(--fs-line-strong);
+  --ui-primary: var(--fs-accent);
+  --ui-primary-foreground: var(--fs-accent-ink);
+  --ui-destructive: var(--fs-danger);
+  --ui-ring: var(--fs-focus);
+  --ui-ring-border: var(--fs-focus);
+  --ui-overlay: rgb(20 30 33 / 55%);
+  --ui-shadow: var(--fs-shadow-2);
+  --ui-radius: var(--fs-radius-md);
+  --ui-spacing: 4px;
+  --ui-font-size: 13px;
+  --ui-line-height: 1.45;
+  --ui-font-sans: var(--fs-font-mono);
+  --ui-font-mono: var(--fs-font-mono);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Anchors */
+  --fs-brown-900: #362e23;
+  --fs-olive-900: #3a3c26;
+  --fs-olive-600: #6d6c3c;
+  --fs-lime-400: #a9ac5d;
+  --fs-greige-100: #e8e1db;
+
+  --fs-bg: #e8e1db;
+  --fs-surface: #f2ede9;
+  --fs-surface-raised: #f7f3f0;
+  --fs-surface-overlay: #dcd5cc;
+
+  --fs-line: rgb(54 46 35 / 12%);
+  --fs-line-strong: rgb(54 46 35 / 22%);
+  --fs-line-faint: rgb(54 46 35 / 7%);
+
+  --fs-text: #362e23;
+  --fs-text-muted: #5d5935;
+  --fs-text-subtle: #636138;
+
+  --fs-accent: #5d5935;
+  --fs-accent-strong: #5d5935;
+  --fs-accent-ink: #e8e1db;
+  --fs-focus: #6d6c3c;
+  --fs-selection: rgb(169 172 93 / 22%);
+
+  --fs-success: #2f6b3f;
+  --fs-danger: #a8442f;
+  --fs-warning: #7a5c12;
+  --fs-info: #2f5f6b;
+
+  /* Custom select chevron: the native one hugs the right border, so the kit
+   * paints its own arrow from this mask-friendly data URI. */
+  --fs-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%235d5935' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  --fs-aurora: none;
+  --fs-panel-glow: none;
+  --fs-accent-glow: none;
+  --fs-rec-fill: none;
+  --fs-brand-gradient: var(--fs-accent);
+  --fs-button-gradient: var(--fs-accent);
+  --fs-button-gradient-hover: color-mix(in oklch, var(--fs-accent) 88%, var(--fs-text));
+  --fs-gradient-text: none;
+  --fs-shadow-accent: none;
+
+  --fs-accent-soft: rgb(58 60 38 / 8%);
+  --fs-accent-ring: rgb(58 60 38 / 20%);
+  --fs-accent-text: #362e23;
+  --fs-violet: #6d6c3c;
+  --fs-violet-soft: rgb(109 108 60 / 10%);
+  --fs-violet-ring: rgb(109 108 60 / 24%);
+  --fs-success-soft: rgb(47 107 63 / 10%);
+  --fs-success-ring: rgb(47 107 63 / 28%);
+  --fs-warning-soft: rgb(122 92 18 / 10%);
+  --fs-warning-ring: rgb(122 92 18 / 28%);
+  --fs-danger-soft: rgb(168 68 47 / 10%);
+  --fs-danger-ring: rgb(168 68 47 / 28%);
+  --fs-info-soft: rgb(47 95 107 / 10%);
+  --fs-info-ring: rgb(47 95 107 / 28%);
+
+  --fs-meter-gradient: var(--fs-accent);
+  --fs-meter-warning-gradient: var(--fs-warning);
+  --fs-meter-danger-gradient: var(--fs-danger);
+  --fs-scan-gradient: var(--fs-accent);
+  --fs-num-accent: var(--fs-text);
+
+  --fs-tree-fill: rgb(54 46 35 / 6%);
+  --fs-tree-fill-strong: rgb(54 46 35 / 11%);
+
+  /* Terminal / CLI */
+  --fs-term-bg: #f2ede9;
+  --fs-term-prompt: #5d5935;
+  --fs-term-text: #362e23;
+  --fs-term-ok: #2f6b3f;
+  --fs-term-err: #a8442f;
+  --fs-term-dim: #636138;
+  --fs-term-key: #6d6c3c;
+  --fs-term-num: #5d5935;
+  --fs-term-str: #2f6b3f;
+
+  --ui-overlay: rgb(54 46 35 / 35%);
+}

@@ -19,7 +19,7 @@ cargo build --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
-cargo run -p freespace-gui
+cd apps/freespace-desktop/ui; npm ci; npm run tauri dev
 ```
 
 CLI:
@@ -197,14 +197,20 @@ cargo run -p freespace-cli -- schedule export default --out task.xml
 ### 18. Контекстное меню (US19)
 
 ```powershell
-cargo run -p freespace-cli -- context-menu install --yes
+cargo run -p freespace-cli -- config get context_menu_enabled
+cargo run -p freespace-cli -- config set context_menu_enabled true
 ```
 
-Проверить пункты меню для файла, папки и диска; затем:
+Проверить пункты меню для файла, папки и диска; затем выключить и очистить обе области:
 
 ```powershell
-cargo run -p freespace-cli -- context-menu uninstall --yes
+cargo run -p freespace-cli -- config set context_menu_enabled false
+cargo run -p freespace-cli -- context-menu uninstall --all --yes
 ```
+
+Ожидается: после установки пунктов нет; включение настройки добавляет их, выключение убирает;
+`uninstall --all` идемпотентен. Портативная сборка (`cargo build --release --no-default-features
+-p freespace-cli`) не содержит команды `context-menu`.
 
 ### 19. Мониторинг (US20)
 
@@ -227,7 +233,9 @@ cargo run -p freespace-cli -- config set language ru
 cargo run -p freespace-cli -- config set language en
 ```
 
-Ожидается: все тома в сводке; полная локализация; портативный режим не пишет в профиль.
+Ожидается: все тома в сводке; полная локализация; настройки, журнал и карантин находятся в
+`<папка приложения>\data`, а `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramData%` и временные каталоги
+не создаются. Проверить удаление: после деинсталляции каталог `data` и пункты меню отсутствуют.
 
 ## Критерии готовности к релизу
 

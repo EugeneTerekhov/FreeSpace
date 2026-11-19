@@ -1,0 +1,32 @@
+[package]
+name = "freespace-desktop"
+description = "FreeSpace desktop client: Tauri 2 shell around the Rust core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "freespace-gui"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+freespace-app = { workspace = true }
+freespace-core = { workspace = true }
+freespace-ops = { workspace = true }
+freespace-platform = { workspace = true }
+freespace-scan = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
