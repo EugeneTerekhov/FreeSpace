@@ -105,7 +105,12 @@ let stale = false;
 
 for (const [name, content] of outputs) {
   const target = join(outputDir, name);
-  const current = existsSync(target) ? readFileSync(target, 'utf8') : null;
+  // Git may check the generated files out with CRLF on Windows, while the
+  // generator always writes LF. Compare normalized text so the staleness check
+  // does not depend on the checkout configuration.
+  const current = existsSync(target)
+    ? readFileSync(target, 'utf8').replace(/\r\n/g, '\n')
+    : null;
 
   if (current === content) {
     continue;

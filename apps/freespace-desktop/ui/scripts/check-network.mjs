@@ -19,6 +19,9 @@ const ALLOWED_URLS = [
   'http://localhost:1420',
 ];
 const REMOTE_URL = /\b(?:https?|wss?|ftp):\/\/[^\s"'`)]+/g;
+// XML namespace declarations are identifiers, not fetches; the data URI chevron
+// in themes.css embeds one and must not fail the offline guard.
+const XML_NAMESPACE = /\bxmlns\s*=\s*(["'])[^"']*\1/g;
 const FORBIDDEN_PERMISSIONS = /(?:^|["':])(?:fs|shell|http)[:.]/;
 const TEXT_EXTENSIONS = new Set(['.css', '.html', '.js', '.mjs', '.ts', '.tsx']);
 
@@ -42,7 +45,7 @@ for (const file of scanned) {
     continue;
   }
 
-  const text = readFileSync(file, 'utf8');
+  const text = readFileSync(file, 'utf8').replace(XML_NAMESPACE, '');
   for (const match of text.matchAll(REMOTE_URL)) {
     const url = match[0];
 
