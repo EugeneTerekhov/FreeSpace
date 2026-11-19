@@ -56,11 +56,14 @@ test.describe('core screens', () => {
     await expect(page.getByRole('row', { name: /C:\\/ }).first()).toBeVisible();
 
     await app.openTreeRoot();
-    await expect(page.getByRole('row', { name: /Windows(?!\.)/ })).toBeVisible();
+    const row = page.getByRole('row', { name: /Windows(?!\.)/ });
+    await expect(row).toBeVisible();
+    await row.hover();
 
-    await page.getByRole('row', { name: /Windows(?!\.)/ }).click();
-    await expect(page.getByText('Размер на диске', { exact: true })).toBeVisible();
-    await expect(page.getByText('Каталог').first()).toBeVisible();
+    const details = page.getByRole('tooltip', { name: 'Детали размера' });
+    await expect(details).toBeVisible();
+    await expect(details.getByText('Размер на диске', { exact: true })).toBeVisible();
+    await expect(details.getByText('Каталог')).toBeVisible();
   });
 
   test('tree search finds a nested object', async ({ page }) => {

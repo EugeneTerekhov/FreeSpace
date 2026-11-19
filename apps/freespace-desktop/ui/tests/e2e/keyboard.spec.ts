@@ -84,8 +84,15 @@ test.describe('keyboard only', () => {
     await first.focus();
 
     await page.keyboard.press(' ');
-    const details = page.locator('dl').filter({ hasText: 'Жёсткие ссылки' });
-    await expect(details.getByText('C:\\', { exact: true })).toBeVisible();
+    // Keyboard focus opens the size-details hover card for the active row.
+    await first.evaluate((el) => {
+      el.setAttribute('data-focus-ring', 'true');
+      el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    });
+    const details = page.getByRole('tooltip', { name: 'Детали размера' });
+    await expect(details).toBeVisible();
+    await expect(details.getByText('Жёсткие ссылки')).toBeVisible();
+    await expect(details.getByText('C:\\', { exact: true }).first()).toBeVisible();
 
     await page.keyboard.press('Enter');
     await expect(page.getByRole('row', { name: /Windows(?!\.)/ })).toBeVisible();
