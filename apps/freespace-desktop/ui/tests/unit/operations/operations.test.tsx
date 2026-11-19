@@ -457,7 +457,9 @@ describe('write monitor', () => {
     const user = userEvent.setup();
     renderWithI18n(<Monitor />);
 
-    const interval = screen.getByLabelText(t('monitor.interval'));
+    const interval = screen.getByLabelText((content) =>
+      content.startsWith(t('monitor.interval')),
+    );
     await user.clear(interval);
     await user.type(interval, '0');
     await user.click(screen.getByRole('button', { name: t('monitor.start') }));

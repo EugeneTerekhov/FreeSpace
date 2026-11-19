@@ -416,11 +416,7 @@ export function Monitor() {
 
       <Panel>
         <div className={styles.stateRow} data-testid="monitor-status" data-task-id={taskId ?? ''}>
-          {running || status !== null ? (
-            <Badge tone={running ? 'success' : 'neutral'}>
-              {stateLabel}
-            </Badge>
-          ) : null}
+          <Badge tone={running ? 'success' : 'neutral'}>{stateLabel}</Badge>
           {sourceLabel !== null ? (
             <Badge tone={status?.source === 'counters' ? 'warning' : 'info'}>{sourceLabel}</Badge>
           ) : null}

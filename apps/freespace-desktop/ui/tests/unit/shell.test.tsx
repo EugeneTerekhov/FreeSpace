@@ -54,7 +54,7 @@ describe('shell', () => {
     expect(screen.getAllByText('Обзор').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Анализ').length).toBeGreaterThan(0);
     // The brand icon is decorative: rendered, but hidden from narrators.
-    expect(container.querySelector('svg')).not.toBeNull();
+    expect(container.querySelector('img')).not.toBeNull();
   });
 
   it('marks the active screen and selects another one', async () => {
