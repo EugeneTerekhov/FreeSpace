@@ -51,7 +51,7 @@ description: "Task list for the FreeSpace 002 UX recomposition (11 screens, no T
 - GUI Rust: `apps/freespace-desktop/src-tauri/src/` (в задачах `src-tauri/...`)
 - GUI React: `apps/freespace-desktop/ui/src/` (в задачах `ui/...`)
 - Тесты frontend: `apps/freespace-desktop/ui/tests/`
-- Tauri E2E: `tests/tauri_e2e/`
+- Tauri E2E: `apps/freespace-desktop/ui/tests/tauri/`
 - Контракты и фикстуры: `specs/002-native-ui-redesign/contracts/`
 - Локализация: `locales/`
 

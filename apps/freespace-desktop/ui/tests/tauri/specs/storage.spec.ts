@@ -10,7 +10,8 @@ import path from 'node:path';
 
 import { browser, expect } from '@wdio/globals';
 
-const repository = path.resolve(__dirname, '../../..');
+// specs -> tauri -> tests -> ui -> freespace-desktop -> apps -> repository root.
+const repository = path.resolve(import.meta.dirname, '../../../../../../');
 const executableDir = path.join(repository, 'target', 'debug');
 const executable = path.join(executableDir, 'freespace-gui.exe');
 const dataDir = path.join(executableDir, 'data');

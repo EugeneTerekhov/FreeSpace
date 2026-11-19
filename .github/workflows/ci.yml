@@ -176,16 +176,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build the desktop binary
-        run: cargo build -p freespace-desktop
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run tauri -- build --debug --no-bundle
 
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
-
-      - name: Start tauri-driver
-        run: Start-Process -FilePath tauri-driver -NoNewWindow
-
-      - name: Wait for the driver
-        run: Start-Sleep -Seconds 5
 
       - name: Tauri end-to-end tests
         working-directory: ${{ env.UI_DIR }}

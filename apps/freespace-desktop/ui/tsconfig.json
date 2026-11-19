@@ -20,7 +20,14 @@
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    "types": [
+      "node",
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "@wdio/globals/types",
+      "webdriverio"
+    ]
   },
   "include": ["src", "tests", "scripts", "*.config.ts"]
 }

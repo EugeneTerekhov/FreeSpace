@@ -22,7 +22,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test --project=e2e --pass-with-no-tests",
     "test:a11y": "playwright test --project=a11y --pass-with-no-tests",
-    "test:tauri": "wdio run ../../../tests/tauri_e2e/wdio.conf.ts"
+    "test:tauri": "wdio run tests/tauri/wdio.conf.ts"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
@@ -48,6 +48,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "4.7.0",
     "@wdio/cli": "^9.20.0",
+    "@wdio/globals": "^9.20.0",
     "@wdio/local-runner": "^9.20.0",
     "@wdio/mocha-framework": "^9.20.0",
     "@wdio/spec-reporter": "^9.20.0",
