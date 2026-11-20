@@ -58,6 +58,16 @@ function installMatchMedia(initialDark: boolean) {
   };
 }
 
+function nextFrame(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
 afterEach(() => {
   useSettingsStore.setState({ settings: null });
 });
@@ -91,6 +101,25 @@ describe('system theme synchronisation', () => {
       media.setDark(false);
       expect(document.documentElement.dataset.theme).toBe('light');
       stop();
+    } finally {
+      media.restore();
+    }
+  });
+
+  it('swaps the palette without animating through intermediate colours', async () => {
+    const media = installMatchMedia(false);
+    try {
+      useSettingsStore.getState().setSettings(settings('light'));
+      await nextFrame();
+      expect(document.documentElement.dataset.theme).toBe('light');
+      expect(document.documentElement.dataset.themeSwitching).toBeUndefined();
+
+      useSettingsStore.getState().setSettings(settings('dark'));
+      expect(document.documentElement.dataset.theme).toBe('dark');
+      expect(document.documentElement.dataset.themeSwitching).toBe('true');
+
+      await nextFrame();
+      expect(document.documentElement.dataset.themeSwitching).toBeUndefined();
     } finally {
       media.restore();
     }
