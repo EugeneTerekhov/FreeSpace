@@ -1,6 +1,6 @@
 [package]
 name = "freespace-platform"
-description = "FreeSpace Windows platform layer; the only crate allowed to call WinAPI"
+description = "FreeSpace platform layer; the only crate allowed to call OS APIs"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,10 +10,14 @@ default = ["context-menu"]
 context-menu = ["dep:winreg"]
 
 [dependencies]
-ferrisetw = { workspace = true }
 freespace-core = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+ferrisetw = { workspace = true }
+getrandom = { workspace = true }
 winreg = { workspace = true, optional = true }
 windows = { workspace = true, features = [
     "Win32_Foundation",
@@ -31,7 +35,12 @@ windows = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+[target.'cfg(unix)'.dependencies]
+percent-encoding = { workspace = true }
+rustix = { workspace = true, features = ["fs", "process"] }
+
 [dev-dependencies]
+serde_json = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

@@ -220,7 +220,7 @@ pub fn unlock_release(
 ) -> Result<OperationAccepted, UiError> {
     let mode = UnlockMode::parse_value(&mode)
         .ok_or_else(|| UiError::validation(format!("unknown unlock mode `{mode}`")))?;
-    let elevated = freespace_platform::elevation::is_elevated();
+    let elevated = freespace_platform::platform().elevation.is_elevated();
     let process_ids = process_ids.unwrap_or_default();
     let confirmed = confirmed.unwrap_or(true);
     let result = state.with_store(|store| {
@@ -253,7 +253,7 @@ pub fn unlock_schedule_reboot(
     path: String,
     confirmed: Option<bool>,
 ) -> Result<OperationAccepted, UiError> {
-    let elevated = freespace_platform::elevation::is_elevated();
+    let elevated = freespace_platform::platform().elevation.is_elevated();
     let result = state.with_store(|store| {
         unlock::schedule_reboot(
             Path::new(&path),

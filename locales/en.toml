@@ -29,8 +29,6 @@ loading = "Loading…"
 overview = "Overview"
 analysis = "Analysis"
 inspect = "Inspect"
-fileops = "File operations"
-shredder = "Shredder"
 dashboard = "Drives"
 scan = "Scan"
 tree = "Tree"
@@ -43,14 +41,11 @@ snapshots = "Snapshots"
 journal = "Journal"
 size_details = "Size details"
 long_paths = "Long paths"
-rename = "Rename"
-permissions = "Permissions"
 metadata = "Metadata"
 owners = "Owners"
 archives = "Archives"
 export = "Export"
 unlock = "Unlock"
-shred = "Shredder"
 monitor = "Write monitor"
 elevation = "Elevation"
 settings = "Settings"
@@ -91,7 +86,6 @@ toggle_sidebar = "Collapse or expand the navigation pane"
 
 [delete.mode]
 recycle_bin = "Recycle Bin — recoverable until the bin is emptied"
-quarantine = "FreeSpace quarantine — recoverable from the app"
 permanent = "Permanent deletion — cannot be undone"
 
 [settings]
@@ -107,7 +101,6 @@ exclusions = "Excluded paths (separated by ;)"
 context_menu = "Add FreeSpace to the Explorer context menu (disabled by default)"
 duplicate_rule = "Duplicate keep rule"
 outdated_days = "Stale after, days"
-quarantine_days = "Quarantine retention, days"
 monitor_threshold = "Monitor threshold, bytes (<1 GiB)"
 monitor_interval = "Monitor interval, seconds (1 – 86400)"
 path = "Settings file"
@@ -276,29 +269,8 @@ stale = "stale"
 identical = "identical"
 delete = "delete"
 keep = "keep"
-confirm = "I understand that the selected copies will be moved to quarantine"
-quarantine = "Move to quarantine"
 keep_one = "At least one copy of every group must stay."
-moved = "Moved to quarantine: %{count}"
 failed = "errors: %{count}"
-undo_hint = "They can be restored from quarantine."
-
-[shred]
-intro = "Overwrite files with the selected pattern and delete them for good."
-irreversible = "This operation cannot be undone."
-passes = "Passes"
-pattern = "Pattern"
-"pattern.zeros" = "Zeros"
-"pattern.random" = "Random data"
-files = "Files (one per line)"
-files_hint = 'C:\path\to\secret.bin'
-inspect = "Check the disk type"
-storage = "Disk type"
-ssd_warning = "Solid-state drive: destruction cannot be guaranteed because wear levelling may keep physical copies. A TRIM request is issued after the overwrite."
-confirm = "I understand that these files will be destroyed irreversibly"
-destroy = "Destroy"
-done = "Files destroyed: %{count}"
-no_files = "Provide at least one file."
 
 [cleanup]
 intro = "Review temporary data, caches, logs, backups and stale files before removing anything."
@@ -385,20 +357,18 @@ large = "The operation affects a very large amount of data."
 permanent = "Permanent deletion cannot be undone."
 
 [journal]
-intro = "Every destructive operation is recorded here. Quarantined objects can be restored."
+intro = "Every destructive operation is recorded here. Only renames can be undone."
 refresh = "Refresh"
 empty = "The journal has no entries yet."
 undo = "Undo"
-restored = "Restored: %{restored}, failed: %{failed}"
 time = "Time"
 user = "User"
 kind_label = "Operation"
 targets = "Objects"
 result_label = "Result"
-restore = "Restore"
 not_reversible = "Irreversible"
 search = "Search the journal"
-search_placeholder = "User, operation or quarantine"
+search_placeholder = "User or operation"
 all_kinds = "All operations"
 all_results = "All results"
 entries = "Journal entries"
@@ -450,40 +420,14 @@ path_required = "Provide a path first."
 done = "The operation completed."
 
 [rename]
-intro = "Rename thousands of objects with a regular expression. Preview conflicts before applying anything."
-files = "Objects (one per line)"
-pattern = "Pattern"
-replacement = "Replacement"
 preview = "Preview"
-plan = "Planned renames: %{count}, conflicts: %{conflicts}"
 confirm = "I have reviewed the preview and confirm the rename"
 apply = "Rename"
-done = "Objects renamed: %{count}"
 object_title = "Rename object"
 new_name = "New name"
 old_name = "Current name"
-invalid = "Enter a new name for the object."
 single_hint = "Check the new name: the preview shows conflicts before anything changes."
 no_change = "The name did not change, so no rename is needed."
-
-[permissions]
-intro = "Change attributes, ownership and NTFS permissions in a batch. Errors are listed per object."
-objects = "Objects (one per line)"
-attributes = "Attributes"
-set = "Set"
-clear = "Clear"
-apply_attrs = "Apply attributes"
-attributes_hint = "readonly, hidden, system, archive, temporary, sparse, compressed, not-indexed"
-acl = "Ownership and permissions"
-owner = "New owner account"
-apply_owner = "Set owner"
-reset = "Reset explicit permissions to inherited defaults"
-apply_reset = "Reset permissions"
-copy_from = "Copy permissions from"
-apply_copy = "Copy permissions"
-confirm = "I understand that these changes affect access and may require administrator rights"
-confirm_required = "Confirm the operation first."
-updated = "Updated: %{succeeded}, failed: %{failed}"
 
 [metadata]
 intro = "Read EXIF, audio and video properties and executable versions, then filter by them."
@@ -759,22 +703,6 @@ unknown = "Unknown owner"
 unreadable = "The owner of some objects could not be read."
 unknown = "Some objects have an unknown owner."
 
-[permissions.warning]
-elevation = "Administrator rights are required for this change."
-protected = "The object is in a protected area."
-
-[rename.conflict]
-exists = "The new name already exists."
-duplicate = "Several objects would receive the same name."
-reserved = "The name is reserved by Windows."
-path_limit = "The new path exceeds the allowed length."
-invalid_name = "The name contains invalid characters."
-
-[rename.warning]
-protected = "The target is in a protected area."
-conflicts = "The plan contains conflicts that must be resolved."
-no_change = "The pattern did not change any name."
-
 [size_details.metric]
 physical = "Physical size"
 on_disk = "On-disk size"
@@ -847,29 +775,8 @@ display = "Display path"
 list = "Matching objects"
 
 [fileops.rename]
-hint = "The pattern applies to names; changes are written only after the preview is confirmed."
-empty = "Enter the objects and a pattern, then build the preview."
-before = "Before"
-after = "After"
-new_path = "New path"
 changes = "Changes"
-conflicts = "Conflicts"
 blocked = "Resolve the conflicts to apply the plan."
-
-[fileops.permissions]
-hint = "Reading permissions changes nothing; changes are applied after a preview and confirmation."
-inheritance = "Inheritance"
-explicit = "Explicit rights"
-inherited = "Inherited rights"
-changes = "Changes"
-changes_hint = "The preview shows the owner and attributes before and after the change."
-attributes_hint = "Toggle the attributes; the preview verifies every change."
-
-[fileops.attr]
-read_only = "Read-only"
-archive = "Archive"
-temporary = "Temporary"
-not_content_indexed = "Not content indexed"
 
 [cleanup.panels]
 settings = "Cleanup settings"
@@ -893,7 +800,6 @@ diff_page_hint = "Growth and shrink counts cover the loaded rows: %{loaded} of %
 # Tree after the re-composition: inline share bars and a size card on hover.
 [tree2]
 title_details = "Size details"
-context = "%{scope} · items: %{count}"
 partial = "Some objects are unavailable: certain rows cannot be read."
 hover_hint = "Hover a row or focus it with the keyboard to see its size details."
 details_path = "Path"
@@ -939,19 +845,10 @@ hover_hint = "Hover an entry or focus it with the keyboard to see its details an
 details = "Entry details"
 empty_hint = "Change the filters or refresh the journal."
 operation_id = "Operation identifier"
-quarantine = "Quarantined items"
 error = "Error"
 undone = "The operation was undone."
-restore_title = "Restore items from quarantine?"
 undo_title = "Undo the operation changes?"
-restore_hint = "Items returning from quarantine: %{count}. The action is recorded in the journal."
 undo_hint = "Changes are undone for items: %{count}. The action is recorded in the journal."
-
-[operations.shred]
-context = "Targets selected: %{count} · the operation is irreversible"
-form = "Destruction settings"
-preview_required = "Preview first, then a separate confirmation."
-irreversible_hint = "Data is overwritten and deleted; recovery is impossible."
 
 [operations.monitor]
 context = "Events: %{count} · written %{size}"
@@ -985,10 +882,9 @@ selected = "Selected %{count} of %{total} · %{size}"
 partial = "The data is incomplete: some files could not be read. The result is marked."
 
 [system.settings]
-context = "Theme, language, density · rights · about"
+context = "Theme, language, density · about"
 interface = "Interface"
 paths = "Paths and exclusions"
-cleanup = "Cleanup and quarantine"
 apply = "Applying settings"
 
 [system.elevation]

@@ -7,34 +7,39 @@
 //! worker only converts platform events into [`MonitorSample`]s and emits
 //! `monitor-tick` at 2 Hz.
 
+#[cfg(windows)]
+use std::sync::mpsc;
 use std::{
     collections::HashMap,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-        mpsc,
     },
     time::{Duration, Instant},
 };
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
+#[cfg(windows)]
+use freespace_app::monitor::SOURCE_ETW;
 use freespace_app::{
     dto::{
         MonitorEventFilter, MonitorEventPage, MonitorSample, MonitorStartRequest, MonitorStatus,
         MonitorTick, TaskStarted, TaskState,
     },
     error::{UiError, UiErrorCode},
-    monitor::{
-        COUNTERS_UNAVAILABLE_KEY, ETW_UNAVAILABLE_KEY, MonitorStarted, SOURCE_COUNTERS, SOURCE_ETW,
-    },
+    monitor::{COUNTERS_UNAVAILABLE_KEY, ETW_UNAVAILABLE_KEY, MonitorStarted, SOURCE_COUNTERS},
     operations::now_millis,
 };
 use freespace_core::time::Timestamp;
+#[cfg(not(windows))]
+use freespace_platform::common::monitor::ProcessIo;
+#[cfg(windows)]
 use freespace_platform::{
     etw::{EtwSession, WriteEvent},
     process_io,
 };
+#[cfg(windows)]
 use freespace_scan::monitor_fallback::FallbackMonitor;
 
 use crate::{
@@ -134,6 +139,7 @@ pub fn monitor_set_exclusions(
     state.monitors().set_exclusions(exclusions)
 }
 
+#[cfg(windows)]
 fn run_worker(app: AppHandle, started: MonitorStarted) {
     let task_id = started.task_id.clone();
     let stop = started.stop;
@@ -228,6 +234,86 @@ fn run_worker(app: AppHandle, started: MonitorStarted) {
     if let Some(session) = etw {
         let _ = session.stop();
     }
+    let _ = app_state
+        .monitors()
+        .stop(&task_id, Timestamp::now().as_millis());
+    app_state.finish_task(&task_id, TaskState::Completed, None);
+    emit_queue(&app, &app_state);
+}
+
+#[cfg(not(windows))]
+fn run_worker(app: AppHandle, started: MonitorStarted) {
+    let task_id = started.task_id.clone();
+    let stop = started.stop;
+    let app_state = app.state::<AppState>();
+    let backend = freespace_platform::platform().monitor;
+
+    // There is no ETW equivalent outside Windows; process I/O counters are the
+    // only source, and the backend reports them as unavailable when unsupported.
+    let _ = app_state.monitors().set_source(&task_id, SOURCE_COUNTERS);
+    let _ = app_state
+        .monitors()
+        .add_warning(&task_id, ETW_UNAVAILABLE_KEY);
+
+    let mut previous: HashMap<u32, ProcessIo> = HashMap::new();
+    let mut counters_warned = false;
+    let mut ticker = Ticker::new(TICK_INTERVAL);
+
+    while !stop.load(Ordering::Relaxed) {
+        if !sleep_until_tick(&stop, ticker.remaining()) {
+            break;
+        }
+        ticker.reset();
+
+        let snapshot = match backend.snapshot() {
+            Ok(snapshot) => snapshot,
+            Err(_) => {
+                if !counters_warned {
+                    counters_warned = true;
+                    let _ = app_state
+                        .monitors()
+                        .add_warning(&task_id, COUNTERS_UNAVAILABLE_KEY);
+                }
+                continue;
+            }
+        };
+
+        let now = Timestamp::now().as_millis();
+        let samples: Vec<MonitorSample> = snapshot
+            .iter()
+            .filter_map(|current| {
+                let before = previous.get(&current.pid)?;
+                let bytes = current.write_bytes.checked_sub(before.write_bytes)?;
+                if bytes == 0 {
+                    return None;
+                }
+
+                Some(MonitorSample {
+                    timestamp: now,
+                    process_id: current.pid,
+                    process: current.name.clone(),
+                    bytes,
+                    paths: Vec::new(),
+                })
+            })
+            .collect();
+        previous = snapshot
+            .into_iter()
+            .map(|process| (process.pid, process))
+            .collect();
+
+        if samples.is_empty() {
+            continue;
+        }
+        if let Ok(Some(tick)) =
+            app_state
+                .monitors()
+                .push_samples(&task_id, &samples, Timestamp::now().as_millis())
+        {
+            emit_tick(&app, &app_state, &task_id, tick);
+        }
+    }
+
     let _ = app_state
         .monitors()
         .stop(&task_id, Timestamp::now().as_millis());

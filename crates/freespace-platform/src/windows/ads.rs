@@ -14,17 +14,10 @@ use windows::core::PCWSTR;
 
 use super::{paths, win};
 
+pub use crate::common::metadata::StreamInfo;
+
 /// `ERROR_HANDLE_EOF`: the stream enumeration reached the end.
 const ERROR_HANDLE_EOF: i32 = 38;
-
-/// One named alternate data stream.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StreamInfo {
-    /// Stream name without the leading colon or the `:$DATA` suffix.
-    pub name: String,
-    /// Stream length in bytes.
-    pub size: u64,
-}
 
 /// Lists the named streams of a file.
 ///

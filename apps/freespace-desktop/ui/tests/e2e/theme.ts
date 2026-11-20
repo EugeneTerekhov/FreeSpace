@@ -17,7 +17,14 @@ export async function setTheme(page: Page, theme: 'dark' | 'light'): Promise<voi
     });
   });
   await page.evaluate((value) => {
-    document.documentElement.dataset.theme = value;
-    document.documentElement.style.colorScheme = value;
+    const root = document.documentElement;
+    // Match the runtime: a programmatic palette swap is instantaneous, so the
+    // audit never samples colours halfway through a transition.
+    root.dataset.themeSwitching = 'true';
+    root.dataset.theme = value;
+    root.style.colorScheme = value;
+    requestAnimationFrame(() => {
+      delete root.dataset.themeSwitching;
+    });
   }, theme);
 }

@@ -2,6 +2,11 @@
 
 **Feature**: `001-freespace-disk-analyzer` | **Date**: 2026-11-15
 
+> **2.0 note (2026-11-20)**: the scenarios below belong to 1.x. Quarantine, restore-from-quarantine
+> and installer steps do not apply in 2.0; the current check is
+> [003/quickstart.md](../../specs/003-cross-platform-portable/quickstart.md). In 2.0 deletion uses
+> the Recycle Bin/XDG trash or permanent deletion, and the GUI has 9 screens.
+
 A guide to building and end-to-end verification after implementation. The scenarios correspond to the user
 stories and success criteria in [spec.md](./spec.md).
 

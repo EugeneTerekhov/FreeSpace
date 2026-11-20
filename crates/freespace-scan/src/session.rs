@@ -13,12 +13,14 @@ use freespace_core::{
     model::{ScanIssue, ScanMethod, ScanSession, Volume},
     tree::FsTree,
 };
-use freespace_platform::{mft, paths, volumes};
+use freespace_platform::{paths, volumes};
 
-use crate::{
-    mft_scan, usn,
-    walk::{self, Exclusions},
-};
+#[cfg(windows)]
+use freespace_platform::mft;
+
+use crate::walk::{self, Exclusions};
+#[cfg(windows)]
+use crate::{mft_scan, usn};
 
 /// Which scanner the caller asks for.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -171,6 +173,19 @@ pub struct ScanResult {
     pub cancelled: bool,
 }
 
+/// Number of records the scanner skipped because they were unreadable.
+///
+/// The MFT scanner reports corrupt records; both scanners report issues,
+/// exclusions and cancellation. Keeping the shape internal lets the session
+/// compile on platforms without an MFT scanner.
+#[derive(Debug, Default)]
+struct Outcome {
+    excluded: u64,
+    issues: Vec<ScanIssue>,
+    cancelled: bool,
+    corrupt_records: u64,
+}
+
 /// Runs a scan according to `request`.
 ///
 /// # Errors
@@ -198,6 +213,7 @@ pub fn scan(request: &ScanRequest, observer: &mut dyn ScanObserver) -> Result<Sc
     let exclusions = Exclusions::new(&request.exclusions)?;
     let at_volume_root = is_volume_root(&root)?;
 
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut method = resolve_method(
         request.method,
         &volume,
@@ -224,13 +240,13 @@ pub fn scan(request: &ScanRequest, observer: &mut dyn ScanObserver) -> Result<Sc
     );
 
     let outcome = match method {
+        #[cfg(windows)]
         ScanMethod::Mft => match mft_scan::scan(&root, &mut tree, &exclusions, observer) {
-            Ok(outcome) => mft_scan::ScanOutcome {
+            Ok(outcome) => Outcome {
                 excluded: outcome.excluded,
                 issues: outcome.issues,
                 cancelled: outcome.cancelled,
                 corrupt_records: outcome.corrupt_records,
-                records: outcome.records,
             },
             Err(error)
                 if request.method == MethodChoice::Auto
@@ -247,24 +263,28 @@ pub fn scan(request: &ScanRequest, observer: &mut dyn ScanObserver) -> Result<Sc
                 session.method = ScanMethod::DirectoryWalk;
                 method = ScanMethod::DirectoryWalk;
                 let fallback = walk::scan(&root, &mut tree, &exclusions, observer)?;
-                mft_scan::ScanOutcome {
+                Outcome {
                     excluded: fallback.excluded,
                     issues: fallback.issues,
                     cancelled: fallback.cancelled,
                     corrupt_records: 0,
-                    records: 0,
                 }
             }
             Err(error) => return Err(error),
         },
+        #[cfg(not(windows))]
+        ScanMethod::Mft => {
+            return Err(Error::Unsupported(
+                "MFT scanning is not available on this platform".to_owned(),
+            ));
+        }
         ScanMethod::DirectoryWalk | ScanMethod::Usn => {
             let outcome = walk::scan(&root, &mut tree, &exclusions, observer)?;
-            mft_scan::ScanOutcome {
+            Outcome {
                 excluded: outcome.excluded,
                 issues: outcome.issues,
                 cancelled: outcome.cancelled,
                 corrupt_records: 0,
-                records: 0,
             }
         }
     };
@@ -325,8 +345,11 @@ pub fn scan(request: &ScanRequest, observer: &mut dyn ScanObserver) -> Result<Sc
 
 /// Applies a journal delta to an existing tree.
 ///
+/// Only available on Windows, where the USN journal exists.
+///
 /// # Errors
 /// Returns an error when the journal cannot be read.
+#[cfg(windows)]
 pub fn update_incremental(
     root: &Path,
     tree: &mut FsTree,
@@ -342,26 +365,42 @@ fn resolve_method(
     root: &Path,
     warnings: &mut Vec<String>,
 ) -> Result<ScanMethod> {
+    let methods = freespace_platform::platform().capabilities.scan_methods;
+
     match choice {
         MethodChoice::Walk => Ok(ScanMethod::DirectoryWalk),
         MethodChoice::Mft => {
+            if !methods.mft {
+                return Err(Error::Unsupported(
+                    "MFT scanning is not available on this platform".to_owned(),
+                ));
+            }
             ensure_mft_available(volume, at_volume_root)?;
+            #[cfg(windows)]
             mft::mft_record_size(root)?;
 
             Ok(ScanMethod::Mft)
         }
         MethodChoice::Auto => {
-            if !at_volume_root || !volume.file_system.supports_mft() {
+            if !methods.mft || !at_volume_root || !volume.file_system.supports_mft() {
                 return Ok(ScanMethod::DirectoryWalk);
             }
-            match mft::mft_record_size(root) {
-                Ok(_) => Ok(ScanMethod::Mft),
-                Err(error) => {
-                    warnings.push(format!(
-                        "MFT access is unavailable ({error}); the directory walk was used instead"
-                    ));
-                    Ok(ScanMethod::DirectoryWalk)
+            #[cfg(windows)]
+            {
+                match mft::mft_record_size(root) {
+                    Ok(_) => Ok(ScanMethod::Mft),
+                    Err(error) => {
+                        warnings.push(format!(
+                            "MFT access is unavailable ({error}); the directory walk was used instead"
+                        ));
+                        Ok(ScanMethod::DirectoryWalk)
+                    }
                 }
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = (root, warnings);
+                Ok(ScanMethod::DirectoryWalk)
             }
         }
     }
@@ -390,18 +429,16 @@ fn ensure_mft_available(volume: &Volume, at_volume_root: bool) -> Result<()> {
 /// Returns an error when the volume root cannot be resolved.
 pub fn is_volume_root(path: &Path) -> Result<bool> {
     let normalized = paths::normalize(path)?;
-    let root = paths::volume_root(&normalized)?;
-    let left = paths::display(&normalized)
-        .trim_end_matches('\\')
-        .to_lowercase();
-    let right = paths::display(&root).trim_end_matches('\\').to_lowercase();
+    let root = paths::normalize(&paths::volume_root(&normalized)?)?;
 
-    Ok(left == right)
+    Ok(paths::equivalent_key(&normalized) == paths::equivalent_key(&root))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{MethodChoice, ScanPhase, ScanProgress, ScanRequest, is_volume_root, scan};
+    #[cfg(windows)]
+    use super::is_volume_root;
+    use super::{MethodChoice, ScanPhase, ScanProgress, ScanRequest, scan};
     use crate::session::NoopObserver;
 
     #[test]
@@ -451,6 +488,7 @@ mod tests {
         assert_eq!(error.code().as_str(), "E_NOT_FOUND");
     }
 
+    #[cfg(windows)]
     #[test]
     fn rejects_mft_for_plain_directories() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -463,6 +501,20 @@ mod tests {
 
         assert_eq!(error.code().as_str(), "E_INVALID_ARGUMENT");
         assert!(!is_volume_root(directory.path()).unwrap_or(true));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn rejects_mft_on_platforms_without_it() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let request = ScanRequest {
+            method: MethodChoice::Mft,
+            ..ScanRequest::new(directory.path())
+        };
+
+        let error = scan(&request, &mut NoopObserver).expect_err("must fail");
+
+        assert_eq!(error.code().as_str(), "E_UNSUPPORTED");
     }
 
     #[test]

@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(windows)]
 use freespace_platform::paths;
 use tempfile::TempDir;
 
@@ -95,6 +96,7 @@ impl TestTree {
     ///
     /// The directories are created through verbatim paths, so the fixture also
     /// proves that the platform layer does not depend on `LongPathsEnabled`.
+    #[cfg(windows)]
     #[must_use]
     pub fn long_directory(&self, minimum_chars: usize) -> PathBuf {
         let mut current = self.root.path().to_path_buf();

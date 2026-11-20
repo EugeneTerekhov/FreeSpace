@@ -2,26 +2,33 @@
 //!
 //! The fallback combines two cheaper sources:
 //!
-//! * `GetProcessIoCounters` gives exact byte counts per process, but no paths;
-//! * the USN journal tail gives paths of changed files, but no process ids.
+//! * process I/O counters from [`freespace_platform::platform`] give exact byte
+//!   counts per process, but no paths;
+//! * on Windows, the USN journal tail gives paths of changed files, but no
+//!   process ids.
 //!
 //! [`FallbackMonitor`] computes rates from two counter snapshots, while
-//! [`tail_paths`] turns new journal records into path hints. Both pieces are
-//! pure enough to test without an elevated session.
+//! [`tail_paths`] (Windows only) turns new journal records into path hints. Both
+//! pieces are pure enough to test without an elevated session.
 
 use std::collections::HashMap;
+
+#[cfg(windows)]
 use std::path::Path;
 
-use freespace_core::{Result, Timestamp, model::JournalState};
-use freespace_platform::{
-    mft::{
-        self, USN_REASON_DATA_EXTEND, USN_REASON_DATA_OVERWRITE, USN_REASON_DATA_TRUNCATION,
-        UsnRecord,
-    },
-    process_io::{self, ProcessIo},
+use freespace_core::Result;
+#[cfg(windows)]
+use freespace_core::Timestamp;
+#[cfg(windows)]
+use freespace_core::model::JournalState;
+#[cfg(windows)]
+use freespace_platform::mft::{
+    self, USN_REASON_DATA_EXTEND, USN_REASON_DATA_OVERWRITE, USN_REASON_DATA_TRUNCATION, UsnRecord,
 };
+use freespace_platform::{common::monitor::ProcessIo, platform};
 
 /// Maximum number of USN paths returned by one poll.
+#[cfg(windows)]
 pub const MAX_TAIL_PATHS: usize = 1_000;
 
 /// Write rate of one process between two counter snapshots.
@@ -38,6 +45,7 @@ pub struct ProcessWrite {
 }
 
 /// Path hint extracted from the USN journal.
+#[cfg(windows)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathWrite {
     /// File reference number.
@@ -76,7 +84,7 @@ impl FallbackMonitor {
     /// # Errors
     /// Returns [`freespace_core::Error`] when the process list cannot be read.
     pub fn poll(&mut self) -> Result<Vec<ProcessWrite>> {
-        let snapshot = process_io::snapshot()?;
+        let snapshot = platform().monitor.snapshot()?;
         let writes = if self.previous.is_empty() {
             Vec::new()
         } else {
@@ -138,6 +146,7 @@ where
 }
 
 /// Extracts a write hint from a USN record.
+#[cfg(windows)]
 #[must_use]
 pub fn usn_write(record: &UsnRecord) -> Option<PathWrite> {
     let reason = record.reason
@@ -157,11 +166,14 @@ pub fn usn_write(record: &UsnRecord) -> Option<PathWrite> {
 
 /// Reads the journal tail and returns paths of files whose data changed.
 ///
+/// Only available on Windows, where the USN journal exists.
+///
 /// The journal state is advanced regardless of how many records are returned, so
 /// the next call only reports new writes.
 ///
 /// # Errors
 /// Returns [`freespace_core::Error`] when the volume or journal cannot be read.
+#[cfg(windows)]
 pub fn tail_paths(root: &Path, state: &mut JournalState) -> Result<Vec<PathWrite>> {
     let journal = mft::read_journal(root, *state)?;
     *state = journal.state;
@@ -176,12 +188,15 @@ pub fn tail_paths(root: &Path, state: &mut JournalState) -> Result<Vec<PathWrite
 
 #[cfg(test)]
 mod tests {
-    use super::{FallbackMonitor, ProcessWrite, usn_write, write_deltas};
+    use super::{FallbackMonitor, ProcessWrite, write_deltas};
+    use freespace_platform::common::monitor::ProcessIo;
+    #[cfg(windows)]
+    use freespace_platform::mft::{USN_REASON_DATA_EXTEND, USN_REASON_FILE_CREATE, UsnRecord};
+
+    #[cfg(windows)]
+    use super::usn_write;
+    #[cfg(windows)]
     use freespace_core::Timestamp;
-    use freespace_platform::{
-        mft::{USN_REASON_DATA_EXTEND, USN_REASON_FILE_CREATE, UsnRecord},
-        process_io::ProcessIo,
-    };
 
     fn process(pid: u32, written: u64, operations: u64) -> ProcessIo {
         ProcessIo {
@@ -235,6 +250,7 @@ mod tests {
         assert_eq!(monitor.tracked(), 0);
     }
 
+    #[cfg(windows)]
     fn record(reason: u32, name: &str) -> UsnRecord {
         UsnRecord {
             file_ref: 42,
@@ -247,6 +263,7 @@ mod tests {
         }
     }
 
+    #[cfg(windows)]
     #[test]
     fn keeps_only_data_changes() {
         assert!(usn_write(&record(USN_REASON_FILE_CREATE, "a.txt")).is_none());

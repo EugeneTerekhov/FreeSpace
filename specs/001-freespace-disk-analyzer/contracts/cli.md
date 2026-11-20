@@ -2,6 +2,12 @@
 
 **Feature**: `001-freespace-disk-analyzer` | **Version**: 1 | **Date**: 2026-11-15
 
+> **Примечание 2.0 (2026-11-20)**: актуальный контракт CLI — `docs/ru/cli.md` и
+> [003/contracts/](../003-cross-platform-portable/contracts/). В 2.0 `delete --mode` принимает
+> только `recycle|permanent`, добавлена команда `capabilities [--json]`, а `shred`, `acl`,
+> `attrs` и `unlock` на Linux возвращают `E_UNSUPPORTED`. Упоминания `quarantine` ниже относятся
+> к историческому контракту 1.x.
+
 CLI использует то же ядро, что и GUI, и обязан обеспечивать паритет возможностей (FR-074…FR-078).
 
 ## Общие правила

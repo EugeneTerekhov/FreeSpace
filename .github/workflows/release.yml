@@ -1,0 +1,206 @@
+name: Release
+
+# Releases are published by hand from an existing tag. Pushing a tag never
+# starts this workflow: the only trigger is workflow_dispatch.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release (vX.Y.Z)
+        required: true
+        type: string
+      draft:
+        description: Create or update the release as a draft
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  UI_DIR: apps/freespace-desktop/ui
+
+jobs:
+  validate:
+    name: Validate tag
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout the requested tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Check the tag against the workspace version
+        id: version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if ! git ls-remote --tags --exit-code origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG does not exist on the remote."
+            exit 1
+          fi
+
+          remote=$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}" \
+            | awk '{ print $1 }' | tail -n 1)
+          head=$(git rev-parse HEAD)
+          if [ -z "$remote" ] || [ "$remote" != "$head" ]; then
+            echo "::error::Checked-out commit $head does not match remote tag $TAG (${remote:-missing})."
+            exit 1
+          fi
+
+          version=$(node scripts/version.mjs version)
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match v$version from [workspace.package].version."
+            exit 1
+          fi
+
+          node scripts/version.mjs check
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.artifact }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: freespace-portable-windows-x64
+            pattern: dist/freespace-portable-*-windows-x64.zip
+          - os: ubuntu-22.04
+            artifact: freespace-portable-linux-x86_64
+            pattern: dist/freespace-portable-*-linux-x86_64.tar.gz
+
+    steps:
+      - name: Checkout the requested tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            pkg-config
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build the portable Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./installer/portable.ps1
+
+      - name: Build the portable Linux archive
+        if: runner.os == 'Linux'
+        run: bash installer/portable.sh
+
+      - name: Upload the portable archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.pattern }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Draft release
+    needs: [validate, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout the requested tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Download the portable archives
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Write SHA256SUMS.txt
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+          files=(
+            freespace-portable-*-windows-x64.zip
+            freespace-portable-*-linux-x86_64.tar.gz
+          )
+          for file in "${files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Missing release artifact $file"
+              exit 1
+            fi
+          done
+          sha256sum "${files[@]}" | tee SHA256SUMS.txt
+
+      - name: Extract the release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/version.mjs notes "$VERSION" --output release-notes.md
+          cat >> release-notes.md <<'EOF'
+
+          ---
+
+          Portable only: a Windows x64 ZIP and a Linux x86_64 tar.gz. No installers are
+          published. The builds are unsigned, so Windows SmartScreen may show a warning on
+          first start. Verify the downloaded archives against `SHA256SUMS.txt`.
+          EOF
+
+      - name: Create or update the draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: FreeSpace ${{ needs.validate.outputs.tag }}
+          body_path: release-notes.md
+          draft: ${{ inputs.draft }}
+          prerelease: false
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          files: |
+            artifacts/freespace-portable-*-windows-x64.zip
+            artifacts/freespace-portable-*-linux-x86_64.tar.gz
+            artifacts/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

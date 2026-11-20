@@ -4,7 +4,6 @@ import {
   BarChart3,
   Command,
   Copy,
-  FilePenLine,
   FolderTree,
   HardDrive,
   PanelLeftClose,
@@ -14,7 +13,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
-import { Broom, PaperShredder } from './icons';
+import { Broom } from './icons';
 
 import { api } from './api/runtime';
 import type {
@@ -55,10 +54,8 @@ const SCREEN_ICON: Record<ScreenId, LucideIcon> = {
   duplicates: Copy,
   cleanup: Broom,
   journal: ScrollText,
-  shred: PaperShredder,
   monitor: Activity,
   inspect: Wrench,
-  fileops: FilePenLine,
   settings: Settings,
 };
 

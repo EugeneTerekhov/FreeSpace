@@ -168,9 +168,9 @@ pub fn hex(bytes: &[u8]) -> String {
 }
 
 fn open(path: &Path) -> Result<File> {
-    let verbatim = paths::to_verbatim(path)?;
+    let normalized = paths::normalize(path)?;
 
-    File::open(verbatim).map_err(Error::Io)
+    File::open(normalized).map_err(Error::Io)
 }
 
 fn partial_digest_of(file: &mut File, length: u64) -> Result<Vec<u8>> {

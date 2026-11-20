@@ -1,4 +1,4 @@
-//! SQLite persistence for the journal, the quarantine index and the hash cache.
+//! SQLite persistence for the journal and the hash cache.
 //!
 //! The database is a single local file. Schema changes are applied through
 //! numbered migrations tracked by `PRAGMA user_version`, so a partially written
@@ -13,19 +13,16 @@ use std::{
 use freespace_core::{Error, Result, Timestamp, Uuid};
 use rusqlite::{Connection, OptionalExtension, Row, params, types::Type};
 
-use crate::{
-    operation::{JournalEntry, JournalResult},
-    quarantine::{QuarantineItem, QuarantineStatus},
-};
+use crate::operation::{JournalEntry, JournalResult};
 
 /// Current schema version.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Returns the default database location: `<exe_dir>\data\freespace.db`.
 ///
-/// The journal, quarantine index and hash cache share this application-owned
-/// file. FreeSpace never resolves it through `%LOCALAPPDATA%`, `%APPDATA%`,
-/// `%ProgramData%` or a temporary directory (FR-093).
+/// The journal and hash cache share this application-owned file. FreeSpace
+/// never resolves it through `%LOCALAPPDATA%`, `%APPDATA%`, `%ProgramData%` or
+/// a temporary directory (FR-093).
 ///
 /// # Errors
 /// Returns [`Error::Config`] when the executable location is unknown.
@@ -77,7 +74,11 @@ CREATE TABLE hash_cache (
 ) WITHOUT ROWID;
 ";
 
-const MIGRATIONS: &[&str] = &[MIGRATION_1];
+const MIGRATION_2: &str = r"
+DROP TABLE IF EXISTS quarantine;
+";
+
+const MIGRATIONS: &[&str] = &[MIGRATION_1, MIGRATION_2];
 
 /// Identifies a cached file hash.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -276,119 +277,6 @@ impl Store {
         Ok(())
     }
 
-    /// Looks up one quarantine entry.
-    ///
-    /// # Errors
-    /// Returns an error when the query fails or the row is malformed.
-    pub fn quarantine_get(&self, id: Uuid) -> Result<Option<QuarantineItem>> {
-        self.connection
-            .query_row(
-                "SELECT id, original_path, stored_path, volume_id, size,
-                        deleted_at, expires_at, reason, status, checksum
-                 FROM quarantine
-                 WHERE id = ?1",
-                [id.to_string()],
-                read_quarantine_item,
-            )
-            .optional()
-            .map_err(db)
-    }
-
-    /// Inserts a quarantine index entry.
-    ///
-    /// # Errors
-    /// Returns an error when the record cannot be inserted.
-    pub fn quarantine_insert(&self, item: &QuarantineItem) -> Result<()> {
-        self.connection
-            .execute(
-                "INSERT INTO quarantine (
-                    id, original_path, stored_path, volume_id, size,
-                    deleted_at, expires_at, reason, status, checksum
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                params![
-                    item.id.to_string(),
-                    item.original_path.to_string_lossy(),
-                    item.stored_path.to_string_lossy(),
-                    item.volume_id.to_string(),
-                    to_i64(item.size),
-                    item.deleted_at.as_millis(),
-                    item.expires_at.as_millis(),
-                    item.reason,
-                    item.status.as_str(),
-                    item.checksum,
-                ],
-            )
-            .map_err(db)?;
-
-        Ok(())
-    }
-
-    /// Returns quarantine entries, newest first.
-    ///
-    /// # Errors
-    /// Returns an error when the query fails or a row is malformed.
-    pub fn quarantine_list(&self) -> Result<Vec<QuarantineItem>> {
-        let mut statement = self
-            .connection
-            .prepare(
-                "SELECT id, original_path, stored_path, volume_id, size,
-                        deleted_at, expires_at, reason, status, checksum
-                 FROM quarantine
-                 ORDER BY deleted_at DESC, id",
-            )
-            .map_err(db)?;
-
-        let rows = statement.query_map([], read_quarantine_item).map_err(db)?;
-
-        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(db)
-    }
-
-    /// Returns stored entries whose retention window has elapsed.
-    ///
-    /// # Errors
-    /// Returns an error when the query fails or a row is malformed.
-    pub fn quarantine_expired(&self, now: Timestamp) -> Result<Vec<QuarantineItem>> {
-        let mut statement = self
-            .connection
-            .prepare(
-                "SELECT id, original_path, stored_path, volume_id, size,
-                        deleted_at, expires_at, reason, status, checksum
-                 FROM quarantine
-                 WHERE status = ?1 AND expires_at <= ?2
-                 ORDER BY expires_at",
-            )
-            .map_err(db)?;
-
-        let rows = statement
-            .query_map(
-                params![QuarantineStatus::Stored.as_str(), now.as_millis()],
-                read_quarantine_item,
-            )
-            .map_err(db)?;
-
-        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(db)
-    }
-
-    /// Updates the status of a quarantine entry.
-    ///
-    /// # Errors
-    /// Returns [`Error::NotFound`] when the entry does not exist.
-    pub fn quarantine_update_status(&self, id: Uuid, status: QuarantineStatus) -> Result<()> {
-        let updated = self
-            .connection
-            .execute(
-                "UPDATE quarantine SET status = ?2 WHERE id = ?1",
-                params![id.to_string(), status.as_str()],
-            )
-            .map_err(db)?;
-
-        if updated == 0 {
-            return Err(Error::NotFound(format!("quarantine item `{id}`")));
-        }
-
-        Ok(())
-    }
-
     /// Looks up a cached hash.
     ///
     /// # Errors
@@ -481,29 +369,6 @@ fn read_journal_entry(row: &Row<'_>) -> rusqlite::Result<JournalEntry> {
     })
 }
 
-fn read_quarantine_item(row: &Row<'_>) -> rusqlite::Result<QuarantineItem> {
-    let id: String = row.get(0)?;
-    let volume_id: String = row.get(3)?;
-    let status: String = row.get(8)?;
-
-    Ok(QuarantineItem {
-        id: Uuid::parse_str(&id).map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(0, Type::Text, error.into())
-        })?,
-        original_path: row.get::<_, String>(1)?.into(),
-        stored_path: row.get::<_, String>(2)?.into(),
-        volume_id: Uuid::parse_str(&volume_id).map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(3, Type::Text, error.into())
-        })?,
-        size: row.get::<_, i64>(4)?.max(0) as u64,
-        deleted_at: Timestamp::from_millis(row.get(5)?),
-        expires_at: Timestamp::from_millis(row.get(6)?),
-        reason: row.get(7)?,
-        status: QuarantineStatus::parse_value(&status).unwrap_or(QuarantineStatus::Corrupted),
-        checksum: row.get(9)?,
-    })
-}
-
 fn to_i64(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
@@ -517,10 +382,7 @@ mod tests {
     use freespace_core::{Timestamp, Uuid};
 
     use super::{HashKey, SCHEMA_VERSION, Store};
-    use crate::{
-        operation::{JournalEntry, JournalResult},
-        quarantine::{QuarantineItem, QuarantineStatus},
-    };
+    use crate::operation::{JournalEntry, JournalResult};
 
     fn journal_entry() -> JournalEntry {
         JournalEntry {
@@ -537,21 +399,6 @@ mod tests {
         }
     }
 
-    fn quarantine_item() -> QuarantineItem {
-        QuarantineItem {
-            id: Uuid::new_v4(),
-            original_path: r"C:\temp\old.txt".into(),
-            stored_path: r"C:\quarantine\old.txt".into(),
-            volume_id: Uuid::new_v4(),
-            size: 42,
-            deleted_at: Timestamp::from_millis(1_700_000_000_000),
-            expires_at: Timestamp::from_millis(1_700_000_000_000 + 86_400_000),
-            reason: "test".to_owned(),
-            status: QuarantineStatus::Stored,
-            checksum: "abc".to_owned(),
-        }
-    }
-
     #[test]
     fn migrates_once_and_is_idempotent() {
         let mut store = Store::open_in_memory().expect("open store");
@@ -559,6 +406,59 @@ mod tests {
         assert_eq!(store.schema_version().expect("version"), SCHEMA_VERSION);
         store.migrate().expect("second migration");
         assert_eq!(store.schema_version().expect("version"), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migrates_a_version_one_database_and_drops_quarantine() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("freespace.db");
+        let operation_id = Uuid::new_v4();
+
+        {
+            let connection = rusqlite::Connection::open(&path).expect("v1 database");
+            connection
+                .execute_batch(super::MIGRATION_1)
+                .expect("v1 schema");
+            connection
+                .pragma_update(None, "user_version", 1)
+                .expect("version");
+            connection
+                .execute(
+                    "INSERT INTO journal (
+                        operation_id, timestamp, user, summary, affected_count,
+                        affected_bytes, result, undo_available, details
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    rusqlite::params![
+                        operation_id.to_string(),
+                        1_i64,
+                        "tester",
+                        "delete: 1 succeeded",
+                        1_i64,
+                        0_i64,
+                        "success",
+                        0_i64,
+                        "{\"kind\":\"delete\"}",
+                    ],
+                )
+                .expect("v1 journal row");
+        }
+
+        let store = Store::open(&path).expect("upgrade");
+
+        assert_eq!(store.schema_version().expect("version"), SCHEMA_VERSION);
+        let entries = store.journal_list(10).expect("journal");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].operation_id, operation_id);
+
+        let remaining: i64 = store
+            .connection()
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'quarantine'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("schema query");
+        assert_eq!(remaining, 0, "the quarantine table is dropped");
     }
 
     #[test]
@@ -592,44 +492,6 @@ mod tests {
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].timestamp.as_millis(), 2_000);
         assert_eq!(entries[1].timestamp.as_millis(), 1_000);
-    }
-
-    #[test]
-    fn stores_quarantine_index_and_finds_expired_items() {
-        let store = Store::open_in_memory().expect("open store");
-        let item = quarantine_item();
-
-        store.quarantine_insert(&item).expect("insert");
-        let items = store.quarantine_list().expect("list");
-        assert_eq!(items, vec![item.clone()]);
-
-        let expired = store
-            .quarantine_expired(Timestamp::from_millis(item.expires_at.as_millis() + 1))
-            .expect("expired");
-        assert_eq!(expired.len(), 1);
-        assert!(
-            store
-                .quarantine_expired(Timestamp::from_millis(0))
-                .expect("not expired")
-                .is_empty()
-        );
-
-        store
-            .quarantine_update_status(item.id, QuarantineStatus::Restored)
-            .expect("update");
-        assert!(
-            store
-                .quarantine_expired(Timestamp::from_millis(i64::MAX))
-                .expect("expired")
-                .is_empty(),
-            "restored items are not purged"
-        );
-
-        assert!(
-            store
-                .quarantine_update_status(Uuid::new_v4(), QuarantineStatus::Purged)
-                .is_err()
-        );
     }
 
     #[test]

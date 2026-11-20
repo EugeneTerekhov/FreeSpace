@@ -1,6 +1,6 @@
 //! Volume summaries for the dashboard and the scan screen.
 //!
-//! Enumeration and WinAPI calls stay in `freespace-platform`; this module only
+//! Enumeration and native calls stay in `freespace-platform`; this module only
 //! converts the domain [`Volume`] into the interface DTO.
 
 use freespace_core::model::Volume;

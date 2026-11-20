@@ -8,16 +8,10 @@
 import type {
   FilterSet,
   NodeRow,
-  OperationPreview,
   TreePage,
 } from './dto';
 import type {
-  AttributeChangeSet,
-  FileOperationApplied,
   LongPathValidation,
-  PermissionsChanges,
-  PermissionsPreview,
-  PermissionsView,
   RenameApplied,
   RenamePreview,
   RenameRequest,
@@ -77,55 +71,6 @@ export function applyRename(
   confirmationToken: string,
 ): Promise<RenameApplied> {
   return api.transport.invoke<RenameApplied>('rename_apply', {
-    preview_id: previewId,
-    confirmation_token: confirmationToken,
-  });
-}
-
-/** Reads owner, ACL and attributes of one path. */
-export function fetchPermissions(path: string): Promise<PermissionsView> {
-  return api.transport.invoke<PermissionsView>('permissions_get', { path });
-}
-
-/** Preview of ACL, owner and attribute changes. */
-export function requestPermissionsPreview(
-  path: string,
-  changes: PermissionsChanges,
-): Promise<PermissionsPreview> {
-  return api.transport.invoke<PermissionsPreview>('permissions_preview', {
-    path,
-    changes,
-  });
-}
-
-/** Applies a permissions preview exactly once. */
-export function applyPermissions(
-  previewId: string,
-  confirmationToken: string,
-): Promise<FileOperationApplied> {
-  return api.transport.invoke<FileOperationApplied>('permissions_apply', {
-    preview_id: previewId,
-    confirmation_token: confirmationToken,
-  });
-}
-
-/** Preview of attribute-only changes using the generic operation envelope. */
-export function requestAttributesPreview(
-  targets: string[],
-  changes: AttributeChangeSet,
-): Promise<OperationPreview> {
-  return api.transport.invoke<OperationPreview>('attributes_preview', {
-    targets,
-    changes,
-  });
-}
-
-/** Applies an attribute preview exactly once. */
-export function applyAttributes(
-  previewId: string,
-  confirmationToken: string,
-): Promise<FileOperationApplied> {
-  return api.transport.invoke<FileOperationApplied>('attributes_apply', {
     preview_id: previewId,
     confirmation_token: confirmationToken,
   });

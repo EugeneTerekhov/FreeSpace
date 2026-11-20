@@ -15,12 +15,42 @@ use freespace_core::{
     Result,
     tree::{FsTree, NodeId, NodeKind},
 };
-use freespace_platform::security::{self, OwnerIdentity};
+#[cfg(not(windows))]
+use freespace_platform::platform;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Display name of the category for objects without a resolvable owner.
 pub const UNKNOWN_OWNER: &str = "unknown";
+
+/// Cross-platform owner identity used by the per-owner report.
+///
+/// On Windows this is the platform security identity with a real SID. Other
+/// platforms expose the owner string of the metadata backend; `sid` carries the
+/// numeric uid there and `display_name` the same identifier.
+#[cfg(not(windows))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwnerIdentity {
+    /// Platform-native owner identifier (uid on Linux).
+    pub sid: String,
+    /// Resolved account name, or the identifier when it cannot be resolved.
+    pub display_name: String,
+}
+
+#[cfg(windows)]
+pub use freespace_platform::security::OwnerIdentity;
+
+#[cfg(not(windows))]
+impl OwnerIdentity {
+    /// Builds an identity from a platform owner string.
+    #[must_use]
+    pub fn from_owner(owner: String) -> Self {
+        Self {
+            sid: owner.clone(),
+            display_name: owner,
+        }
+    }
+}
 
 /// One interned owner.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -177,7 +207,25 @@ impl OwnerScan {
 /// Returns an error only when the tree cannot be enumerated; per-file failures
 /// are collected in [`OwnerScan::errors`].
 pub fn annotate(tree: &mut FsTree) -> Result<OwnerScan> {
-    annotate_with(tree, security::owner_identity)
+    annotate_with(tree, default_resolver)
+}
+
+/// Platform resolver used by [`annotate`].
+///
+/// Windows reads the security descriptor so the report keeps real SIDs; other
+/// platforms use the owner string exposed by the metadata backend.
+fn default_resolver(path: &Path) -> Result<Option<OwnerIdentity>> {
+    #[cfg(windows)]
+    {
+        freespace_platform::security::owner_identity(path)
+    }
+    #[cfg(not(windows))]
+    {
+        platform()
+            .metadata
+            .owner(path)
+            .map(|owner| owner.map(OwnerIdentity::from_owner))
+    }
 }
 
 /// Same as [`annotate`] but with an injectable resolver.
@@ -319,13 +367,11 @@ fn collect_files(tree: &FsTree) -> Vec<(NodeId, PathBuf)> {
 
 #[cfg(test)]
 mod tests {
+    use super::{OwnerIdentity, OwnerTable, annotate_with, summarize};
     use freespace_core::{
         size::SizeMetrics,
         tree::{FsTree, NodeKind, NodeSpec},
     };
-    use freespace_platform::security::OwnerIdentity;
-
-    use super::{OwnerTable, annotate_with, summarize};
 
     fn fixture() -> (FsTree, u32) {
         let mut tree = FsTree::new();

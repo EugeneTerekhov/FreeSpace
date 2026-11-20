@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US21: elevation state and access to protected system directories.
 //!
 //! Administrative assertions run only when `FREESPACE_ADMIN_TESTS=1`; the rest

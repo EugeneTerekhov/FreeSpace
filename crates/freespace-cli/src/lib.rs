@@ -92,7 +92,7 @@ pub fn run(cli: Cli, stdout: &mut dyn Write, stderr: &mut dyn Write) -> u8 {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let _run_lock = match lock::acquire(cli.lock_timeout) {
         Ok(mut lock) => {
-            let _ = lock::describe(&mut lock, command);
+            let _ = lock::describe(lock.as_mut(), command);
             Some(lock)
         }
         Err(error) => {
@@ -165,6 +165,7 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             let settings = load_settings(cli)?;
             commands::drives::run(&settings)
         }
+        Command::Capabilities => commands::capabilities::run(),
         Command::Config { action } => commands::config::run(cli.config.as_deref(), action),
         Command::Scan {
             path,
@@ -313,20 +314,11 @@ fn execute(cli: &Cli) -> Result<Outcome> {
         } => {
             let settings = load_settings(cli)?;
             let mode = mode.as_deref().ok_or_else(|| {
-                Error::InvalidArgument(
-                    "`--mode recycle|quarantine|permanent` is required".to_owned(),
-                )
+                Error::InvalidArgument("`--mode recycle|permanent` is required".to_owned())
             })?;
             let path = freespace_ops::store::default_path()?;
             let store = freespace_ops::Store::open(&path)?;
-            commands::delete::run(
-                targets,
-                mode,
-                cli.yes,
-                &store,
-                settings.quarantine_retention_days,
-                settings.units,
-            )
+            commands::delete::run(targets, mode, cli.yes, &store, settings.units)
         }
         Command::Shred {
             paths,
@@ -440,7 +432,6 @@ fn execute(cli: &Cli) -> Result<Outcome> {
                 },
             )
         }
-        #[cfg(feature = "context-menu")]
         Command::ContextMenu { action } => {
             commands::context_menu::run(action, None, cli.config.as_deref())
         }
@@ -575,6 +566,38 @@ mod tests {
 
         assert_eq!(code, 0);
         assert!(stdout.contains("free of"));
+        assert!(stderr.is_empty());
+    }
+
+    #[test]
+    fn capabilities_reports_the_current_platform() {
+        let (code, stdout, stderr) = run_args(&["freespace", "capabilities", "--json"]);
+
+        assert_eq!(code, 0);
+        assert!(stderr.is_empty());
+        let value: Value = serde_json::from_str(&stdout).expect("valid JSON");
+        assert_eq!(value["command"], "capabilities");
+        assert_eq!(value["status"], "ok");
+        assert_eq!(value["data"]["permanent"], true);
+
+        if cfg!(windows) {
+            assert_eq!(value["data"]["platform"], "windows");
+            assert_eq!(value["data"]["scan_methods"]["mft"], true);
+            assert_eq!(value["data"]["shred"], true);
+        } else if cfg!(target_os = "linux") {
+            assert_eq!(value["data"]["platform"], "linux");
+            assert_eq!(value["data"]["scan_methods"]["mft"], false);
+            assert_eq!(value["data"]["case_sensitive"], true);
+            assert_eq!(value["data"]["max_path"], 4096);
+        }
+    }
+
+    #[test]
+    fn capabilities_emits_human_output() {
+        let (code, stdout, stderr) = run_args(&["freespace", "capabilities"]);
+
+        assert_eq!(code, 0);
+        assert!(stdout.contains("platform: "));
         assert!(stderr.is_empty());
     }
 

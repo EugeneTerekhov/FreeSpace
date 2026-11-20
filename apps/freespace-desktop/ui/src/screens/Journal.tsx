@@ -62,7 +62,6 @@ const RESULT_CLASS: Record<JournalResult, string> = {
 
 interface PendingAction {
   entry: JournalEntryView;
-  action: 'undo' | 'restore';
 }
 function inRange(timestamp: number, range: Range): boolean {
   if (range === 'all') return true;
@@ -98,7 +97,7 @@ function ResultBadge({ result }: { result: JournalResult }) {
  * Filters (`kind`, `result`, date range and text) are applied to the request;
  * the range and facet checks are repeated client-side so a page that arrives
  * unfiltered (the mock transport, a stale cursor) never shows an excluded row.
- * Undo and restore both go through the shared confirmation dialog.
+ * Undo goes through the shared confirmation dialog.
  */
 export function Journal() {
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -250,10 +249,10 @@ export function Journal() {
     setRange('all');
   };
 
-  const startAction = (entry: JournalEntryView, action: 'undo' | 'restore') => {
+  const startAction = (entry: JournalEntryView) => {
     setNotice(null);
     closeHover();
-    setPending({ entry, action });
+    setPending({ entry });
   };
 
   const confirmAction = async () => {
@@ -261,16 +260,8 @@ export function Journal() {
     setBusy(true);
     setError(null);
     try {
-      if (pending.action === 'restore') {
-        await api.journalRestore(pending.entry.id);
-      } else {
-        await api.journalUndo(pending.entry.id);
-      }
-      setNotice(
-        pending.action === 'restore'
-          ? t('journal.restored', { restored: 1, failed: 0 })
-          : t('operations.journal.undone'),
-      );
+      await api.journalUndo(pending.entry.id);
+      setNotice(t('operations.journal.undone'));
       setPending(null);
       closeHover();
       await load();
@@ -451,25 +442,14 @@ export function Journal() {
                 {t('scan.objects', { count: visible.length })}
               </span>
               {selected === null ? null : selected.reversible ? (
-                selected.quarantine_ids.length > 0 ? (
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      startAction(selected, 'restore');
-                    }}
-                  >
-                    {t('journal.restore')}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      startAction(selected, 'undo');
-                    }}
-                  >
-                    {t('journal.undo')}
-                  </Button>
-                )
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    startAction(selected);
+                  }}
+                >
+                  {t('journal.undo')}
+                </Button>
               ) : (
                 <span className={styles.hint}>{t('journal.not_reversible')}</span>
               )}
@@ -528,21 +508,13 @@ export function Journal() {
 
       <ConfirmDialog
         open={pending !== null}
-        title={
-          pending?.action === 'restore'
-            ? t('operations.journal.restore_title')
-            : t('operations.journal.undo_title')
-        }
+        title={t('operations.journal.undo_title')}
         description={
           pending === null
             ? ''
-            : pending.action === 'restore'
-              ? t('operations.journal.restore_hint', { count: pending.entry.targets_count })
-              : t('operations.journal.undo_hint', { count: pending.entry.targets_count })
+            : t('operations.journal.undo_hint', { count: pending.entry.targets_count })
         }
-        confirmLabel={
-          pending?.action === 'restore' ? t('journal.restore') : t('journal.undo')
-        }
+        confirmLabel={t('journal.undo')}
         cancelLabel={t('common.cancel')}
         busy={busy}
         onCancel={() => {
@@ -560,8 +532,8 @@ export function Journal() {
  *
  * It replaces the former «Детали записи» side panel: the row data appears at
  * once and a failed entry also shows its translated message, stable code and
- * the raw detail text the core reported. Undo and restore stay on the entries
- * panel, where a selected row exposes them as buttons.
+ * the raw detail text the core reported. Undo stays on the entries
+ * panel, where a selected row exposes it as a button.
  */
 function JournalEntryDetails({ entry }: { entry: JournalEntryView }) {
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -587,10 +559,6 @@ function JournalEntryDetails({ entry }: { entry: JournalEntryView }) {
         <HoverCardRow
           label={t('journal.result_label')}
           value={<ResultBadge result={entry.result} />}
-        />
-        <HoverCardRow
-          label={t('operations.journal.quarantine')}
-          value={formatNumber(entry.quarantine_ids.length, language)}
         />
         <HoverCardRow
           label={t('operations.journal.operation_id')}

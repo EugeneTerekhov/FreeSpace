@@ -2,7 +2,7 @@
   "command": "app_about_info",
   "input": {},
   "result": {
-    "version": "1.1.0",
+    "version": "2.0.0",
     "build": "golden",
     "webview_version": "130.0.2849.68",
     "licenses": [

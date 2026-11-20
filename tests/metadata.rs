@@ -225,6 +225,7 @@ fn reads_audio_properties_from_a_wav_file() {
     assert!(record.tag("Channels").is_some());
 }
 
+#[cfg(windows)]
 #[test]
 fn reads_pe_versions_from_a_real_executable() {
     let executable = std::env::current_exe().expect("current executable");

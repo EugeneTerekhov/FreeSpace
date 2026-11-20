@@ -9,10 +9,8 @@ export const SCREEN_IDS: ScreenId[] = [
   'duplicates',
   'cleanup',
   'journal',
-  'shred',
   'monitor',
   'inspect',
-  'fileops',
   'settings',
 ];
 
@@ -21,8 +19,8 @@ export const SCREEN_GROUPS = [
   { id: 'overview', screens: ['overview'] },
   { id: 'analysis', screens: ['tree', 'analysis', 'duplicates'] },
   { id: 'cleanup', screens: ['cleanup'] },
-  { id: 'operations', screens: ['journal', 'shred', 'monitor'] },
-  { id: 'tools', screens: ['inspect', 'fileops'] },
+  { id: 'operations', screens: ['journal', 'monitor'] },
+  { id: 'tools', screens: ['inspect'] },
   { id: 'system', screens: ['settings'] },
 ] as const;
 
@@ -35,7 +33,7 @@ const LABELS = {
   openTree: { ru: 'Открыть дерево', en: 'Open tree' },
 } as const;
 
-/** Page object shared by the 11 screens. */
+/** Page object shared by the nine screens. */
 export class ScreensPage {
   constructor(readonly page: Page) {}
 
@@ -76,7 +74,7 @@ export class ScreensPage {
 
   /** Runs a mock scan and opens an analysis screen that needs a generation. */
   async withAnalysis(
-    screen: 'tree' | 'analysis' | 'duplicates' | 'cleanup' | 'inspect' | 'fileops',
+    screen: 'tree' | 'analysis' | 'duplicates' | 'cleanup' | 'inspect',
     language: UiLanguage = 'ru',
   ): Promise<void> {
     await this.runScan(language);

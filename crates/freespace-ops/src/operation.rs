@@ -10,7 +10,7 @@ use freespace_core::{Error, Result, Timestamp, Uuid};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OperationKind {
-    /// Delete to the Recycle Bin, quarantine or permanently.
+    /// Delete to the Recycle Bin or permanently.
     Delete,
     /// Overwrite and remove.
     Shred,
@@ -22,7 +22,7 @@ pub enum OperationKind {
     Permissions,
     /// Change file attributes.
     Attributes,
-    /// Restore an object from quarantine or the Recycle Bin.
+    /// Restore an object to a previous location (legacy audit only).
     Restore,
     /// Extract an archive.
     ArchiveExtract,
@@ -57,8 +57,6 @@ impl OperationKind {
 pub enum DeleteMode {
     /// Move to the Windows Recycle Bin.
     RecycleBin,
-    /// Move into the FreeSpace quarantine.
-    Quarantine,
     /// Delete without any recovery path.
     Permanent,
 }
@@ -69,7 +67,6 @@ impl DeleteMode {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::RecycleBin => "recycle-bin",
-            Self::Quarantine => "quarantine",
             Self::Permanent => "permanent",
         }
     }
@@ -79,7 +76,6 @@ impl DeleteMode {
     pub fn parse_value(value: &str) -> Option<Self> {
         match value.to_ascii_lowercase().as_str() {
             "recycle" | "recycle-bin" => Some(Self::RecycleBin),
-            "quarantine" => Some(Self::Quarantine),
             "permanent" => Some(Self::Permanent),
             _ => None,
         }
@@ -603,7 +599,7 @@ mod tests {
         assert_eq!(error.code(), ErrorCode::InvalidArgument);
 
         let operation = operation
-            .with_delete_mode(DeleteMode::Quarantine)
+            .with_delete_mode(DeleteMode::RecycleBin)
             .expect("set mode");
         assert!(operation.validate().is_ok());
     }
@@ -635,7 +631,7 @@ mod tests {
     #[test]
     fn runs_the_documented_state_machine() {
         let mut operation = delete_operation()
-            .with_delete_mode(DeleteMode::Quarantine)
+            .with_delete_mode(DeleteMode::RecycleBin)
             .expect("mode");
 
         assert_eq!(operation.status, OperationStatus::Planned);

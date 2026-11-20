@@ -77,35 +77,6 @@ test.describe('settings and US6 screens', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   });
 
-  test('shredder requires a preview and an explicit acknowledgement', async ({ page }) => {
-    await page.goto('/');
-    const app = screens(page);
-    await app.open('shred');
-
-    await expect(page.getByRole('button', { name: 'Проверить' })).toBeDisabled();
-    await expect(page.getByText(/SSD/)).toBeVisible();
-
-    await page
-      .getByLabel('Файлы (по одному в строке)')
-      .fill('C:\\Temp\\e2e-secret.bin');
-    await page.getByRole('button', { name: 'Проверить' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-
-    const destroy = page.getByRole('button', { name: 'Уничтожить' });
-    await expect(destroy).toBeDisabled();
-    await page
-      .getByRole('checkbox', {
-        name: 'Я понимаю, что эти файлы будут уничтожены безвозвратно',
-      })
-      .check();
-    await expect(destroy).toBeEnabled();
-    await destroy.click();
-
-    await expect(page.getByText('Ход операции').first()).toBeVisible();
-    await expect(page.getByText('Уничтожено файлов: 1')).toBeVisible({
-      timeout: 10_000,
-    });
-  });
 
   test('monitor starts, filters by process and stops', async ({ page }) => {
     await page.goto('/');

@@ -18,6 +18,7 @@ import type {
   OperationPreview,
   OperationPreviewRequest,
   OperationProgress,
+  PlatformCapabilities,
   ScanProgressEvent,
   SnapshotDiffPage,
   SnapshotDiffRow,
@@ -33,6 +34,7 @@ import type {
 } from './dto';
 import type { CommandName, EventName, Transport, Unlisten } from './transport';
 import { COMMANDS, EVENTS } from './transport';
+import { WINDOWS_CAPABILITIES } from '../lib/capabilities';
 import { registerFilesystemMocks } from './mock/filesystem';
 import { registerInspectionMocks } from './mock/inspection';
 import { registerSettingsMocks } from './mock/settings';
@@ -172,6 +174,11 @@ export class MockTransport implements Transport {
   volumes: VolumeSummary[] = [];
   tasks: Task[] = [];
   generation = 1;
+  /**
+   * Capabilities the mock backend advertises. Tests and the browser preview can
+   * switch this to `LINUX_CAPABILITIES` to exercise capability-driven hiding.
+   */
+  platformCapabilities: PlatformCapabilities = { ...WINDOWS_CAPABILITIES };
 
   private duplicateSearches = new Map<
     string,
@@ -510,7 +517,6 @@ export class MockTransport implements Transport {
     this.handlers.set('operation_undo', (args) => ({
       operation_id: asString(args.operation_id),
     }));
-    this.handlers.set('operation_restore', () => ({ operation_id: 'restore-mock' }));
     this.handlers.set('journal_page', () => this.journalPage());
     this.handlers.set('journal_entry', (args) => {
       const entry = this.journal.find((item) => item.id === asString(args.entry_id));
@@ -518,7 +524,6 @@ export class MockTransport implements Transport {
       return entry;
     });
     this.handlers.set('journal_undo', (args) => this.undoJournal(asString(args.entry_id)));
-    this.handlers.set('journal_restore', (args) => this.undoJournal(asString(args.entry_id)));
 
     // Delivery batches 4–6 register their own handlers from separate modules.
     const register: MockRegister = (command, handler) => {
@@ -882,17 +887,17 @@ export class MockTransport implements Transport {
       };
     });
     const total = targets.reduce((sum, target) => sum + target.size, 0);
-    const mode = request.delete_mode ?? (request.kind === 'shred' ? 'permanent' : 'recycle_bin');
+    const mode = request.delete_mode ?? 'recycle_bin';
     const preview: OperationPreview = {
       preview_id: `preview-${Date.now()}`,
       kind: request.kind,
       targets,
       total_size: total,
       delete_mode: mode,
-      reversible: mode !== 'permanent' && request.kind !== 'shred',
+      reversible: mode !== 'permanent',
       requires_elevation: targets.some((target) => target.is_system),
       warnings:
-        mode === 'permanent' || request.kind === 'shred'
+        mode === 'permanent'
           ? ['confirm.warning.permanent']
           : targets.some((target) => target.is_system)
             ? ['confirm.warning.protected', 'confirm.warning.elevation']
@@ -919,8 +924,7 @@ export class MockTransport implements Transport {
       targets_count: preview.preview.targets.length,
       total_size: preview.preview.total_size,
       result: 'success',
-      reversible: mode !== 'permanent' && preview.request.kind !== 'shred',
-      quarantine_ids: mode === 'quarantine' ? [`quarantine-${operationId}`] : [],
+      reversible: mode !== 'permanent',
       error: null,
     };
     this.journal = [entry, ...this.journal];
@@ -972,10 +976,12 @@ export class MockTransport implements Transport {
     return { operation_id: entry.operation_id };
   }
 
-  private capabilities(): AppCapabilities {    return {
+  private capabilities(): AppCapabilities {
+    return {
       commands: [...COMMANDS],
       events: [...EVENTS],
       csp_version: 1,
+      platform_capabilities: this.platformCapabilities,
     };
   }
 

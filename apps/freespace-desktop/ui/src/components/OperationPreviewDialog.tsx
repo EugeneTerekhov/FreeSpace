@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 
-import type { DeleteMode, OperationPreview, UiError } from '../api/dto';
+import type { DeleteMode, OperationPreview, PlatformCapabilities, UiError } from '../api/dto';
 import { normalizeError } from '../app/errors';
+import { deleteModes } from '../lib/capabilities';
 import { Button } from './Button';
 import { Badge, Checkbox, Radio } from './Choice';
 import { Dialog } from './Dialog';
@@ -9,9 +10,8 @@ import { Banner } from './Feedback';
 import { t } from '../i18n';
 import { formatBytes, formatNumber } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
+import { usePlatformCapabilities } from '../stores/shellStore';
 import styles from './OperationPreviewDialog.module.css';
-
-const MODES: DeleteMode[] = ['recycle_bin', 'quarantine', 'permanent'];
 
 export interface OperationPreviewDialogProps {
   open: boolean;
@@ -20,6 +20,11 @@ export interface OperationPreviewDialogProps {
   error: UiError | null;
   onCancel: () => void;
   onConfirm: (mode: DeleteMode, extraConfirmation: boolean) => void;
+  /**
+   * Modes offered by the platform. Defaults to the bootstrap capabilities so
+   * a backend without the system trash never shows a dead Recycle Bin option.
+   */
+  platform?: PlatformCapabilities | null;
 }
 
 /** Shared preview shown before every destructive action. */
@@ -30,26 +35,33 @@ export function OperationPreviewDialog({
   error,
   onCancel,
   onConfirm,
+  platform,
 }: OperationPreviewDialogProps) {
   const groupName = useId();
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
+  const bootstrapCapabilities = usePlatformCapabilities();
+  const caps = platform === undefined ? bootstrapCapabilities : platform;
+  const available = useMemo(() => deleteModes(caps), [caps]);
   const [mode, setMode] = useState<DeleteMode>('recycle_bin');
   const [acknowledged, setAcknowledged] = useState(false);
   const [extra, setExtra] = useState(false);
 
   useEffect(() => {
     if (preview === null) return;
-    setMode(preview.delete_mode ?? 'recycle_bin');
+    const preferred = preview.delete_mode ?? 'recycle_bin';
+    setMode(
+      available.includes(preferred) ? preferred : (available[0] ?? 'recycle_bin'),
+    );
     setAcknowledged(false);
     setExtra(false);
-  }, [preview]);
+  }, [available, preview]);
 
   if (preview === null) return null;
 
-  const irreversible =
-    mode === 'permanent' || preview.kind === 'shred' || preview.requires_elevation;
-  const canConfirm = acknowledged && (!irreversible || extra) && !busy;
+  const hasModes = available.length > 0;
+  const irreversible = mode === 'permanent' || preview.requires_elevation;
+  const canConfirm = hasModes && acknowledged && (!irreversible || extra) && !busy;
   const normalized = error === null ? null : normalizeError(error);
 
   return (
@@ -84,29 +96,37 @@ export function OperationPreviewDialog({
           })}
         </p>
 
-        <fieldset className={styles.modes}>
-          <legend>{t('confirm.mode')}</legend>
-          {MODES.map((item) => (
-            <Radio
-              key={item}
-              id={`${groupName}-${item}`}
-              name={groupName}
-              checked={mode === item}
-              disabled={busy}
-              label={
-                <span className={styles.modeRow}>
-                  <span>{t(`delete.mode.${item}`)}</span>
-                  {item === 'permanent' ? <Badge tone="danger">{t('confirm.irreversible')}</Badge> : null}
-                </span>
-              }
-              onChange={() => {
-                setMode(item);
-                setAcknowledged(false);
-                setExtra(false);
-              }}
-            />
-          ))}
-        </fieldset>
+        {available.length > 1 ? (
+          <fieldset className={styles.modes}>
+            <legend>{t('confirm.mode')}</legend>
+            {available.map((item) => (
+              <Radio
+                key={item}
+                id={`${groupName}-${item}`}
+                name={groupName}
+                checked={mode === item}
+                disabled={busy}
+                label={
+                  <span className={styles.modeRow}>
+                    <span>{t(`delete.mode.${item}`)}</span>
+                    {item === 'permanent' ? (
+                      <Badge tone="danger">{t('confirm.irreversible')}</Badge>
+                    ) : null}
+                  </span>
+                }
+                onChange={() => {
+                  setMode(item);
+                  setAcknowledged(false);
+                  setExtra(false);
+                }}
+              />
+            ))}
+          </fieldset>
+        ) : available.length === 1 ? (
+          <p className={styles.modeRow}>{t(`delete.mode.${available[0]}`)}</p>
+        ) : (
+          <Banner tone="error">{t('error.unsupported')}</Banner>
+        )}
 
         {preview.requires_elevation ? (
           <Banner tone="warning">{t('confirm.elevation_required')}</Banner>

@@ -2,6 +2,11 @@
 
 **Feature**: `001-freespace-disk-analyzer` | **Date**: 2026-11-15 | **Plan**: [plan.md](./plan.md)
 
+> **2.0 note (2026-11-20)**: the 2.0 model removes `QuarantineItem`, keeps only `RecycleBin` and
+> `Permanent` in `DeleteMode`, and schema migration 2 drops the quarantine table. Old
+> `quarantine`/`restore` journal entries remain readable as audit records. The current model is
+> [003/data-model.md](../../specs/003-cross-platform-portable/data-model.md).
+
 The model describes domain entities, their fields (without tying them to a physical representation),
 and integrity rules. Types are conceptual; the implementation uses compact structures and arenas.
 

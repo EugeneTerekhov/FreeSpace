@@ -5,7 +5,6 @@ mod common;
 use common::TestTree;
 use freespace_ops::{
     CaseTransform, RenameRule, Store,
-    quarantine::Quarantine,
     rename_plan::{apply_plan, build_plan},
     undo::undo_operation,
 };
@@ -35,9 +34,7 @@ fn previews_applies_and_rolls_back_a_thousand_files() {
     assert!(!fixture.path("file-0000.txt").exists());
     assert_eq!(store.journal_list(10).expect("journal").len(), 1);
 
-    let quarantine_root = tempfile::tempdir().expect("quarantine");
-    let quarantine = Quarantine::new(quarantine_root.path().join("store")).expect("quarantine");
-    let undone = undo_operation(&store, &quarantine, outcome.operation_id).expect("undo");
+    let undone = undo_operation(&store, outcome.operation_id).expect("undo");
 
     assert_eq!(undone.restored, 1_000);
     assert!(fixture.path("file-0000.txt").exists());

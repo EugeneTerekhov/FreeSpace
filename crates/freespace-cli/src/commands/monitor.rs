@@ -5,20 +5,22 @@
 //! a stream of JSON Lines (one object per event), which keeps pipes and log
 //! collectors happy even when the monitor runs for hours.
 
-use std::{collections::HashMap, path::Path, sync::mpsc, time::Duration};
+#[cfg(windows)]
+use std::{collections::HashMap, sync::mpsc};
+use std::{path::Path, time::Duration};
 
 use freespace_analysis::monitor::{
     DEFAULT_HISTORY_CAPACITY, MonitorConfig, MonitorEvent, MonitorHistory,
 };
 use freespace_core::{Error, Timestamp, settings::Settings, size::format_bytes};
+#[cfg(windows)]
 use freespace_platform::{
     etw::{EtwSession, WriteEvent},
     process_io,
 };
-use freespace_scan::{
-    monitor_fallback::{FallbackMonitor, tail_paths},
-    usn,
-};
+use freespace_scan::monitor_fallback::FallbackMonitor;
+#[cfg(windows)]
+use freespace_scan::{monitor_fallback::tail_paths, usn};
 use serde_json::json;
 
 use super::Outcome;
@@ -59,11 +61,14 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
 
     let mut history = MonitorHistory::new(DEFAULT_HISTORY_CAPACITY, &config);
     let mut warnings = Vec::new();
+    #[cfg(windows)]
     let mut names: HashMap<u32, String> = HashMap::new();
     let mut lines = String::new();
     let mut human = String::new();
 
+    #[cfg(windows)]
     let (sender, receiver) = mpsc::channel::<WriteEvent>();
+    #[cfg(windows)]
     let etw = if args.no_etw {
         None
     } else {
@@ -77,7 +82,16 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
             }
         }
     };
-    let mut fallback = if etw.is_some() {
+    #[cfg(windows)]
+    let started_etw = etw.is_some();
+    #[cfg(not(windows))]
+    let started_etw = {
+        if !args.no_etw {
+            warnings.push("ETW is available on Windows only; using process counters".to_owned());
+        }
+        false
+    };
+    let mut fallback = if started_etw {
         None
     } else {
         let mut monitor = FallbackMonitor::new();
@@ -85,6 +99,7 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
         Some(monitor)
     };
 
+    #[cfg(windows)]
     let mut journal = match args.root {
         Some(root) => match usn::capture_state(root) {
             Ok(state) => Some(state),
@@ -95,6 +110,8 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
         },
         None => None,
     };
+    #[cfg(not(windows))]
+    let _ = args.root;
 
     let interval = config.interval.max(Duration::from_millis(100));
     let iterations = args.iterations;
@@ -107,7 +124,8 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
         std::thread::sleep(interval);
 
         let mut events = Vec::new();
-        if etw.is_some() {
+        if started_etw {
+            #[cfg(windows)]
             while let Ok(event) = receiver.try_recv() {
                 let process = names
                     .entry(event.process_id)
@@ -139,7 +157,9 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
             }
         }
 
+        #[cfg(windows)]
         let mut usn_hints = Vec::new();
+        #[cfg(windows)]
         if let (Some(root), Some(state)) = (args.root, journal.as_mut()) {
             match tail_paths(root, state) {
                 Ok(paths) => usn_hints = paths,
@@ -202,34 +222,38 @@ pub fn run(settings: &Settings, args: MonitorArgs<'_>) -> Result<Outcome, Error>
             }
         }
 
-        if args.json {
-            for hint in &usn_hints {
-                lines.push_str(
-                    &serde_json::to_string(&json!({
-                        "type": "usn",
-                        "timestamp_ms": hint.timestamp.as_millis(),
-                        "file_ref": hint.file_ref,
-                        "parent_ref": hint.parent_ref,
-                        "name": hint.name,
-                    }))
-                    .map_err(|error| Error::Other(error.to_string()))?,
-                );
-                lines.push('\n');
-            }
-        } else {
-            for hint in &usn_hints {
-                human.push_str(&format!(
-                    "{:>13} {:>7}  {:<24} {:>10}  {}\n",
-                    hint.timestamp.as_millis(),
-                    "-",
-                    "<usn>",
-                    "-",
-                    hint.name
-                ));
+        #[cfg(windows)]
+        {
+            if args.json {
+                for hint in &usn_hints {
+                    lines.push_str(
+                        &serde_json::to_string(&json!({
+                            "type": "usn",
+                            "timestamp_ms": hint.timestamp.as_millis(),
+                            "file_ref": hint.file_ref,
+                            "parent_ref": hint.parent_ref,
+                            "name": hint.name,
+                        }))
+                        .map_err(|error| Error::Other(error.to_string()))?,
+                    );
+                    lines.push('\n');
+                }
+            } else {
+                for hint in &usn_hints {
+                    human.push_str(&format!(
+                        "{:>13} {:>7}  {:<24} {:>10}  {}\n",
+                        hint.timestamp.as_millis(),
+                        "-",
+                        "<usn>",
+                        "-",
+                        hint.name
+                    ));
+                }
             }
         }
     }
 
+    #[cfg(windows)]
     if let Some(session) = etw {
         session.stop()?;
     }

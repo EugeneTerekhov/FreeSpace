@@ -1,20 +1,22 @@
 //! Batch NTFS ownership and permission changes with a per-object report
 //! (FR-058…FR-060).
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+#[cfg(windows)]
+use std::fs;
+#[cfg(windows)]
+use std::path::Path;
+use std::path::PathBuf;
 
 use freespace_core::{Error, Result};
-use freespace_platform::{paths, security};
+use freespace_platform::paths;
+#[cfg(windows)]
+use freespace_platform::security;
 
-use crate::{
-    operation::{
-        JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget, TargetStatus,
-    },
-    store::Store,
+#[cfg(windows)]
+use crate::operation::{
+    JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget, TargetStatus,
 };
+use crate::{path_compat, store::Store};
 
 /// Requested permission change.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,7 +51,7 @@ impl AclAction {
                 "the owner account cannot be empty".to_owned(),
             )),
             Self::CopyFrom(source)
-                if !paths::to_verbatim(source).is_ok_and(|path| path.exists()) =>
+                if !path_compat::to_verbatim(source).is_ok_and(|path| path.exists()) =>
             {
                 Err(Error::NotFound(paths::display(source)))
             }
@@ -112,32 +114,44 @@ pub fn apply_acl(
     }
     action.validate()?;
 
-    let mut items = Vec::with_capacity(targets.len());
-    for path in targets {
-        let result = match action {
-            AclAction::SetOwner(account) => security::set_owner(path, account),
-            AclAction::Reset => security::reset_acl(path),
-            AclAction::CopyFrom(source) => security::copy_acl(source, path),
-        };
-        match result {
-            Ok(()) => items.push(AclItemResult {
-                path: path.clone(),
-                owner: security::owner(path).ok().flatten(),
-                error: None,
-            }),
-            Err(error) => items.push(AclItemResult {
-                path: path.clone(),
-                owner: security::owner(path).ok().flatten(),
-                error: Some(error.to_string()),
-            }),
-        }
+    #[cfg(not(windows))]
+    {
+        let _ = (store, targets, action);
+        Err(Error::Unsupported(
+            "NTFS ownership and permission changes are available on Windows only".to_owned(),
+        ))
     }
 
-    let journal_id = store.and_then(|store| record(store, &items, action).ok());
+    #[cfg(windows)]
+    {
+        let mut items = Vec::with_capacity(targets.len());
+        for path in targets {
+            let result = match action {
+                AclAction::SetOwner(account) => security::set_owner(path, account),
+                AclAction::Reset => security::reset_acl(path),
+                AclAction::CopyFrom(source) => security::copy_acl(source, path),
+            };
+            match result {
+                Ok(()) => items.push(AclItemResult {
+                    path: path.clone(),
+                    owner: security::owner(path).ok().flatten(),
+                    error: None,
+                }),
+                Err(error) => items.push(AclItemResult {
+                    path: path.clone(),
+                    owner: security::owner(path).ok().flatten(),
+                    error: Some(error.to_string()),
+                }),
+            }
+        }
 
-    Ok(AclReport { items, journal_id })
+        let journal_id = store.and_then(|store| record(store, &items, action).ok());
+
+        Ok(AclReport { items, journal_id })
+    }
 }
 
+#[cfg(windows)]
 fn record(store: &Store, items: &[AclItemResult], action: &AclAction) -> Result<u64> {
     let targets: Vec<OperationTarget> = items.iter().map(|item| target(&item.path)).collect();
     let mut operation = Operation::new(OperationKind::Permissions, targets);
@@ -184,8 +198,9 @@ fn record(store: &Store, items: &[AclItemResult], action: &AclAction) -> Result<
     store.journal_append(&entry)
 }
 
+#[cfg(windows)]
 fn target(path: &Path) -> OperationTarget {
-    let size = paths::to_verbatim(path)
+    let size = path_compat::to_verbatim(path)
         .ok()
         .and_then(|path| fs::metadata(path).ok())
         .map_or(0, |metadata| metadata.len());
@@ -193,6 +208,7 @@ fn target(path: &Path) -> OperationTarget {
     OperationTarget::new(path.to_path_buf(), size)
 }
 
+#[cfg(windows)]
 fn current_user() -> String {
     std::env::var("USERNAME").unwrap_or_else(|_| "unknown".to_owned())
 }
@@ -201,9 +217,13 @@ fn current_user() -> String {
 mod tests {
     use freespace_core::ErrorCode;
 
-    use super::{AclAction, apply_acl};
+    use super::AclAction;
+    #[cfg(windows)]
+    use super::apply_acl;
+    #[cfg(windows)]
     use crate::store::Store;
 
+    #[cfg(windows)]
     #[test]
     fn resets_permissions_on_a_fixture() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -237,6 +257,7 @@ mod tests {
         assert!(AclAction::Reset.validate().is_ok());
     }
 
+    #[cfg(windows)]
     #[test]
     fn reports_missing_objects() {
         let directory = tempfile::tempdir().expect("temp dir");

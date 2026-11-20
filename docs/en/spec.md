@@ -6,6 +6,13 @@
 
 **Status**: Implemented
 
+> **2.0 note (2026-11-20)**: this document records the historical 1.x decisions; requirement IDs do
+> not change. FreeSpace 2.0 removes the quarantine, supports only system-trash and permanent
+> deletion, ships no installers, reduces the GUI to 9 screens, and keeps the shredder in the Windows
+> CLI only. Stories 5, 6 and 9, FR-043, FR-044, FR-093 and FR-096 must be read together with the
+> [003 specification](../../specs/003-cross-platform-portable/spec.md); the current platforms and
+> deletion modes are described there.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Fast volume scan and size tree (Priority: P1)

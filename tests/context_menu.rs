@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US19: Explorer context-menu installation and removal in `HKCU`.
 //!
 //! The tests never touch the real Explorer menu: they register under a unique

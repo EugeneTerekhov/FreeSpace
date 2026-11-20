@@ -7,7 +7,7 @@
  * logical, on-disk, physical or allocated sizes.
  */
 
-import type { AttributeFlags, UiError } from './dto';
+import type { AttributeFlags } from './dto';
 
 /** Exact size breakdown of one object (Rust `SizeDetails`). */
 export interface SizeDetails {
@@ -94,75 +94,4 @@ export interface RenameApplied {
   renamed: number;
   journal_entry_id: number | null;
   undo_available: boolean;
-}
-
-/** Windows file attribute names, in the `kebab-case` wire spelling. */
-export type FileAttributeName =
-  | 'read-only'
-  | 'hidden'
-  | 'system'
-  | 'archive'
-  | 'temporary'
-  | 'sparse'
-  | 'compressed'
-  | 'not-content-indexed';
-
-export interface AttributeChangeSet {
-  set: FileAttributeName[];
-  clear: FileAttributeName[];
-}
-
-/** One attribute before and after the planned change. */
-export interface AttributeChangeRow {
-  attribute: FileAttributeName;
-  before: boolean;
-  after: boolean;
-}
-
-/** Requested permission changes for one object. */
-export interface PermissionsChanges {
-  owner?: string;
-  reset?: boolean;
-  copy_from?: string;
-  attributes?: AttributeChangeSet;
-}
-
-export type PermissionsAclAction = 'owner' | 'reset' | 'copy';
-
-/** Current owner and attributes of one object. */
-export interface PermissionsView {
-  path: string;
-  owner: string | null;
-  owner_sid: string | null;
-  attribute_mask: number;
-  attributes: AttributeFlags;
-  is_directory: boolean;
-  is_reparse_point: boolean;
-  is_protected: boolean;
-  requires_elevation: boolean;
-}
-
-/** Preview of a permission or attribute change. */
-export interface PermissionsPreview {
-  preview_id: string;
-  confirmation_token: string;
-  expires_at: number;
-  path: string;
-  current: PermissionsView;
-  owner: string | null;
-  acl_action: PermissionsAclAction | null;
-  copy_from: string | null;
-  attribute_changes: AttributeChangeRow[];
-  requires_elevation: boolean;
-  /** Message keys, for example `confirm.warning.elevation`. */
-  warnings: string[];
-}
-
-/** Outcome of a permission or attribute change already applied. */
-export interface FileOperationApplied {
-  operation_id: string;
-  journal_entry_ids: number[];
-  changed: number;
-  failed: number;
-  errors: UiError[];
 }

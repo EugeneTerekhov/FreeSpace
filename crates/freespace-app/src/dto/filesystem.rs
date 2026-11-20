@@ -644,10 +644,18 @@ mod tests {
     };
     use crate::error::UiErrorCode;
 
+    /// Absolute path that is valid on the host platform.
+    fn absolute(name: &str) -> String {
+        std::env::temp_dir()
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    }
+
     #[test]
     fn rejects_malformed_rename_requests() {
         let mut request = RenamePreviewRequest {
-            targets: vec![r"C:\data\a.txt".to_owned()],
+            targets: vec![absolute("a.txt")],
             regex: r"^a".to_owned(),
             replacement: "b".to_owned(),
             scope: None,
@@ -674,7 +682,7 @@ mod tests {
         );
 
         let no_pattern = RenamePreviewRequest {
-            targets: vec![r"C:\data\a.txt".to_owned()],
+            targets: vec![absolute("a.txt")],
             regex: "  ".to_owned(),
             replacement: String::new(),
             scope: None,
@@ -711,7 +719,7 @@ mod tests {
     #[test]
     fn validates_permission_requests() {
         let mut request = PermissionsPreviewRequest {
-            path: r"C:\data\file.bin".to_owned(),
+            path: absolute("file.bin"),
             changes: PermissionsChanges {
                 owner: Some("BUILTIN\\Administrators".to_owned()),
                 ..PermissionsChanges::default()
@@ -723,17 +731,17 @@ mod tests {
         assert!(request.validate().is_err());
 
         let contradictory = PermissionsPreviewRequest {
-            path: r"C:\data\file.bin".to_owned(),
+            path: absolute("file.bin"),
             changes: PermissionsChanges {
                 reset: true,
-                copy_from: Some(r"C:\data\other.bin".to_owned()),
+                copy_from: Some(absolute("other.bin")),
                 ..PermissionsChanges::default()
             },
         };
         assert!(contradictory.validate().is_err());
 
         let empty = PermissionsPreviewRequest {
-            path: r"C:\data\file.bin".to_owned(),
+            path: absolute("file.bin"),
             changes: PermissionsChanges::default(),
         };
         assert_eq!(
@@ -742,7 +750,7 @@ mod tests {
         );
 
         let two_actions = PermissionsPreviewRequest {
-            path: r"C:\data\file.bin".to_owned(),
+            path: absolute("file.bin"),
             changes: PermissionsChanges {
                 owner: Some("BUILTIN\\Administrators".to_owned()),
                 reset: true,

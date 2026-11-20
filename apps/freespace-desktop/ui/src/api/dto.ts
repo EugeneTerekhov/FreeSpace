@@ -6,7 +6,7 @@
  * produced by Rust; the interface never recomputes them.
  */
 
-/** The 11 screens of the 002 recomposition (see `app/routing.ts`). */
+/** The nine screens of the portable release (see `app/routing.ts`). */
 export type ScreenId =
   | 'overview'
   | 'tree'
@@ -14,10 +14,8 @@ export type ScreenId =
   | 'duplicates'
   | 'cleanup'
   | 'journal'
-  | 'shred'
   | 'monitor'
   | 'inspect'
-  | 'fileops'
   | 'settings';
 
 export type UiErrorCode =
@@ -249,10 +247,45 @@ export interface AboutInfo {
   data_dir: string;
 }
 
+/** Operating-system family of the running backend. */
+export type PlatformId = 'windows' | 'linux' | 'other';
+
+/** Scan methods provided by the running backend. */
+export interface ScanMethods {
+  mft: boolean;
+  usn: boolean;
+  walk: boolean;
+}
+
+/**
+ * Features the running platform backend can provide.
+ *
+ * Mirrors `freespace_platform::Capabilities`; the interface uses it to hide or
+ * disable actions the platform cannot perform.
+ */
+export interface PlatformCapabilities {
+  platform: PlatformId;
+  scan_methods: ScanMethods;
+  trash: boolean;
+  permanent: boolean;
+  shred: boolean;
+  acl: boolean;
+  attrs: boolean;
+  ads: boolean;
+  unlock: boolean;
+  context_menu: boolean;
+  monitor: boolean;
+  elevation: boolean;
+  long_paths: boolean;
+  case_sensitive: boolean;
+  max_path: number | null;
+}
+
 export interface AppCapabilities {
   commands: string[];
   events: string[];
   csp_version: number;
+  platform_capabilities: PlatformCapabilities;
 }
 
 export interface AppBootstrap {
@@ -324,7 +357,6 @@ export interface JournalEntryView {
   total_size: number;
   result: JournalResult;
   reversible: boolean;
-  quarantine_ids: string[];
   error: UiError | null;
 }
 
@@ -468,7 +500,7 @@ export type OperationKind =
   | 'shred'
   | 'restore';
 
-export type DeleteMode = 'recycle_bin' | 'quarantine' | 'permanent';
+export type DeleteMode = 'recycle_bin' | 'permanent';
 
 export interface OperationTarget {
   path: string;
@@ -533,7 +565,6 @@ export interface OperationOutcome {
   processed: number;
   total: number;
   errors: UiError[];
-  quarantine_ids: string[];
 }
 
 export interface TaskStarted {

@@ -29,13 +29,12 @@ pub const SETTINGS_FILE_NAME: &str = "settings.toml";
 pub const DATA_DIR_NAME: &str = "data";
 
 /// Keys exposed by `freespace config get/set`.
-pub const CONFIG_KEYS: [&str; 11] = [
+pub const CONFIG_KEYS: [&str; 10] = [
     "language",
     "theme",
     "units",
     "duplicate_keep_rule",
     "outdated_threshold_days",
-    "quarantine_retention_days",
     "confirm_destructive_actions",
     "monitor_threshold_bytes",
     "monitor_interval_secs",
@@ -155,8 +154,6 @@ pub struct Settings {
     pub outdated_threshold_days: u32,
     /// Write-monitoring notification threshold.
     pub monitor_threshold: MonitorThreshold,
-    /// How long quarantined objects are retained, in days.
-    pub quarantine_retention_days: u32,
     /// Register Explorer context-menu entries (disabled by default).
     pub context_menu_enabled: bool,
     /// Always ask for confirmation before destructive actions.
@@ -173,7 +170,6 @@ impl Default for Settings {
             duplicate_keep_rule: DuplicateKeepRule::Oldest,
             outdated_threshold_days: 180,
             monitor_threshold: MonitorThreshold::default(),
-            quarantine_retention_days: 30,
             context_menu_enabled: false,
             confirm_destructive_actions: true,
         }
@@ -280,7 +276,6 @@ impl Settings {
             "units" => Some(self.units.as_str().to_owned()),
             "duplicate_keep_rule" => Some(self.duplicate_keep_rule.as_str().to_owned()),
             "outdated_threshold_days" => Some(self.outdated_threshold_days.to_string()),
-            "quarantine_retention_days" => Some(self.quarantine_retention_days.to_string()),
             "context_menu_enabled" => Some(self.context_menu_enabled.to_string()),
             "confirm_destructive_actions" => Some(self.confirm_destructive_actions.to_string()),
             "monitor_threshold_bytes" => Some(self.monitor_threshold.threshold_bytes.to_string()),
@@ -328,9 +323,6 @@ impl Settings {
             }
             "outdated_threshold_days" => {
                 self.outdated_threshold_days = parse_u32(key, value)?;
-            }
-            "quarantine_retention_days" => {
-                self.quarantine_retention_days = parse_u32(key, value)?;
             }
             "context_menu_enabled" => {
                 self.context_menu_enabled = parse_bool(key, value)?;
@@ -451,7 +443,6 @@ mod tests {
         assert!(settings.confirm_destructive_actions);
         assert!(!settings.context_menu_enabled);
         assert_eq!(settings.outdated_threshold_days, 180);
-        assert_eq!(settings.quarantine_retention_days, 30);
     }
 
     #[test]
@@ -490,6 +481,20 @@ mod tests {
     }
 
     #[test]
+    fn loads_a_legacy_toml_with_quarantine_retention() {
+        let settings = Settings::from_toml(
+            r#"
+            language = "ru"
+            quarantine_retention_days = 14
+            "#,
+        )
+        .expect("legacy settings still load");
+
+        assert_eq!(settings.language, Locale::Ru);
+        assert_eq!(settings.units, Units::Binary);
+    }
+
+    #[test]
     fn rejects_invalid_toml() {
         assert!(Settings::from_toml("language = [").is_err());
         assert!(Settings::from_toml("units = \"bits\"").is_err());
@@ -522,9 +527,6 @@ mod tests {
         settings
             .set_value("monitor_interval_secs", "15")
             .expect("interval");
-        settings
-            .set_value("quarantine_retention_days", "7")
-            .expect("retention");
 
         assert_eq!(settings.units, Units::Decimal);
         assert_eq!(
@@ -535,7 +537,6 @@ mod tests {
         assert!(!settings.confirm_destructive_actions);
         assert_eq!(settings.monitor_threshold.threshold_bytes, 4_096);
         assert_eq!(settings.monitor_threshold.interval_secs, 15);
-        assert_eq!(settings.quarantine_retention_days, 7);
         assert_eq!(settings.get_value("units").as_deref(), Some("decimal"));
     }
 

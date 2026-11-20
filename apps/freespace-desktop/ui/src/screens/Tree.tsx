@@ -44,9 +44,14 @@ import { useOperation } from '../operations/useOperation';
 import { t } from '../i18n';
 import { formatBytes, formatDateCompact, formatDateTimeCompact, formatNumber } from '../i18n/format';
 import { copyText } from '../lib/clipboard';
+import {
+  canRevealInFileManager,
+  defaultDeleteMode,
+  deleteModes,
+} from '../lib/capabilities';
 import { emptyFilter } from '../lib/filters';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useShellStore } from '../stores/shellStore';
+import { usePlatformCapabilities, useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
 import { Panel, Screen } from './ScreenFrame';
 import styles from './tree.module.css';
@@ -106,6 +111,12 @@ export function Tree() {
   const hidePath = useSnapshotStore((state) => state.hidePath);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
+  const capabilities = usePlatformCapabilities();
+  // The tree recycles when the platform has a system trash and falls back to
+  // permanent deletion otherwise; a backend with neither offers no delete.
+  const deleteMode = defaultDeleteMode(capabilities);
+  const canDelete = deleteModes(capabilities).length > 0;
+  const canReveal = canRevealInFileManager(capabilities);
   const [rows, setRows] = useState<NodeRow[]>([]);
   const [page, setPage] = useState<TreePage | null>(null);
   const [trail, setTrail] = useState<NodeRow[]>([]);
@@ -423,11 +434,11 @@ export function Tree() {
       void operation.prepare({
         kind: 'delete',
         targets: [row.path],
-        delete_mode: 'recycle_bin',
+        delete_mode: deleteMode ?? 'recycle_bin',
         reason: 'tree context menu',
       });
     },
-    [operation],
+    [deleteMode, operation],
   );
 
   /**
@@ -731,7 +742,7 @@ export function Tree() {
       ? t('tree.search_results')
       : trail.at(-1)?.path ?? volume?.mount_point ?? t('nav.tree');
   const nextCursor = page?.next_cursor ?? null;
-  const total = page?.total_estimate ?? visible.rows.length;
+
   const hasInaccessible = visible.rows.some((row) => !row.accessible);
   const emptyLabel = mode === 'search' ? t('tree.no_matches') : t('tree.empty');
 
@@ -741,14 +752,18 @@ export function Tree() {
     menu === null
       ? []
       : [
-          {
-            id: 'open',
-            label: t('tree2.action.open'),
-            icon: <FolderOpen size={15} strokeWidth={1.7} />,
-            onSelect: () => {
-              void revealInExplorer(menu.node);
-            },
-          },
+          ...(canReveal
+            ? [
+                {
+                  id: 'open',
+                  label: t('tree2.action.open'),
+                  icon: <FolderOpen size={15} strokeWidth={1.7} />,
+                  onSelect: () => {
+                    void revealInExplorer(menu.node);
+                  },
+                } satisfies ContextMenuItem,
+              ]
+            : []),
           {
             id: 'copy',
             label: t('tree2.action.copy_path'),
@@ -771,7 +786,7 @@ export function Tree() {
             label: t('tree2.action.delete'),
             icon: <Trash2 size={15} strokeWidth={1.7} />,
             danger: true,
-            disabled: isVolumeRow(menu.node),
+            disabled: !canDelete || isVolumeRow(menu.node),
             onSelect: () => {
               startDelete(menu.node);
             },
@@ -780,10 +795,7 @@ export function Tree() {
 
   return (
     <Screen
-      context={t('tree2.context', {
-        scope,
-        count: formatNumber(total, language),
-      })}
+      context={scope}
       actions={
         <>
           <form
@@ -970,6 +982,7 @@ export function Tree() {
         open={operation.preview !== null && deleteTarget !== null}
         target={deleteTarget}
         size={operation.preview?.targets[0]?.size ?? null}
+        mode={deleteMode ?? 'recycle_bin'}
         busy={operation.busy}
         error={operation.error}
         onCancel={() => {
@@ -977,8 +990,9 @@ export function Tree() {
           operation.close();
         }}
         onConfirm={() => {
-          // The tree menu only ever recycles.
-          void operation.confirm('recycle_bin', false);
+          // The tree recycles when the platform has a trash and falls back to
+          // permanent deletion on a backend without one.
+          void operation.confirm(deleteMode ?? 'recycle_bin', false);
         }}
       />
 

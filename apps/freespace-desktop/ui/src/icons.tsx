@@ -13,13 +13,3 @@ export const Broom = createLucideIcon('Broom', [
   ['path', { d: 'm5 18 2-2', key: 'c' }],
   ['path', { d: 'm7.699 10.7 5.602 5.601', key: 'd' }],
 ]);
-
-/** Paper shredder icon for the shred screen. */
-export const PaperShredder = createLucideIcon('PaperShredder', [
-  ['rect', { width: '16', height: '10', x: '4', y: '6', rx: '2', key: 'a' }],
-  ['path', { d: 'M8 10h8', key: 'b' }],
-  ['path', { d: 'M12 2v4', key: 'c' }],
-  ['path', { d: 'M9 16v4', key: 'd' }],
-  ['path', { d: 'M12 16v5', key: 'e' }],
-  ['path', { d: 'M15 16v4', key: 'f' }],
-]);

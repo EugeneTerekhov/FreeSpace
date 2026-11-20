@@ -8,7 +8,6 @@
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    os::windows::fs::MetadataExt,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -19,7 +18,7 @@ use freespace_core::{
     size::SizeMetrics,
     tree::{AccessState, FileAttributes, FsTree, NodeId, NodeKind, NodeSpec, Timestamps},
 };
-use freespace_platform::{paths, win};
+use freespace_platform::{paths, platform};
 use globset::{GlobBuilder, GlobMatcher};
 use jwalk::{Parallelism, WalkDir};
 
@@ -259,7 +258,7 @@ pub fn scan(
 }
 
 fn node_spec(path: &Path, metadata: &fs::Metadata, name: Option<&std::ffi::OsStr>) -> NodeSpec {
-    let attributes = FileAttributes::from_windows_attributes(metadata.file_attributes());
+    let attributes = attributes_for(path, metadata);
     let is_reparse = attributes.contains(FileAttributes::REPARSE_POINT);
     let kind = if metadata.is_dir() {
         if is_reparse {
@@ -289,14 +288,35 @@ fn node_spec(path: &Path, metadata: &fs::Metadata, name: Option<&std::ffi::OsStr
         name,
         kind,
         size,
-        timestamps: Timestamps {
-            created: Timestamp::from_millis(win::filetime_to_millis(metadata.creation_time())),
-            modified: Timestamp::from_millis(win::filetime_to_millis(metadata.last_write_time())),
-            accessed: Timestamp::from_millis(win::filetime_to_millis(metadata.last_access_time())),
-        },
+        timestamps: timestamps(metadata),
         attributes,
         access: AccessState::Ok,
         ..NodeSpec::default()
+    }
+}
+
+/// Reads the platform attribute mask, or derives the portable subset.
+///
+/// Windows returns the real `FILE_ATTRIBUTE_*` mask. Other platforms have no
+/// such mask, so a symbolic link is reported as a reparse point and everything
+/// else stays empty.
+fn attributes_for(path: &Path, metadata: &fs::Metadata) -> FileAttributes {
+    if let Ok(mask) = platform().metadata.attributes(path) {
+        return FileAttributes::from_windows_attributes(mask);
+    }
+
+    if metadata.file_type().is_symlink() {
+        FileAttributes::REPARSE_POINT
+    } else {
+        FileAttributes::empty()
+    }
+}
+
+fn timestamps(metadata: &fs::Metadata) -> Timestamps {
+    Timestamps {
+        created: metadata.created().map(Timestamp::from).unwrap_or_default(),
+        modified: metadata.modified().map(Timestamp::from).unwrap_or_default(),
+        accessed: metadata.accessed().map(Timestamp::from).unwrap_or_default(),
     }
 }
 
@@ -323,6 +343,8 @@ fn walk_issue(error: &jwalk::Error) -> ScanIssue {
 mod tests {
     use tempfile::TempDir;
 
+    #[cfg(unix)]
+    use freespace_core::tree::FileAttributes;
     use freespace_core::tree::FsTree;
 
     use super::{Exclusions, scan};
@@ -446,5 +468,22 @@ mod tests {
                 .expect("blank patterns are ignored")
                 .is_empty()
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unix_entries_have_no_windows_attribute_bits() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("plain.bin");
+        std::fs::write(&path, b"payload").expect("file");
+        let metadata = std::fs::symlink_metadata(&path).expect("metadata");
+
+        assert_eq!(
+            super::attributes_for(&path, &metadata),
+            FileAttributes::empty()
+        );
+
+        let stamps = super::timestamps(&metadata);
+        assert!(stamps.modified.as_millis() > 0);
     }
 }

@@ -16,57 +16,12 @@ import type {
   MonitorRequest,
   MonitorStarted,
   MonitorStatus,
-  OperationPreview,
-  OperationProgress,
   PathValidation,
   SettingsPatch,
   SettingsSection,
   SettingsView,
-  ShredPreviewRequest,
-  ShredStarted,
 } from './dto';
 import { api } from './runtime';
-
-/** Builds the destructive shredder preview; never starts the operation. */
-export function shredPreview(request: ShredPreviewRequest): Promise<OperationPreview> {
-  return api.transport.invoke<OperationPreview>('shred_preview', {
-    targets: request.targets,
-    passes: request.passes,
-    pattern: request.pattern,
-  });
-}
-
-/**
- * Starts a previewed shredding operation.
- *
- * `extra_confirmation` is always `true`: the screen only enables the button
- * after the irreversible-action checkbox is checked.
- */
-export function shredStart(
-  previewId: string,
-  confirmationToken: string,
-  extraConfirmation = true,
-): Promise<ShredStarted> {
-  return api.transport.invoke<ShredStarted>('shred_start', {
-    preview_id: previewId,
-    confirmation_token: confirmationToken,
-    extra_confirmation: extraConfirmation,
-  });
-}
-
-/** Current progress of a shredding operation. */
-export function shredStatus(operationId: string): Promise<OperationProgress> {
-  return api.transport.invoke<OperationProgress>('shred_status', {
-    operation_id: operationId,
-  });
-}
-
-/** Requests cancellation; the native layer decides whether it is still safe. */
-export function shredCancel(operationId: string): Promise<void> {
-  return api.transport.invoke<void>('shred_cancel', {
-    operation_id: operationId,
-  });
-}
 
 /** Starts the write monitor. */
 export function monitorStart(request: MonitorRequest): Promise<MonitorStarted> {

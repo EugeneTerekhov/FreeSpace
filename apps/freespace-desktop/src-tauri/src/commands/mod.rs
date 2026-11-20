@@ -9,6 +9,5 @@ pub mod monitor;
 pub mod operations;
 pub mod scan;
 pub mod settings;
-pub mod shred;
 pub mod tree;
 pub mod volumes;

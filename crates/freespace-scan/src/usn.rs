@@ -15,14 +15,14 @@ use freespace_core::{
     Result, Timestamp,
     model::{JournalState, ScanIssue, ScanIssueKind},
     size::SizeMetrics,
-    tree::{AccessState, FileAttributes, FsTree, NodeId, NodeKind, NodeSpec},
+    tree::{AccessState, FileAttributes, FsTree, NodeId, NodeKind, NodeSpec, Timestamps},
 };
 use freespace_platform::mft::{
     self, USN_REASON_DATA_EXTEND, USN_REASON_DATA_OVERWRITE, USN_REASON_DATA_TRUNCATION,
     USN_REASON_FILE_CREATE, USN_REASON_FILE_DELETE, USN_REASON_RENAME_NEW_NAME, UsnRecord,
 };
 
-use freespace_platform::paths;
+use freespace_platform::{paths, platform};
 
 /// Outcome of applying a journal delta.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -193,25 +193,13 @@ fn create_node(
     let (size, timestamps, attributes, access) = match fs::symlink_metadata(&path) {
         Ok(metadata) => (
             SizeMetrics::file(metadata.len()),
-            freespace_core::tree::Timestamps {
-                created: Timestamp::from_millis(freespace_platform::win::filetime_to_millis(
-                    std::os::windows::fs::MetadataExt::creation_time(&metadata),
-                )),
-                modified: Timestamp::from_millis(freespace_platform::win::filetime_to_millis(
-                    std::os::windows::fs::MetadataExt::last_write_time(&metadata),
-                )),
-                accessed: Timestamp::from_millis(freespace_platform::win::filetime_to_millis(
-                    std::os::windows::fs::MetadataExt::last_access_time(&metadata),
-                )),
-            },
-            FileAttributes::from_windows_attributes(
-                std::os::windows::fs::MetadataExt::file_attributes(&metadata),
-            ),
+            timestamps(&metadata),
+            attributes_for(&path, change.attributes),
             AccessState::Ok,
         ),
         Err(_) => (
             SizeMetrics::ZERO,
-            freespace_core::tree::Timestamps::default(),
+            Timestamps::default(),
             change.attributes,
             AccessState::Denied,
         ),
@@ -253,9 +241,7 @@ fn refresh_metadata(tree: &mut FsTree, node: NodeId) {
     let Ok(metadata) = fs::symlink_metadata(&path) else {
         return;
     };
-    let attributes = FileAttributes::from_windows_attributes(
-        std::os::windows::fs::MetadataExt::file_attributes(&metadata),
-    );
+    let attributes = attributes_for(&path, FileAttributes::empty());
     let record = tree.node_mut(node);
     if record.kind.is_directory() {
         return;
@@ -264,10 +250,23 @@ fn refresh_metadata(tree: &mut FsTree, node: NodeId) {
     record.size = SizeMetrics::file(bytes);
     record.attributes = attributes;
     record.access = AccessState::Ok;
-    record.timestamps.modified =
-        Timestamp::from_millis(freespace_platform::win::filetime_to_millis(
-            std::os::windows::fs::MetadataExt::last_write_time(&metadata),
-        ));
+    record.timestamps.modified = metadata.modified().map(Timestamp::from).unwrap_or_default();
+}
+
+fn attributes_for(path: &Path, fallback: FileAttributes) -> FileAttributes {
+    platform()
+        .metadata
+        .attributes(path)
+        .map(FileAttributes::from_windows_attributes)
+        .unwrap_or(fallback)
+}
+
+fn timestamps(metadata: &fs::Metadata) -> Timestamps {
+    Timestamps {
+        created: metadata.created().map(Timestamp::from).unwrap_or_default(),
+        modified: metadata.modified().map(Timestamp::from).unwrap_or_default(),
+        accessed: metadata.accessed().map(Timestamp::from).unwrap_or_default(),
+    }
 }
 
 #[cfg(test)]

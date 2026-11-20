@@ -4,6 +4,11 @@
 //! several other NTFS metadata directories. The scanner must keep going, mark
 //! those areas as inaccessible and tell the UI that elevation would help instead
 //! of failing the whole analysis.
+//!
+//! The protected-name list describes NTFS layout. On Linux the same prose is
+//! harmless: permission failures are still reported per object and elevation
+//! advice only appears for these names. The current elevation state always comes
+//! from [`freespace_platform::platform`].
 
 use std::{
     fs, io,
@@ -129,7 +134,7 @@ impl AccessPolicy {
     #[must_use]
     pub fn current() -> Self {
         Self {
-            elevated: freespace_platform::elevation::is_elevated(),
+            elevated: freespace_platform::platform().elevation.is_elevated(),
         }
     }
 
@@ -202,14 +207,29 @@ mod tests {
 
     #[test]
     fn recognises_protected_names_case_insensitively() {
-        assert!(is_protected(std::path::Path::new(
-            r"C:\System Volume Information"
-        )));
-        assert!(is_protected(std::path::Path::new(
-            r"C:\$Recycle.Bin\S-1-5-21"
-        )));
-        assert!(is_protected(std::path::Path::new(r"C:\recovery")));
-        assert!(!is_protected(std::path::Path::new(r"C:\Users\alice")));
+        #[cfg(windows)]
+        {
+            assert!(is_protected(std::path::Path::new(
+                r"C:\System Volume Information"
+            )));
+            assert!(is_protected(std::path::Path::new(
+                r"C:\$Recycle.Bin\S-1-5-21"
+            )));
+            assert!(is_protected(std::path::Path::new(r"C:\recovery")));
+            assert!(!is_protected(std::path::Path::new(r"C:\Users\alice")));
+        }
+
+        #[cfg(unix)]
+        {
+            assert!(is_protected(std::path::Path::new(
+                "/mnt/c/System Volume Information"
+            )));
+            assert!(is_protected(std::path::Path::new(
+                "/mnt/c/$Recycle.Bin/S-1-5-21"
+            )));
+            assert!(is_protected(std::path::Path::new("/mnt/c/recovery")));
+            assert!(!is_protected(std::path::Path::new("/home/alice")));
+        }
     }
 
     #[test]

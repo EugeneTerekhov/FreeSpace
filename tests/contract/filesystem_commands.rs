@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! Contract checks for the filesystem command family (US4, T095).
 //!
 //! Size details, long paths, rename and permissions are exercised through the

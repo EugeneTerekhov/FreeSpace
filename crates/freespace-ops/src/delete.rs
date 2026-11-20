@@ -1,8 +1,9 @@
-//! Deletion through the Recycle Bin, the FreeSpace quarantine or permanently.
+//! Deletion through the Recycle Bin or permanently.
 //!
 //! Every mode goes through the same preview, free-space check, confirmation and
-//! journal path (FR-042…FR-046). Quarantine deletions stay undoable; permanent
-//! deletion is only reachable when the caller explicitly asks for it.
+//! journal path (FR-042…FR-046). Recycle Bin deletions stay undoable through
+//! the shell; permanent deletion is only reachable when the caller explicitly
+//! asks for it.
 
 use std::{
     collections::HashMap,
@@ -12,7 +13,7 @@ use std::{
 };
 
 use freespace_core::{Error, Result, Uuid};
-use freespace_platform::{paths, recycle};
+use freespace_platform::recycle;
 
 use crate::{
     confirm::{self, preview_delete, require_confirmation},
@@ -20,7 +21,7 @@ use crate::{
         DeleteMode, JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget,
         ResultSummary, TargetStatus,
     },
-    quarantine::Quarantine,
+    path_compat,
     store::Store,
 };
 
@@ -32,10 +33,8 @@ const ERROR_ACCESS_DENIED: i32 = 5;
 pub struct DeleteOptions {
     /// Selected deletion mode.
     pub mode: DeleteMode,
-    /// Short reason recorded in the quarantine index and the journal.
+    /// Short reason recorded in the journal.
     pub reason: String,
-    /// Quarantine retention in days.
-    pub retention_days: u32,
     /// Free bytes on the target volume, when known.
     pub available_bytes: Option<u64>,
     /// Whether the caller confirmed the extra warning for protected paths.
@@ -43,13 +42,12 @@ pub struct DeleteOptions {
 }
 
 impl DeleteOptions {
-    /// Creates options with default retention and reason.
+    /// Creates options with the default reason.
     #[must_use]
     pub fn new(mode: DeleteMode) -> Self {
         Self {
             mode,
             reason: "cleanup".to_owned(),
-            retention_days: 30,
             available_bytes: None,
             allow_protected: false,
         }
@@ -63,8 +61,6 @@ pub struct DeletedItem {
     pub path: PathBuf,
     /// Size known before deletion.
     pub size: u64,
-    /// Quarantine identifier, when the object went to quarantine.
-    pub quarantine_id: Option<Uuid>,
     /// Error message, when the object could not be removed.
     pub error: Option<String>,
 }
@@ -100,18 +96,15 @@ impl DeleteOutcome {
 /// Returns [`Error::ConfirmationRequired`] without confirmation,
 /// [`Error::InsufficientSpace`] when a copying mode cannot run,
 /// [`Error::ProtectedPath`] for a protected path without the extra
-/// confirmation, [`Error::InvalidArgument`] for a missing quarantine, and the
-/// first error only when every target failed.
+/// confirmation, and the first error only when every target failed.
 pub fn delete_paths(
     store: &Store,
-    quarantine: Option<&Quarantine>,
     targets: &[PathBuf],
     options: &DeleteOptions,
     confirmed: bool,
 ) -> Result<DeleteOutcome> {
     delete_paths_cancellable(
         store,
-        quarantine,
         targets,
         options,
         confirmed,
@@ -133,7 +126,6 @@ pub fn delete_paths(
 #[allow(clippy::too_many_arguments)]
 pub fn delete_paths_cancellable(
     store: &Store,
-    quarantine: Option<&Quarantine>,
     targets: &[PathBuf],
     options: &DeleteOptions,
     confirmed: bool,
@@ -145,11 +137,6 @@ pub fn delete_paths_cancellable(
     if targets.is_empty() {
         return Err(Error::InvalidArgument(
             "a deletion needs at least one object".to_owned(),
-        ));
-    }
-    if options.mode == DeleteMode::Quarantine && quarantine.is_none() {
-        return Err(Error::InvalidArgument(
-            "quarantine deletion requires a quarantine location".to_owned(),
         ));
     }
 
@@ -178,7 +165,6 @@ pub fn delete_paths_cancellable(
     operation.begin()?;
 
     let mut items = Vec::with_capacity(targets.len());
-    let mut quarantine_ids = Vec::new();
     let mut first_error: Option<Error> = None;
     let mut cancelled = false;
 
@@ -188,24 +174,12 @@ pub fn delete_paths_cancellable(
             break;
         }
         let size = sizes.get(path).copied().unwrap_or(0);
-        let result = delete_one(
-            store,
-            quarantine,
-            path,
-            options.mode,
-            &options.reason,
-            options.retention_days,
-        );
-        match result {
-            Ok(quarantine_id) => {
-                if let Some(id) = quarantine_id {
-                    quarantine_ids.push(id.to_string());
-                }
+        match delete_one(path, options.mode) {
+            Ok(()) => {
                 operation.targets[index].status = TargetStatus::Succeeded;
                 items.push(DeletedItem {
                     path: path.clone(),
                     size,
-                    quarantine_id,
                     error: None,
                 });
             }
@@ -218,7 +192,6 @@ pub fn delete_paths_cancellable(
                 items.push(DeletedItem {
                     path: path.clone(),
                     size,
-                    quarantine_id: None,
                     error: Some(operation.targets[index].error.clone().unwrap_or_default()),
                 });
             }
@@ -245,15 +218,6 @@ pub fn delete_paths_cancellable(
     }
     if let Some(details) = entry.details.as_object_mut() {
         details.insert(
-            "quarantine_ids".to_owned(),
-            serde_json::Value::Array(
-                quarantine_ids
-                    .iter()
-                    .map(|id| serde_json::Value::String(id.clone()))
-                    .collect(),
-            ),
-        );
-        details.insert(
             "reason".to_owned(),
             serde_json::Value::String(options.reason.clone()),
         );
@@ -279,39 +243,16 @@ pub fn delete_paths_cancellable(
     })
 }
 
-fn delete_one(
-    store: &Store,
-    quarantine: Option<&Quarantine>,
-    path: &Path,
-    mode: DeleteMode,
-    reason: &str,
-    retention_days: u32,
-) -> Result<Option<Uuid>> {
+fn delete_one(path: &Path, mode: DeleteMode) -> Result<()> {
     match mode {
-        DeleteMode::Quarantine => {
-            let quarantine = quarantine.ok_or_else(|| {
-                Error::InvalidArgument("quarantine location is missing".to_owned())
-            })?;
-            let item = quarantine.place(store, path, reason, retention_days)?;
-
-            Ok(Some(item.id))
-        }
-        DeleteMode::RecycleBin => {
-            recycle::recycle(&[path.to_path_buf()])?;
-
-            Ok(None)
-        }
-        DeleteMode::Permanent => {
-            remove_path(path)?;
-
-            Ok(None)
-        }
+        DeleteMode::RecycleBin => recycle::recycle(&[path.to_path_buf()]).map(|_| ()),
+        DeleteMode::Permanent => remove_path(path),
     }
 }
 
 #[allow(clippy::permissions_set_readonly_false)]
 fn remove_path(path: &Path) -> Result<()> {
-    let verbatim = paths::to_verbatim(path)?;
+    let verbatim = path_compat::to_verbatim(path)?;
     let metadata = fs::symlink_metadata(&verbatim)?;
 
     if metadata.file_type().is_dir() {
@@ -375,27 +316,27 @@ mod tests {
     use freespace_core::ErrorCode;
 
     use super::{DeleteOptions, delete_paths};
-    use crate::{Store, confirm::is_protected_path, quarantine::Quarantine};
+    use crate::Store;
+    #[cfg(windows)]
+    use crate::confirm::is_protected_path;
 
     use crate::operation::DeleteMode;
 
-    fn fixture() -> (tempfile::TempDir, tempfile::TempDir, Store) {
+    fn fixture() -> (tempfile::TempDir, Store) {
         (
             tempfile::tempdir().expect("workspace"),
-            tempfile::tempdir().expect("quarantine"),
             Store::open_in_memory().expect("store"),
         )
     }
 
     #[test]
     fn requires_confirmation_and_keeps_the_object() {
-        let (workspace, _root, store) = fixture();
+        let (workspace, store) = fixture();
         let path = workspace.path().join("keep.txt");
         std::fs::write(&path, b"payload").expect("write");
 
         let error = delete_paths(
             &store,
-            None,
             std::slice::from_ref(&path),
             &DeleteOptions::new(DeleteMode::Permanent),
             false,
@@ -407,53 +348,14 @@ mod tests {
     }
 
     #[test]
-    fn quarantines_objects_and_journals_undo() {
-        let (workspace, root, store) = fixture();
-        let first = workspace.path().join("first.txt");
-        let second = workspace.path().join("second.txt");
-        std::fs::write(&first, b"one").expect("first");
-        std::fs::write(&second, b"two").expect("second");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
-
-        let outcome = delete_paths(
-            &store,
-            Some(&quarantine),
-            &[first.clone(), second.clone()],
-            &DeleteOptions::new(DeleteMode::Quarantine),
-            true,
-        )
-        .expect("delete");
-
-        assert_eq!(outcome.summary.succeeded, 2);
-        assert!(outcome.undoable);
-        assert!(outcome.journal_id.is_some());
-        assert!(!first.exists());
-        assert!(!second.exists());
-        assert_eq!(store.quarantine_list().expect("list").len(), 2);
-
-        let entries = store.journal_list(10).expect("journal");
-        assert_eq!(entries.len(), 1);
-        assert!(entries[0].undo_available);
-        assert_eq!(
-            entries[0].details["quarantine_ids"]
-                .as_array()
-                .expect("ids")
-                .len(),
-            2
-        );
-    }
-
-    #[test]
     fn permanently_removes_a_tree() {
-        let (workspace, root, store) = fixture();
+        let (workspace, store) = fixture();
         let folder = workspace.path().join("folder");
         std::fs::create_dir_all(folder.join("nested")).expect("folder");
         std::fs::write(folder.join("nested").join("file.bin"), [0u8; 8]).expect("file");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
 
         let outcome = delete_paths(
             &store,
-            Some(&quarantine),
             std::slice::from_ref(&folder),
             &DeleteOptions::new(DeleteMode::Permanent),
             true,
@@ -466,19 +368,42 @@ mod tests {
     }
 
     #[test]
+    fn journals_permanent_deletion() {
+        let (workspace, store) = fixture();
+        let path = workspace.path().join("first.txt");
+        std::fs::write(&path, b"one").expect("first");
+
+        let outcome = delete_paths(
+            &store,
+            std::slice::from_ref(&path),
+            &DeleteOptions::new(DeleteMode::Permanent),
+            true,
+        )
+        .expect("delete");
+
+        assert_eq!(outcome.summary.succeeded, 1);
+        assert!(outcome.journal_id.is_some());
+        assert!(!outcome.undoable);
+
+        let entries = store.journal_list(10).expect("journal");
+        assert_eq!(entries.len(), 1);
+        assert!(!entries[0].undo_available);
+        assert_eq!(entries[0].details["reason"], "cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn refuses_protected_paths_without_extra_confirmation() {
-        let (_workspace, root, store) = fixture();
+        let (_workspace, store) = fixture();
         let system_root =
             PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into()));
         let protected = system_root.join("System32").join("kernel32.dll");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
         assert!(is_protected_path(&protected));
 
         let error = delete_paths(
             &store,
-            Some(&quarantine),
             &[protected],
-            &DeleteOptions::new(DeleteMode::Quarantine),
+            &DeleteOptions::new(DeleteMode::Permanent),
             true,
         )
         .expect_err("must refuse");
@@ -486,5 +411,6 @@ mod tests {
         assert_eq!(error.code(), ErrorCode::ProtectedPath);
     }
 
+    #[cfg(windows)]
     use std::path::PathBuf;
 }

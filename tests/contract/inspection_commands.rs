@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! Contract checks for the inspection command family (US5, T108).
 //!
 //! The Tauri adapters are thin; these tests drive the same `freespace-app`
@@ -16,6 +18,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use freespace_analysis::OwnerIdentity;
 use freespace_app::{
     archives,
     dto::{
@@ -32,7 +35,6 @@ use freespace_app::{
 };
 use freespace_ops::Store;
 use freespace_platform::elevation;
-use freespace_platform::security::OwnerIdentity;
 use freespace_scan::session::NoopObserver;
 
 fn scanned(root: &Path, generation: u64) -> TreeSnapshot {

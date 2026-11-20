@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US3 lock inspection and release tests.
 //!
 //! A short-lived PowerShell child process keeps a temporary file open with

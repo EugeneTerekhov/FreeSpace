@@ -144,6 +144,18 @@ a {
 }
 
 /*
+ * Programmatic theme changes swap the whole palette at once. Transitions are
+ * meant for interaction, so the runtime flags the root for one frame and the
+ * new colours land instantly instead of washing through intermediate tones.
+ */
+:root[data-theme-switching="true"] *,
+:root[data-theme-switching="true"] *::before,
+:root[data-theme-switching="true"] *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+/*
  * Motion is functional only: reduced motion removes transitions and animations
  * both through the token overrides in tokens.css and as a hard fallback.
  */

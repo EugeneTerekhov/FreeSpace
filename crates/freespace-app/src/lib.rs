@@ -37,6 +37,7 @@ pub mod window_state;
 
 // US4 — filesystem and operations.
 pub mod long_paths;
+#[cfg_attr(not(windows), path = "permissions_unix.rs")]
 pub mod permissions;
 pub mod rename;
 pub mod size_details;
@@ -45,25 +46,24 @@ pub mod archives;
 pub mod export;
 pub mod metadata;
 pub mod owners;
+#[cfg_attr(not(windows), path = "unlock_unix.rs")]
 pub mod unlock;
 // US6 — operations and settings.
 pub mod about;
 pub mod monitor;
-pub mod shred;
 
 use std::path::Path;
 
 /// Returns `true` when `target` is `root` or lies below it.
 ///
-/// The comparison is lexical, case-insensitive and separator-normalised; the
-/// objects do not have to exist, which is what output paths need.
+/// The comparison is lexical and follows the platform path rules: Windows
+/// compares case-insensitively, Linux case-sensitively. The objects do not have
+/// to exist, which is what output paths need.
 pub(crate) fn paths_within(root: &Path, target: &Path) -> bool {
     fn normalize(path: &Path) -> String {
-        let mut text = path
-            .to_string_lossy()
-            .replace('/', "\\")
-            .to_ascii_lowercase();
-        while text.len() > 3 && text.ends_with('\\') {
+        let separator = std::path::MAIN_SEPARATOR;
+        let mut text = freespace_platform::platform().paths.equivalent_key(path);
+        while text.len() > 3 && text.ends_with(separator) {
             text.pop();
         }
         text
@@ -71,8 +71,9 @@ pub(crate) fn paths_within(root: &Path, target: &Path) -> bool {
 
     let root = normalize(root);
     let target = normalize(target);
+
     target == root
         || target
             .strip_prefix(&root)
-            .is_some_and(|rest| rest.starts_with('\\'))
+            .is_some_and(|rest| rest.starts_with(std::path::MAIN_SEPARATOR))
 }

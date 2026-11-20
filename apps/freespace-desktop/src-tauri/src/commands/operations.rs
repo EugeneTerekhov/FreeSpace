@@ -57,7 +57,7 @@ pub fn operation_confirm(
     delete_mode: Option<DeleteMode>,
     extra_confirmation: Option<bool>,
 ) -> Result<OperationAccepted, UiError> {
-    let elevated = freespace_platform::elevation::is_elevated();
+    let elevated = freespace_platform::platform().elevation.is_elevated();
     let prepared = state.operations().take(
         &preview_id,
         &confirmation_token,
@@ -86,7 +86,6 @@ pub fn operation_confirm(
             operations::execute_delete(
                 app_state.operations(),
                 store,
-                app_state.quarantine(),
                 &prepared,
                 &volume_id,
                 None,
@@ -117,46 +116,15 @@ pub fn operation_cancel(state: State<'_, AppState>, operation_id: String) -> Res
     state.operations().cancel(&operation_id)
 }
 
-/// Restores a finished operation from quarantine.
+/// Reverses the renames of a finished operation.
 #[tauri::command(rename_all = "snake_case")]
 pub fn operation_undo(
     state: State<'_, AppState>,
     operation_id: String,
 ) -> Result<OperationAccepted, UiError> {
-    let quarantine = state.quarantine();
-    state.with_store(|store| operations::undo(store, quarantine, &operation_id))?;
+    state.with_store(|store| operations::undo(store, &operation_id))?;
 
     Ok(OperationAccepted { operation_id })
-}
-
-/// Restores quarantined objects by identifier.
-#[tauri::command(rename_all = "snake_case")]
-pub fn operation_restore(
-    state: State<'_, AppState>,
-    quarantine_ids: Vec<String>,
-) -> Result<OperationAccepted, UiError> {
-    if quarantine_ids.is_empty() {
-        return Err(UiError::validation("no quarantine identifiers"));
-    }
-    let quarantine = state.quarantine();
-    let restored = state.with_store(|store| {
-        let mut restored = 0u32;
-        for id in &quarantine_ids {
-            let parsed = uuid::Uuid::parse_str(id)
-                .map_err(|error| UiError::validation(error.to_string()))?;
-            let item = store
-                .quarantine_get(parsed)?
-                .ok_or_else(|| UiError::new(UiErrorCode::NotFound))?;
-            quarantine.restore(store, &item)?;
-            restored = restored.saturating_add(1);
-        }
-
-        Ok(restored)
-    })?;
-
-    Ok(OperationAccepted {
-        operation_id: format!("restore-{restored}"),
-    })
 }
 
 /// Returns one page of the journal.
@@ -186,30 +154,20 @@ pub fn journal_entry(
     state.with_store(|store| operations::journal_entry(store, &entry_id))
 }
 
-/// Restores the quarantined objects of a journal entry.
+/// Reverses the renames of a journal entry.
 #[tauri::command(rename_all = "snake_case")]
 pub fn journal_undo(
     state: State<'_, AppState>,
     entry_id: String,
 ) -> Result<OperationAccepted, UiError> {
-    let quarantine = state.quarantine();
     state.with_store(|store| {
         let entry = operations::journal_entry(store, &entry_id)?;
-        operations::undo(store, quarantine, &entry.operation_id)?;
+        operations::undo(store, &entry.operation_id)?;
 
         Ok(OperationAccepted {
             operation_id: entry.operation_id,
         })
     })
-}
-
-/// Restores a journal entry, optionally limiting the quarantine identifiers.
-#[tauri::command(rename_all = "snake_case")]
-pub fn journal_restore(
-    state: State<'_, AppState>,
-    entry_id: String,
-) -> Result<OperationAccepted, UiError> {
-    journal_undo(state, entry_id)
 }
 
 /// Returns the operation service for tests.

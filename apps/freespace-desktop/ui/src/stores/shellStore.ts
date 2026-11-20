@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import type { ApiClient } from '../api/client';
-import type { AppBootstrap, ScreenId, UiError } from '../api/dto';
+import type { AppBootstrap, PlatformCapabilities, ScreenId, UiError } from '../api/dto';
 import { normalizeError, logLocal } from '../app/errors';
 import { resolveInitialScreen } from '../app/routing';
 import { applySettingsToDocument } from './settingsStore';
@@ -64,3 +64,15 @@ export const useShellStore = create<ShellState>()((set, get) => ({
     set({ sidebarCollapsed: !get().sidebarCollapsed });
   },
 }));
+
+/**
+ * Platform capabilities advertised by the running backend.
+ *
+ * `null` until the bootstrap payload arrives; callers fall back to the full
+ * capability set in that window (see `lib/capabilities.ts`).
+ */
+export function usePlatformCapabilities(): PlatformCapabilities | null {
+  return useShellStore(
+    (state) => state.bootstrap?.capabilities.platform_capabilities ?? null,
+  );
+}

@@ -49,6 +49,31 @@ export function resolvedTheme(
   return preference;
 }
 
+/**
+ * Swaps the palette without animating between the two themes.
+ *
+ * Colour transitions exist for interaction (hover, focus). During a
+ * programmatic theme change they make every surface wash to the new palette at
+ * its own pace and can leave text below AA for a frame. The root therefore
+ * carries a one-frame flag that disables transitions inside the swap.
+ */
+function applyDocumentTheme(root: HTMLElement, theme: 'dark' | 'light'): void {
+  root.style.colorScheme = theme;
+  if (root.dataset.theme === theme) return;
+
+  root.dataset.themeSwitching = 'true';
+  root.dataset.theme = theme;
+
+  const release = () => {
+    delete root.dataset.themeSwitching;
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(release);
+  } else {
+    setTimeout(release, 0);
+  }
+}
+
 /** Applies theme, language, density and motion to `<html>`. */
 export function applySettingsToDocument(settings: UiSettings): void {
   if (typeof document === 'undefined') return;
@@ -61,7 +86,7 @@ export function applySettingsToDocument(settings: UiSettings): void {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  root.dataset.theme = resolvedTheme(settings.theme, prefersDark);
+  applyDocumentTheme(root, resolvedTheme(settings.theme, prefersDark));
   root.dataset.density = settings.density;
   root.dataset.reducedMotion =
     settings.reduced_motion === 'on'
@@ -72,7 +97,6 @@ export function applySettingsToDocument(settings: UiSettings): void {
           ? 'true'
           : 'false';
   root.lang = settings.language;
-  root.style.colorScheme = root.dataset.theme;
 }
 
 /**

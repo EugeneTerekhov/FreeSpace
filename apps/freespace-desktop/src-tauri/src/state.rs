@@ -24,13 +24,12 @@ use freespace_app::{
     monitor::{MonitorDefaults, MonitorService},
     operations::OperationService,
     settings::{SettingsSection, SettingsStore, settings_path},
-    shred::ShredService,
     snapshots::SnapshotService,
     tree::TreeSnapshot,
     window_state::{MonitorBounds, load_window_state, save_window_state, window_state_path},
 };
 use freespace_core::time::Timestamp;
-use freespace_ops::{quarantine::Quarantine, store::Store};
+use freespace_ops::store::Store;
 
 use crate::{boot::BootState, security};
 
@@ -73,14 +72,11 @@ pub struct AppState {
     inner: Mutex<Inner>,
     event_sequence: AtomicU64,
     store: Mutex<Store>,
-    quarantine: Quarantine,
     snapshots: SnapshotService,
     operations: OperationService,
     /// Monitor sessions (US6). The registry owns policy and history; the worker
     /// thread lives in `commands::monitor` because it needs the Tauri handle.
     monitors: MonitorService,
-    /// Shred plans (US6) bound to the shared operation preview tokens.
-    shredder: ShredService,
 }
 
 impl AppState {
@@ -93,7 +89,6 @@ impl AppState {
         let settings = SettingsStore::load(settings_path(&data_dir))?;
         let window_state = load_window_state(&window_state_path(&data_dir))?;
         let store = Store::open(&data_dir.join("freespace.db"))?;
-        let quarantine = Quarantine::new(data_dir.join("quarantine"))?;
         let snapshots = SnapshotService::new(SnapshotService::default_dir(&data_dir));
 
         Ok(Self {
@@ -111,11 +106,9 @@ impl AppState {
             }),
             event_sequence: AtomicU64::new(0),
             store: Mutex::new(store),
-            quarantine,
             snapshots,
             operations: OperationService::new(),
             monitors: MonitorService::new(),
-            shredder: ShredService::new(),
         })
     }
 
@@ -323,18 +316,6 @@ impl AppState {
     #[must_use]
     pub fn monitor_defaults(&self) -> MonitorDefaults {
         MonitorDefaults::from_settings(self.lock().settings.core())
-    }
-
-    /// Shred-plan registry (US6).
-    #[must_use]
-    pub const fn shredder(&self) -> &ShredService {
-        &self.shredder
-    }
-
-    /// Application quarantine.
-    #[must_use]
-    pub const fn quarantine(&self) -> &Quarantine {
-        &self.quarantine
     }
 
     /// Runs a closure with the journal store locked.
@@ -767,6 +748,11 @@ mod tests {
                 .contains(&"scan-progress".to_owned())
         );
         assert!(bootstrap.about.data_dir.contains("data") || !bootstrap.about.data_dir.is_empty());
+        assert_eq!(
+            bootstrap.capabilities.platform_capabilities,
+            freespace_platform::Capabilities::current()
+        );
+        assert!(bootstrap.capabilities.platform_capabilities.trash);
         assert_eq!(bootstrap.settings.language, Language::Ru);
         let _ = (Metric::OnDisk, SortSpec::default());
     }

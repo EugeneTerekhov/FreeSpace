@@ -40,8 +40,8 @@ pub use metadata::{
     extract, parse_resolution, supported_files,
 };
 pub use owners::{
-    OwnerError, OwnerInfo, OwnerScan, OwnerSummary, OwnerTable, UNKNOWN_OWNER, annotate,
-    annotate_with, summarize as summarize_owners,
+    OwnerError, OwnerIdentity, OwnerInfo, OwnerScan, OwnerSummary, OwnerTable, UNKNOWN_OWNER,
+    annotate, annotate_with, summarize as summarize_owners,
 };
 pub use recommend::{
     CleanupAction, CleanupCandidate, CleanupCategory, CleanupRisk, RecommendOptions, classify_path,

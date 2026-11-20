@@ -501,7 +501,7 @@ export function Duplicates() {
                 void operation.prepare({
                   kind: 'delete',
                   targets: targetPaths,
-                  delete_mode: 'quarantine',
+                  delete_mode: 'recycle_bin',
                   reason: 'duplicate cleanup',
                   task_id: taskId,
                 });

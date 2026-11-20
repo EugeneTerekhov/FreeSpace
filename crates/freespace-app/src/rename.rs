@@ -7,10 +7,11 @@
 //! scope and the elevation requirement and only then lets `freespace-ops` touch
 //! the file system.
 //!
-//! The plan is stored in verbatim form (`\\?\C:\...`), so a rename works for
-//! paths longer than `MAX_PATH` without the system-wide `LongPathsEnabled`
-//! policy. Protected system locations need an elevated process; without it the
-//! apply call fails before anything is renamed.
+//! The plan stores platform-normalised absolute paths: Windows uses the verbatim
+//! (`\\?\C:\...`) form, so a rename works for paths longer than `MAX_PATH`
+//! without the system-wide `LongPathsEnabled` policy. Protected system locations
+//! need an elevated process; without it the apply call fails before anything is
+//! renamed.
 
 use std::{
     collections::HashMap,
@@ -137,7 +138,7 @@ impl RenameService {
             plan.conflicts.iter().map(conflict_view).collect();
         let mut verbatim_items = Vec::with_capacity(plan.items.len());
         for item in &plan.items {
-            match (paths::to_verbatim(&item.from), paths::to_verbatim(&item.to)) {
+            match (paths::normalize(&item.from), paths::normalize(&item.to)) {
                 (Ok(from), Ok(to)) => verbatim_items.push(RenameItem {
                     from,
                     to,
@@ -356,10 +357,10 @@ pub fn conflict_reason_key(reason: &str) -> &'static str {
 
 fn conflict_from_view(conflict: &RenameConflictView) -> RenameConflict {
     RenameConflict {
-        path: paths::to_verbatim(Path::new(&conflict.path))
+        path: paths::normalize(Path::new(&conflict.path))
             .unwrap_or_else(|_| PathBuf::from(&conflict.path)),
         target: conflict.target.as_deref().map(|target| {
-            paths::to_verbatim(Path::new(target)).unwrap_or_else(|_| PathBuf::from(target))
+            paths::normalize(Path::new(target)).unwrap_or_else(|_| PathBuf::from(target))
         }),
         reason: conflict.reason.clone(),
     }
@@ -574,12 +575,12 @@ mod tests {
         let mut current = directory.path().to_path_buf();
         for index in 0..8 {
             current.push(format!("segment-{index}-{}", "x".repeat(40)));
-            fs::create_dir_all(freespace_platform::paths::to_verbatim(&current).expect("verbatim"))
+            fs::create_dir_all(freespace_platform::paths::normalize(&current).expect("normalize"))
                 .expect("mkdir");
         }
         let path = current.join("IMG_9999.bin");
         fs::write(
-            freespace_platform::paths::to_verbatim(&path).expect("verbatim"),
+            freespace_platform::paths::normalize(&path).expect("normalize"),
             b"payload",
         )
         .expect("write");
@@ -603,17 +604,18 @@ mod tests {
             .expect("apply");
         assert_eq!(applied.renamed, 1);
         assert!(
-            freespace_platform::paths::to_verbatim(&current.join("photo-9999.bin"))
-                .expect("verbatim")
+            freespace_platform::paths::normalize(&current.join("photo-9999.bin"))
+                .expect("normalize")
                 .exists()
         );
         assert!(
-            !freespace_platform::paths::to_verbatim(&path)
-                .expect("verbatim")
+            !freespace_platform::paths::normalize(&path)
+                .expect("normalize")
                 .exists()
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn protected_targets_need_elevation_before_anything_changes() {
         let service = RenameService::new();

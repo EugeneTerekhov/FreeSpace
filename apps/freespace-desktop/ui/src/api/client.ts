@@ -382,12 +382,6 @@ export class ApiClient {
     });
   }
 
-  operationRestore(quarantineIds: string[]): Promise<OperationAccepted> {
-    return this.transport.invoke<OperationAccepted>('operation_restore', {
-      quarantine_ids: quarantineIds,
-    });
-  }
-
   journalPage(
     options: { filter?: JournalFilter; cursor?: string | null; pageSize?: number } = {},
   ): Promise<JournalPage> {
@@ -406,12 +400,6 @@ export class ApiClient {
 
   journalUndo(entryId: string): Promise<OperationAccepted> {
     return this.transport.invoke<OperationAccepted>('journal_undo', {
-      entry_id: entryId,
-    });
-  }
-
-  journalRestore(entryId: string): Promise<OperationAccepted> {
-    return this.transport.invoke<OperationAccepted>('journal_restore', {
       entry_id: entryId,
     });
   }

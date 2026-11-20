@@ -315,14 +315,24 @@ mod tests {
     };
     use crate::dto::{ColumnState, FilterSet, ScanRequest, ScreenId, UiSettings, WindowState};
 
+    /// Absolute path that is valid on the host platform.
+    fn absolute(name: &str) -> String {
+        std::env::temp_dir()
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    }
+
     #[test]
     fn accepts_absolute_paths_and_rejects_malformed_ones() {
-        assert!(validate_path(r"C:\Users\Public").is_ok());
+        assert!(validate_path(&absolute("Public")).is_ok());
+
+        #[cfg(windows)]
         assert!(validate_path(r"\\?\C:\very\long").is_ok());
 
         assert!(validate_path("").is_err());
         assert!(validate_path("relative\\folder").is_err());
-        assert!(validate_path("C:\\a\0b").is_err());
+        assert!(validate_path(&format!("{}\0", absolute("a"))).is_err());
     }
 
     #[test]
@@ -390,7 +400,7 @@ mod tests {
     #[test]
     fn validates_scan_requests() {
         let request = ScanRequest {
-            path: r"C:\".to_owned(),
+            path: std::env::temp_dir().to_string_lossy().into_owned(),
             method: crate::dto::ScanMethodChoice::Auto,
             incremental: false,
             exclusions: vec!["**/node_modules".to_owned()],

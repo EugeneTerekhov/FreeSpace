@@ -1,14 +1,15 @@
+#![cfg(windows)]
+
 //! US15: owner aggregation, the tree filter and the owner report section.
 
 mod common;
 
-use freespace_analysis::{UNKNOWN_OWNER, annotate_with, summarize_owners};
+use freespace_analysis::{OwnerIdentity, UNKNOWN_OWNER, annotate_with, summarize_owners};
 use freespace_core::{
     query::{FilterSpec, SortDirection, SortKey, SortSpec, search},
     size::{SizeMetrics, Units},
     tree::{FsTree, NodeKind, NodeSpec},
 };
-use freespace_platform::security::OwnerIdentity;
 use freespace_report::OwnerReport;
 
 fn fixture() -> (FsTree, u32) {
