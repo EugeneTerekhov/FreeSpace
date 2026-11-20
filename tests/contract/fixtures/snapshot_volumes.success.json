@@ -1,0 +1,22 @@
+{
+  "command": "snapshot_volumes",
+  "input": {
+    "generation": 1
+  },
+  "result": [
+    {
+      "volume_id": "11111111-1111-1111-1111-111111111111",
+      "mount_point": "C:\\",
+      "label": "System",
+      "file_system": "ntfs",
+      "total_bytes": 1000000000000,
+      "free_bytes": 240000000000,
+      "used_bytes": 760000000000,
+      "is_removable": false,
+      "status": "available",
+      "scan_method": "mft",
+      "is_elevated": true
+    }
+  ],
+  "error": null
+}

@@ -134,8 +134,7 @@ impl SnapshotService {
     ) -> Result<SnapshotCreated, UiError> {
         if let Some(requested) = &request.path {
             let requested = crate::validation::validate_path(requested)?;
-            let mount = PathBuf::from(snapshot.volume().mount_point.as_os_str());
-            if !crate::paths_within(&mount, &requested) {
+            if snapshot.volume_for_path(&requested).is_none() {
                 return Err(UiError::validation(
                     "create a snapshot from the currently scanned volume",
                 ));

@@ -96,7 +96,7 @@ export function SearchField({
     <div className={cx(styles.searchWrap, className)}>
       <input
         {...rest}
-        type="search"
+        type="text"
         role="searchbox"
         aria-label={label}
         className={styles.input}

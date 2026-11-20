@@ -154,13 +154,15 @@ freespace config set <key> <value> [--json]
 ### `scan`
 
 ```text
-freespace scan <path> [--method auto|mft|walk] [--incremental]
-                      [--exclude <glob>]... [--snapshot-out <file>]
-                      [--include-ads] [--size-mode logical|on-disk|physical]
-                      [--json]
+freespace scan <path>... [--method auto|mft|walk] [--incremental]
+                       [--exclude <glob>]... [--snapshot-out <file>]
+                       [--include-ads] [--size-mode logical|on-disk|physical]
+                       [--json]
 ```
 
-`data`: `{ "session_id", "volume", "nodes_count", "total": SizeMetrics, "roots": [...] }`.
+`data`: `{ "session_id", "volume", "volumes", "nodes_count", "total": SizeMetrics, "roots": [...],
+"methods": [...] }`. Несколько путей сканируются последовательно в один снимок; повторяющиеся и
+пересекающиеся пути отклоняются с `E_INVALID_ARGUMENT`.
 
 На Windows доступны `auto`, `mft` и `walk`, а `--incremental` обновляет предыдущий скан NTFS через
 журнал USN. На Linux используется только обход дерева; `--method mft` и `--incremental`
@@ -169,10 +171,11 @@ freespace scan <path> [--method auto|mft|walk] [--incremental]
 ### `tree`
 
 ```text
-freespace tree <path> [--depth <n>] [--min-size <bytes>] [--json]
+freespace tree <path>... [--depth <n>] [--min-size <bytes>] [--json]
 ```
 
-`data`: иерархические узлы `{ "name", "path", "kind", "size": SizeMetrics, "children": [] }`.
+`data`: иерархические узлы `{ "name", "path", "kind", "size": SizeMetrics, "children": [] }`;
+`roots` содержит все переданные корни.
 
 ### `top`
 

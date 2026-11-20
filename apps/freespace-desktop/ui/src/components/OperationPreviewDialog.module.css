@@ -49,7 +49,7 @@
 
 .table th,
 .table td {
-  padding: var(--fs-space-2) var(--fs-space-3);
+  padding: var(--fs-space-2) calc(var(--fs-table-gap) / 2);
   border-bottom: 1px solid var(--fs-line-faint);
   font-size: var(--fs-text-sm);
   text-align: start;

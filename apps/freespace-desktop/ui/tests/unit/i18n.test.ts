@@ -11,6 +11,7 @@ import {
 import {
   formatBytes,
   formatDate,
+  formatDateTimeShort,
   formatNumber,
   formatPercent,
 } from '../../src/i18n/format';
@@ -90,6 +91,10 @@ describe('formatting', () => {
     expect(formatNumber(1_234_567, 'en')).toBe('1,234,567');
     expect(formatPercent(0.426, 'en')).toBe('43%');
     expect(formatDate(null)).toBe('—');
-    expect(formatDate(0, 'en')).not.toBe('—');
+    expect(formatDate(0)).toMatch(/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$/);
+    expect(formatDateTimeShort(null)).toBe('—');
+    expect(formatDateTimeShort(Date.UTC(2022, 11, 25, 10, 28))).toMatch(
+      /^\d{2}\.\d{2}\.2022 \d{2}:28$/,
+    );
   });
 });

@@ -21,21 +21,18 @@ use freespace_scan::session::NoopObserver;
 
 fn scanned(root: &Path, generation: u64) -> TreeSnapshot {
     let request = ScanRequest {
-        path: root.to_string_lossy().into_owned(),
+        paths: vec![root.to_string_lossy().into_owned()],
         method: ScanMethodChoice::Walk,
         incremental: false,
         exclusions: Vec::new(),
         include_ads: false,
         metric: Metric::OnDisk,
+        merge: false,
     };
     let outcome = run_scan(&request, &mut NoopObserver).expect("scan");
+    let (tree, volumes, sessions) = outcome.into_snapshot_parts();
 
-    TreeSnapshot::new(
-        outcome.tree,
-        generation,
-        outcome.volume,
-        Some(outcome.session),
-    )
+    TreeSnapshot::new_multi(tree, generation, volumes, sessions)
 }
 
 fn analysis_fixture() -> (tempfile::TempDir, TreeSnapshot) {

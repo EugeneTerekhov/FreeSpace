@@ -4,8 +4,6 @@
 //! required, the volume is locked during execution and the result is written to
 //! the journal by `freespace-ops`. Commands never implement deletion themselves.
 
-use std::path::PathBuf;
-
 use freespace_app::{
     dto::{
         DeleteMode, JournalEntryView, JournalPage, OperationAccepted, OperationKind,
@@ -36,9 +34,14 @@ pub fn operation_preview(
             .map(|path| path.to_string_lossy().into_owned())
             .collect();
     }
-    let root = operation_root(&state)?;
+    let snapshot = state.snapshot()?;
+    let roots = snapshot.root_paths();
     for target in &request.targets {
-        if !crate::security::is_within(&root, std::path::Path::new(target)) {
+        let target = std::path::Path::new(target);
+        if !roots
+            .iter()
+            .any(|root| crate::security::is_within(root, target))
+        {
             return Err(UiError::new(UiErrorCode::AccessDenied)
                 .with_details("the target is outside the scanned area"));
         }
@@ -69,7 +72,15 @@ pub fn operation_confirm(
     let operation_id = prepared.operation_id.to_string();
     let volume_id = state
         .snapshot()
-        .map(|snapshot| snapshot.volume().id.to_string())
+        .ok()
+        .and_then(|snapshot| {
+            prepared
+                .targets
+                .iter()
+                .find_map(|target| snapshot.volume_for_path(target))
+                .or_else(|| snapshot.volumes().first())
+                .map(|volume| volume.id.to_string())
+        })
         .unwrap_or_default();
     state
         .operations()
@@ -174,15 +185,6 @@ pub fn journal_undo(
 #[must_use]
 pub const fn service(state: &AppState) -> &OperationService {
     state.operations()
-}
-
-fn operation_root(state: &AppState) -> Result<PathBuf, UiError> {
-    let snapshot = state.snapshot()?;
-    if let Some(root) = snapshot.root_id() {
-        return Ok(PathBuf::from(snapshot.node_row(root)?.path));
-    }
-
-    Ok(PathBuf::from(snapshot.volume().mount_point.as_os_str()))
 }
 
 fn emit_progress(app: &AppHandle, state: &AppState, progress: OperationProgress) {

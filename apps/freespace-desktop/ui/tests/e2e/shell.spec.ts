@@ -43,21 +43,16 @@ const ROUTING_MODULE = '/src/app/routing.ts';
 
 interface ShellState {
   lastScreen: string | null;
-  restored: string;
-  legacyDashboard: string;
-  legacyScan: string;
-  unknown: string;
-  beforeReady: string;
+  startupScreen: string;
 }
 
 /**
- * Reads the persisted shell settings and the resolution rules from the running
+ * Reads the persisted shell settings and the startup rule from the running
  * application bundle.
  *
- * The browser preview keeps settings in memory, so a page reload always starts
- * from the seeded defaults. This helper verifies the two halves that make the
- * restore work in the packaged app: the shell persists `last_screen` after a
- * navigation, and the router maps both live and legacy identifiers to a screen.
+ * The browser preview keeps settings in memory. This helper checks that a
+ * navigation does not overwrite `last_screen` any more and that every launch
+ * resolves to the overview.
  */
 async function readShellState(page: Page): Promise<ShellState> {
   return page.evaluate(
@@ -66,17 +61,13 @@ async function readShellState(page: Page): Promise<ShellState> {
         api: { appSettingsGet: () => Promise<{ last_screen: string | null }> };
       };
       const routing = (await import(/* @vite-ignore */ routingModule)) as {
-        resolveInitialScreen: (last: string | null | undefined, ready: boolean) => string;
+        resolveInitialScreen: () => string;
       };
       const settings = await runtime.api.appSettingsGet();
 
       return {
         lastScreen: settings.last_screen,
-        restored: routing.resolveInitialScreen(settings.last_screen, true),
-        legacyDashboard: routing.resolveInitialScreen('dashboard', true),
-        legacyScan: routing.resolveInitialScreen('scan', true),
-        unknown: routing.resolveInitialScreen('no-such-screen', true),
-        beforeReady: routing.resolveInitialScreen('dashboard', false),
+        startupScreen: routing.resolveInitialScreen(),
       };
     },
     { runtimeModule: RUNTIME_MODULE, routingModule: ROUTING_MODULE },
@@ -193,24 +184,16 @@ test.describe('shell', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Журнал' })).toBeVisible();
   });
 
-  test('persists the last screen and resolves legacy identifiers', async ({ page }) => {
+  test('starts on the overview and does not persist the last screen', async ({ page }) => {
     await page.goto('/');
 
     await page.locator('[data-screen="journal"]').click();
     await expect(page.getByRole('heading', { level: 1, name: 'Журнал' })).toBeVisible();
 
-    await expect
-      .poll(async () => (await readShellState(page)).lastScreen)
-      .toBe('journal');
-
     const state = await readShellState(page);
-    expect(state.restored).toBe('journal');
-    // Values written by an older build keep opening the closest live screen.
-    expect(state.legacyDashboard).toBe('overview');
-    expect(state.legacyScan).toBe('overview');
-    // Unknown identifiers fall back to the overview instead of a blank shell.
-    expect(state.unknown).toBe('overview');
-    // The stored value is only honoured after the bootstrap has loaded.
-    expect(state.beforeReady).toBe('overview');
+    expect(state.startupScreen).toBe('overview');
+    // Navigation no longer overwrites the stored value: the next launch also
+    // opens the overview, and legacy values stay harmless.
+    expect(state.lastScreen).toBe('overview');
   });
 });

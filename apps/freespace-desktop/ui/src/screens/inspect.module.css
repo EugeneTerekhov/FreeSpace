@@ -163,7 +163,7 @@
 }
 
 .table th {
-  padding: 0 var(--fs-space-2) var(--fs-space-2);
+  padding: 0 calc(var(--fs-table-gap) / 2) var(--fs-space-2);
   border-bottom: 1px solid var(--fs-line);
   color: var(--fs-text-subtle);
   font-size: var(--fs-text-2xs);
@@ -176,7 +176,7 @@
 
 .table td {
   height: var(--fs-row-height);
-  padding: 0 var(--fs-space-2);
+  padding: 0 calc(var(--fs-table-gap) / 2);
   border-bottom: 1px solid var(--fs-line-faint);
   vertical-align: middle;
 }

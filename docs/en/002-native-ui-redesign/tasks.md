@@ -74,8 +74,9 @@ already exist in the repository.
 
 - [x] T010 [Shell] Implement the registry of 11 screens and 6 groups in `ui/src/app/routing.ts` with tests
 - [x] T011 [Shell] Grouped sidebar (group headings, `aria-current`) and app icon (application image `/icon.png`, decorative) in `ui/src/app/AppShell.tsx`
-- [x] T012 [Shell] Last-screen restore, deep links and command palette for 11 screens in `ui/src/app/` with tests
+- [x] T012 [Shell] Deep links and command palette for 11 screens in `ui/src/app/` with tests (screen restore superseded by T014)
 - [x] T013 [P] [Shell] RTL tests for navigation: groups, active screen, icon, keyboard in `ui/tests/unit/app/`
+- [x] T014 [Shell] Always open the Overview on launch: ignore `last_screen`, stop writing it, update tests and FR-016
 
 ## Phase 2: Overview
 

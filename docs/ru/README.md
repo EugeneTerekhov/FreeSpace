@@ -9,8 +9,9 @@
 
 Спецификации, планы и задачи фичи лежат в каноническом каталоге
 [`../../specs/001-freespace-disk-analyzer/`](../../specs/001-freespace-disk-analyzer/),
-[`../../specs/002-native-ui-redesign/`](../../specs/002-native-ui-redesign/) и
-[`../../specs/003-cross-platform-portable/`](../../specs/003-cross-platform-portable/).
+[`../../specs/002-native-ui-redesign/`](../../specs/002-native-ui-redesign/),
+[`../../specs/003-cross-platform-portable/`](../../specs/003-cross-platform-portable/) и
+[`../../specs/004-multi-volume-snapshot/`](../../specs/004-multi-volume-snapshot/).
 Форматы отчётов и снимков описаны в
 [`../../specs/001-freespace-disk-analyzer/contracts/`](../../specs/001-freespace-disk-analyzer/contracts/).
 Портативная поставка 2.0 и порядок проверки — в

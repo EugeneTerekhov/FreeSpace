@@ -96,10 +96,27 @@ test.describe('analysis screens', () => {
       panel.getByRole('grid', { name: 'Типы файлов' }).getByText('archive.zip', { exact: true }),
     ).toBeVisible();
 
+    // Clicking a different extension anywhere in its row (not just the small
+    // label button) must move the selection and reload the files on the right.
+    const pdfButton = panel.getByRole('button', { name: '.pdf' });
+    const pdfRow = pdfButton.locator('xpath=ancestor::tr');
+    await pdfRow.locator('td').nth(1).click();
+    await expect(pdfRow).toHaveAttribute('aria-selected', 'true');
+    await expect(
+      panel.getByRole('grid', { name: 'Типы файлов' }).getByText('report.pdf', { exact: true }),
+    ).toBeVisible();
+
     await panel.getByRole('radio', { name: 'По категориям' }).click();
     await expect(
       panel.getByRole('table', { name: 'Типы файлов' }).getByRole('button', { name: 'Архивы' }),
     ).toBeVisible();
+
+    // Directories are a category of their own; volume roots are not in it.
+    await panel.getByRole('button', { name: 'Каталоги' }).click();
+    const folders = panel.getByRole('grid', { name: 'Типы файлов' });
+    await expect(folders.getByText('Windows', { exact: true })).toBeVisible();
+    await expect(folders.getByText('C:\\', { exact: true })).toHaveCount(0);
+    await expect(folders.getByText('D:\\', { exact: true })).toHaveCount(0);
   });
 
   test('owners page, drill into files and expose the export action', async ({ page }) => {

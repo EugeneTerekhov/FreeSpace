@@ -7,7 +7,12 @@ use freespace_analysis::{
     top::{TopFile, top_files},
     types::{FileCategory, group_by_extension, is_regular_file},
 };
-use freespace_core::tree::{FsTree, NodeId};
+use std::collections::HashSet;
+
+use freespace_core::{
+    query::extension_of,
+    tree::{FsTree, NodeId},
+};
 
 use crate::{
     category,
@@ -172,7 +177,9 @@ pub fn types_category_summary(
 
 /// Returns one page of files of a selected extension or category.
 ///
-/// `type_key` is either an extension (`pdf`) or `category:<key>` (`category:video`).
+/// `type_key` is either an extension (`pdf`), `category:<key>`
+/// (`category:video`), an empty string for files without an extension, or
+/// `category:folder` for directories. Volume roots are never folder rows.
 ///
 /// # Errors
 /// Returns `E_VALIDATION` for a malformed type key, page size or filter and
@@ -187,13 +194,45 @@ pub fn types_files_page(
     page_size: u16,
     cursor: Option<&str>,
 ) -> Result<TreePage, UiError> {
+    validate_filter(filter)?;
+    validate_page_size(page_size)?;
+
+    // "No extension" and "folders" cannot be expressed with a FilterSet: an
+    // empty extension entry is invalid, and a `folder` category also matches
+    // volume roots. Select their ids explicitly and page them directly.
+    if type_key.trim().is_empty() || type_key == "category:folder" {
+        let tree = snapshot.tree();
+        let roots: HashSet<NodeId> = tree.roots().collect();
+        let no_extension = type_key.trim().is_empty();
+        let mut stack: Vec<NodeId> = tree.roots().collect();
+        let mut ids = Vec::new();
+
+        while let Some(id) = stack.pop() {
+            if tree.node(id).is_removed() {
+                continue;
+            }
+            let node = tree.node(id);
+            let wanted = if node.kind.is_directory() {
+                !no_extension && !roots.contains(&id)
+            } else {
+                no_extension && is_regular_file(node.kind) && extension_of(tree.name(id)).is_empty()
+            };
+            if wanted {
+                ids.push(id);
+            }
+            stack.extend(tree.children(id));
+        }
+
+        return snapshot.ids_page(ids, metric, sort, filter, page_size, cursor);
+    }
+
     let mut combined = filter.clone();
     if let Some(category_key) = type_key.strip_prefix("category:") {
         if category_key.trim().is_empty() {
             return Err(UiError::validation("category key is empty"));
         }
         combined.categories = vec![category_key.to_owned()];
-    } else if !type_key.trim().is_empty() {
+    } else {
         combined.extensions = vec![type_key.trim().trim_start_matches('.').to_owned()];
     }
 
@@ -299,6 +338,7 @@ fn sort_rows(rows: &mut [crate::dto::NodeRow], sort: SortSpec, metric: Metric) {
     rows.sort_by(|left, right| {
         let ordering = match sort.key {
             SortKey::Name => left.name.to_lowercase().cmp(&right.name.to_lowercase()),
+            SortKey::Path => left.path.to_lowercase().cmp(&right.path.to_lowercase()),
             SortKey::Size => row_size(left, metric).cmp(&row_size(right, metric)),
             SortKey::Modified => left.modified_at.cmp(&right.modified_at),
             SortKey::Items => {
@@ -343,10 +383,10 @@ mod tests {
     };
 
     use super::{
-        MAX_TOP_LIMIT, category_key, matching_file_ids, top_files_page, types_files_page,
-        types_summary,
+        MAX_TOP_LIMIT, category_key, matching_file_ids, top_files_page, types_category_summary,
+        types_files_page, types_summary,
     };
-    use crate::dto::{FilterSet, Metric, SortKey, SortSpec};
+    use crate::dto::{FilterSet, Metric, NodeKind as RowKind, SortKey, SortSpec};
     use crate::error::UiErrorCode;
     use crate::tree::TreeSnapshot;
 
@@ -434,6 +474,94 @@ mod tests {
     }
 
     #[test]
+    fn top_files_sorts_by_full_path_across_volumes() {
+        let mut tree = FsTree::new();
+        let c = tree
+            .add_node(
+                None,
+                NodeSpec {
+                    name: r"C:\".to_owned(),
+                    kind: NodeKind::Directory,
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("C");
+        let d = tree
+            .add_node(
+                None,
+                NodeSpec {
+                    name: r"D:\".to_owned(),
+                    kind: NodeKind::Directory,
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("D");
+        // Names deliberately oppose the path order so this cannot pass by
+        // accidentally sorting by name or size.
+        for (root, name, size) in [(c, "zzz.mkv", 10), (d, "aaa.mkv", 20), (d, "bbb.mkv", 5)] {
+            tree.add_node(
+                Some(root),
+                NodeSpec {
+                    name: name.to_owned(),
+                    kind: NodeKind::File,
+                    size: SizeMetrics::file(size),
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("file");
+        }
+        tree.recompute_totals();
+
+        let volume = |mount: &str| Volume {
+            id: Volume::id_for_mount_point(std::path::Path::new(mount)),
+            mount_point: mount.into(),
+            label: mount.to_owned(),
+            file_system: FileSystem::Ntfs,
+            total_bytes: 1_000,
+            free_bytes: 100,
+            cluster_size: None,
+            scan_method: None,
+            is_elevated: false,
+            is_removable: false,
+            status: VolumeStatus::Available,
+        };
+        let snapshot =
+            TreeSnapshot::new_multi(tree, 7, vec![volume(r"C:\"), volume(r"D:\")], Vec::new());
+
+        let asc = top_files_page(
+            &snapshot,
+            10,
+            Metric::Logical,
+            SortSpec {
+                key: SortKey::Path,
+                descending: false,
+            },
+            &FilterSet::default(),
+            10,
+            None,
+        )
+        .expect("ascending page");
+        let names: Vec<&str> = asc.rows.iter().map(|row| row.name.as_str()).collect();
+        assert_eq!(names, ["zzz.mkv", "aaa.mkv", "bbb.mkv"]);
+
+        let desc = top_files_page(
+            &snapshot,
+            10,
+            Metric::Logical,
+            SortSpec {
+                key: SortKey::Path,
+                descending: true,
+            },
+            &FilterSet::default(),
+            10,
+            None,
+        )
+        .expect("descending page");
+        let names: Vec<&str> = desc.rows.iter().map(|row| row.name.as_str()).collect();
+        assert_eq!(names, ["bbb.mkv", "aaa.mkv", "zzz.mkv"]);
+    }
+
+    #[test]
     fn top_files_filters_and_validates_the_limit() {
         let snapshot = snapshot();
         let filter = FilterSet {
@@ -505,5 +633,139 @@ mod tests {
         let tree = snapshot.tree();
         assert_eq!(matching_file_ids(tree, Some("txt"), None).len(), 2);
         assert_eq!(matching_file_ids(tree, None, Some("video")).len(), 1);
+    }
+
+    /// Tree with two volume roots, nested directories and extension-less files.
+    fn grouped_snapshot() -> TreeSnapshot {
+        let mut tree = FsTree::new();
+        let c = tree
+            .add_node(
+                None,
+                NodeSpec {
+                    name: r"C:\".to_owned(),
+                    kind: NodeKind::Directory,
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("C");
+        let d = tree
+            .add_node(
+                None,
+                NodeSpec {
+                    name: r"D:\".to_owned(),
+                    kind: NodeKind::Directory,
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("D");
+        let docs = tree
+            .add_node(
+                Some(c),
+                NodeSpec {
+                    name: "Docs".to_owned(),
+                    kind: NodeKind::Directory,
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("Docs");
+        let nested = tree
+            .add_node(
+                Some(docs),
+                NodeSpec {
+                    name: "Nested".to_owned(),
+                    kind: NodeKind::Directory,
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("Nested");
+        for (parent, name) in [
+            (c, "README"),
+            (c, "notes.txt"),
+            (docs, "LICENSE"),
+            (d, "NOTICE"),
+            (nested, "movie.mkv"),
+        ] {
+            tree.add_node(
+                Some(parent),
+                NodeSpec {
+                    name: name.to_owned(),
+                    kind: NodeKind::File,
+                    size: SizeMetrics::file(10),
+                    ..NodeSpec::default()
+                },
+            )
+            .expect("file");
+        }
+        tree.recompute_totals();
+
+        let volume = |mount: &str| Volume {
+            id: Volume::id_for_mount_point(std::path::Path::new(mount)),
+            mount_point: mount.into(),
+            label: mount.to_owned(),
+            file_system: FileSystem::Ntfs,
+            total_bytes: 1_000,
+            free_bytes: 100,
+            cluster_size: None,
+            scan_method: None,
+            is_elevated: false,
+            is_removable: false,
+            status: VolumeStatus::Available,
+        };
+        TreeSnapshot::new_multi(tree, 7, vec![volume(r"C:\"), volume(r"D:\")], Vec::new())
+    }
+
+    #[test]
+    fn no_extension_page_contains_only_extension_less_files() {
+        let snapshot = grouped_snapshot();
+        let page = types_files_page(
+            &snapshot,
+            "",
+            Metric::Logical,
+            SortSpec::default(),
+            &FilterSet::default(),
+            50,
+            None,
+        )
+        .expect("files");
+
+        let mut names: Vec<&str> = page.rows.iter().map(|row| row.name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(names, ["LICENSE", "NOTICE", "README"]);
+        assert!(page.rows.iter().all(|row| row.kind == RowKind::File));
+    }
+
+    #[test]
+    fn folder_page_excludes_volume_roots() {
+        let snapshot = grouped_snapshot();
+        let page = types_files_page(
+            &snapshot,
+            "category:folder",
+            Metric::Logical,
+            SortSpec::default(),
+            &FilterSet::default(),
+            50,
+            None,
+        )
+        .expect("folders");
+
+        let mut names: Vec<&str> = page.rows.iter().map(|row| row.name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(names, ["Docs", "Nested"]);
+        assert!(page.rows.iter().all(|row| row.kind == RowKind::Directory));
+    }
+
+    #[test]
+    fn category_summary_counts_folders_but_not_volume_roots() {
+        let snapshot = grouped_snapshot();
+        let rows = types_category_summary(&snapshot, &FilterSet::default()).expect("summary");
+        let folders = rows
+            .iter()
+            .find(|row| row.category == "folder")
+            .expect("folder row");
+
+        assert_eq!(folders.count, 2);
+        assert_eq!(folders.logical_size, 0);
+        assert_eq!(folders.share, 0.0);
+        assert_eq!(rows.iter().map(|row| row.count).sum::<u64>(), 7);
     }
 }

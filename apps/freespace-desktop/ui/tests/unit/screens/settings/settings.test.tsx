@@ -12,6 +12,7 @@ import { About } from '../../../../src/screens/About';
 import { Elevation } from '../../../../src/screens/Elevation';
 import { Monitor } from '../../../../src/screens/Monitor';
 import { Settings } from '../../../../src/screens/Settings';
+import { useMonitorStore } from '../../../../src/stores/monitorStore';
 import { useSettingsStore } from '../../../../src/stores/settingsStore';
 import { useShellStore } from '../../../../src/stores/shellStore';
 import { sharedTransport } from '../../../helpers/mockTransport';
@@ -31,6 +32,7 @@ function uiError(code: UiError['code'], messageKey: string): UiError {
 
 beforeEach(async () => {
   useSettingsStore.setState({ settings: null, busy: false, error: null });
+  useMonitorStore.getState().reset();
 
   const transport = sharedTransport();
   await transport.invoke('settings_reset', { section: 'all' });

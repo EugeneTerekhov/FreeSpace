@@ -145,9 +145,9 @@ export const SCREEN_BY_ID: Readonly<Record<ScreenId, ScreenMeta>> = Object.fromE
 /**
  * Screens that no longer exist after the recomposition.
  *
- * Persisted `last_screen` values and `navigation-request` payloads written by an
- * older build still resolve to a live screen instead of dumping the user on the
- * overview.
+ * `navigation-request` payloads written by an older build still resolve to a
+ * live screen instead of dumping the user on the overview. The stored
+ * `last_screen` is no longer consulted at startup.
  */
 export const LEGACY_SCREEN_ALIASES: Readonly<Record<string, ScreenId>> = {
   dashboard: 'overview',
@@ -182,16 +182,14 @@ export function normalizeScreenId(value: string): ScreenId | null {
   return LEGACY_SCREEN_ALIASES[value] ?? null;
 }
 
-/** Restores the last screen only when it still maps to the registry. */
-export function resolveInitialScreen(
-  last: string | null | undefined,
-  ready: boolean,
-): ScreenId {
-  if (ready && last !== null && last !== undefined) {
-    const resolved = normalizeScreenId(last);
-    if (resolved !== null) return resolved;
-  }
-
+/**
+ * The screen shown on every launch.
+ *
+ * `last_screen` is no longer restored: a fresh start always lands on the
+ * overview. Legacy identifiers are still mapped by `normalizeScreenId` for
+ * navigation requests and deep links.
+ */
+export function resolveInitialScreen(): ScreenId {
   return 'overview';
 }
 

@@ -285,7 +285,7 @@ export function Journal() {
       header: t('journal.time'),
       // Every column takes a share of the free width, so the table fills the
       // panel without one huge empty last column. `210px` is what
-      // `DD/MM/YYYY HH:MM` needs at the table font size.
+      // `DD.MM.YYYY HH:MM` needs at the table font size.
       width: 'minmax(210px, 1fr)',
       render: (row) => formatDateTimeShort(row.occurred_at),
     },

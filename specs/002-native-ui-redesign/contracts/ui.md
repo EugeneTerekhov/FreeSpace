@@ -180,10 +180,10 @@
 | `tree` | analysis | Иерархия размеров + детали размера | `tree_root/children/search`, `size_details` | Раскрыть, фильтр, сортировка, выбрать | `tree`, `filter` |
 | `analysis` | analysis | Крупнейшие файлы, типы, владельцы | `top_files_page`, `types_summary`, `owners_page` | N, фильтр, вкладки | `top`, `types`, `owners` |
 | `duplicates` | analysis | Группы дубликатов | `duplicates_*` | Поиск, правило, выбрать копии | `duplicates` |
-| `cleanup` | cleanup | Рекомендации очистки и снимки | `cleanup_candidates`, `snapshots_*` | Выбрать категорию, вкладки, предпросмотр | `cleanup suggest`, `cleanup empty-dirs`, `snapshot create/diff` |
+| `cleanup` | cleanup | Рекомендации очистки и снимки | `cleanup_candidates`, `snapshots_*` | Фильтр по причине (И), вкладки, предпросмотр | `cleanup suggest`, `cleanup empty-dirs`, `snapshot create/diff` |
 | `journal` | operations | История операций | `journal_page` | Открыть, отменить, восстановить | `delete`/`shred`/`rename`/`acl` (записи) |
 | `shred` | operations | Безвозвратное уничтожение | `shred_preview/start/status` | Метод, проходы, подтверждение | `shred` |
-| `monitor` | operations | Мониторинг записи | `monitor_*`, `monitor-tick` | Старт/стоп, порог, фильтр | `monitor` |
+| `monitor` | operations | Мониторинг записи | `monitor_*`, `monitor-tick` | Старт/стоп, порог, фильтр, сортировка, открыть папку файла/EXE | `monitor` |
 | `inspect` | tools | Метаданные, архивы, разблокировка, длинные пути | `metadata_get`, `archives_entries_page`, `unlock_locks`, `long_paths_page` | Вкладки, фильтр, снять блокировку | `filter --metadata`, `archives`, `unlock`, `rename`, `delete` |
 | `fileops` | tools | Переименование и права | `rename_preview/apply`, `permissions_get/preview/apply` | Вкладки, предпросмотр, применить | `rename`, `acl`, `attrs` |
 | `settings` | system | Настройки, elevation, о программе | `settings_get/set`, `elevation_status/request`, `about_info` | Тема, язык, единицы, elevation, версия | `config get/set`, `--version` |

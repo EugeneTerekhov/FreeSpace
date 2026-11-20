@@ -411,6 +411,23 @@ export function registerSettingsMocks(register: MockRegister): void {
     return page;
   });
 
+  register('monitor_reveal_file', (args) => {
+    if (asString(args.path).trim() === '') {
+      throw failure('E_VALIDATION', 'monitor_reveal_file needs a path');
+    }
+
+    return {};
+  });
+
+  register('monitor_reveal_executable', (args) => {
+    const processId = Number(args.process_id);
+    if (!Number.isInteger(processId) || processId <= 0) {
+      throw failure('E_VALIDATION', 'monitor_reveal_executable needs a process id');
+    }
+
+    return {};
+  });
+
   register('monitor_set_exclusions', (args) => {
     const exclusions = asStringList(args.exclusions);
     for (const [taskId, monitor] of monitors) {

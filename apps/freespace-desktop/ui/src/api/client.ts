@@ -100,6 +100,12 @@ export class ApiClient {
     return this.transport.invoke<VolumeSummary>('volumes_current');
   }
 
+  snapshotVolumes(generation: number): Promise<VolumeSummary[]> {
+    return this.transport.invoke<VolumeSummary[]>('snapshot_volumes', {
+      generation,
+    });
+  }
+
   scanStart(request: ScanRequest): Promise<ScanStarted> {
     return this.transport.invoke<ScanStarted>('scan_start', {
       request,

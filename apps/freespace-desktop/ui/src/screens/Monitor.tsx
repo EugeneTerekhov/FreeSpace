@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Folder, FolderOpen } from 'lucide-react';
 
-import type {
-  MonitorEvent,
-  MonitorEventFilter,
-  MonitorStatus,
-  MonitorTickEvent,
-  UiError,
-} from '../api/dto';
+import type { MonitorEvent, MonitorEventFilter, MonitorTickEvent } from '../api/dto';
 import type { Unlisten } from '../api/transport';
 import {
   monitorEventsPage,
+  monitorRevealExecutable,
+  monitorRevealFile,
   monitorSetExclusions,
   monitorStart,
   monitorStatus,
@@ -18,33 +15,33 @@ import {
 import { api } from '../api/runtime';
 import { normalizeError } from '../app/errors';
 import { useLiveAnnouncer } from '../app/live';
-import { Button } from '../components/Button';
+import { Button, IconButton } from '../components/Button';
 import { Badge, Checkbox } from '../components/Choice';
-import { DataTable, type Column } from '../components/DataTable';
+import { DataTable, type Column, type RowAnchor, type SortState } from '../components/DataTable';
 import { Banner, EmptyState, ErrorState, LiveRegions } from '../components/Feedback';
 import { Field, SearchField } from '../components/Fields';
+import {
+  HoverCard,
+  HoverCardHead,
+  HoverCardNote,
+  HoverCardPath,
+  HoverCardRow,
+  HoverCardRows,
+} from '../components/HoverCard';
 import { t, tPlural } from '../i18n';
-import { formatBytes, formatDate, formatNumber } from '../i18n/format';
+import { formatBytes, formatDateTimeShort, formatNumber } from '../i18n/format';
 import { useSettingsStore } from '../stores/settingsStore';
+import { MONITOR_MAX_INTERVAL, useMonitorStore } from '../stores/monitorStore';
 import { Panel, Screen } from './ScreenFrame';
 import styles from './operations.module.css';
 
-const MAX_INTERVAL = 86_400;
+const HOVER_DELAY = 450;
 
 function splitList(value: string): string[] {
   return value
     .split(/\r?\n|;/)
     .map((item) => item.trim())
     .filter((item) => item !== '');
-}
-
-function mergeEvents(current: MonitorEvent[], incoming: MonitorEvent[]): MonitorEvent[] {
-  const bySequence = new Map(current.map((event) => [event.sequence, event]));
-  for (const event of incoming) {
-    bySequence.set(event.sequence, event);
-  }
-
-  return [...bySequence.values()].sort((left, right) => right.sequence - left.sequence);
 }
 
 function matchesEvent(event: MonitorEvent, process: string, path: string): boolean {
@@ -66,6 +63,9 @@ function matchesEvent(event: MonitorEvent, process: string, path: string): boole
 /**
  * Live write monitor (T062).
  *
+ * The session state lives in `useMonitorStore`, not in this component: the
+ * router unmounts a screen when another one is opened, and the monitor must
+ * keep its task id, counters, events and form values across that navigation.
  * Events arrive through `monitor-tick`, while the cursor page is polled as a
  * fallback so the table also works with a transport that only answers commands
  * (the browser mock and the contract fixtures). New events are announced into a
@@ -75,22 +75,28 @@ function matchesEvent(event: MonitorEvent, process: string, path: string): boole
 export function Monitor() {
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
-  const [threshold, setThreshold] = useState(String(1024 * 1024 * 1024));
-  const [interval, setIntervalValue] = useState('2');
-  const [exclusions, setExclusions] = useState('');
-  const [taskId, setTaskId] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState<MonitorStatus | null>(null);
-  const [events, setEvents] = useState<MonitorEvent[]>([]);
-  const [processFilter, setProcessFilter] = useState('');
-  const [pathFilter, setPathFilter] = useState('');
-  const [thresholdOnly, setThresholdOnly] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [validation, setValidation] = useState<string | null>(null);
-  const [error, setError] = useState<UiError | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+
+  const threshold = useMonitorStore((state) => state.threshold);
+  const interval = useMonitorStore((state) => state.interval);
+  const exclusions = useMonitorStore((state) => state.exclusions);
+  const processFilter = useMonitorStore((state) => state.processFilter);
+  const pathFilter = useMonitorStore((state) => state.pathFilter);
+  const thresholdOnly = useMonitorStore((state) => state.thresholdOnly);
+  const taskId = useMonitorStore((state) => state.taskId);
+  const running = useMonitorStore((state) => state.running);
+  const status = useMonitorStore((state) => state.status);
+  const events = useMonitorStore((state) => state.events);
+  const loading = useMonitorStore((state) => state.loading);
+  const validation = useMonitorStore((state) => state.validation);
+  const error = useMonitorStore((state) => state.error);
+  const notice = useMonitorStore((state) => state.notice);
   const { polite, assertive, announce } = useLiveAnnouncer();
-  const seen = useRef(new Set<number>());
+  const [sort, setSort] = useState<SortState>({ key: 'date', descending: true });
+  const [hoverRow, setHoverRow] = useState<{ event: MonitorEvent; anchor: RowAnchor } | null>(
+    null,
+  );
+  const [folderError, setFolderError] = useState<string | null>(null);
+  const hoverTimer = useRef<number | null>(null);
 
   const filter = useMemo<MonitorEventFilter>(
     () => ({
@@ -101,23 +107,96 @@ export function Monitor() {
     [pathFilter, processFilter, thresholdOnly],
   );
 
-  const visibleEvents = useMemo(
-    () =>
-      events
-        .filter((event) => matchesEvent(event, processFilter, pathFilter))
-        .filter((event) => !thresholdOnly || event.threshold_exceeded),
-    [events, pathFilter, processFilter, thresholdOnly],
-  );
+  const visibleEvents = useMemo(() => {
+    const filtered = events
+      .filter((event) => matchesEvent(event, processFilter, pathFilter))
+      .filter((event) => !thresholdOnly || event.threshold_exceeded);
 
-  // Announce only sequences that have not been seen yet, at the throttled
-  // `progress` rate owned by `LiveAnnouncer`.
+    return [...filtered].sort((left, right) =>
+      sort.descending
+        ? right.timestamp - left.timestamp
+        : left.timestamp - right.timestamp,
+    );
+  }, [events, pathFilter, processFilter, sort, thresholdOnly]);
+
+  // Numeric columns are sized to the widest value actually on screen, so no
+  // dead space is left between them and the row actions. `ch` resolves against
+  // the grid font, which DataTable keeps identical in the header and rows.
+  const valueWidth = (values: string[], minChars = 3): string => {
+    const chars = values.reduce((max, value) => Math.max(max, value.length), minChars);
+    return `calc(${chars}ch + var(--fs-table-gap))`;
+  };
+
+  // Announce only sequences that have not been announced yet (the cursor is
+  // kept in the store, so a screen remount cannot re-announce old events),
+  // at the throttled `progress` rate owned by `LiveAnnouncer`.
   const announceEvents = (incoming: MonitorEvent[]) => {
-    const fresh = incoming.filter((event) => !seen.current.has(event.sequence));
+    const fresh = useMonitorStore.getState().takeFresh(incoming);
     if (fresh.length === 0) return;
-    for (const event of fresh) seen.current.add(event.sequence);
     announce(t('operations.monitor.new_events', { count: fresh.length }), {
       priority: 'progress',
     });
+  };
+
+  const closeHover = useCallback(() => {
+    if (hoverTimer.current !== null) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setHoverRow(null);
+  }, []);
+
+  const openHover = useCallback((event: MonitorEvent, anchor: RowAnchor) => {
+    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => {
+      hoverTimer.current = null;
+      setHoverRow({ event, anchor });
+    }, HOVER_DELAY);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    },
+    [],
+  );
+
+  // A card that stays put while its row scrolls away would point at nothing.
+  useEffect(() => {
+    if (hoverRow === null) return undefined;
+    const hide = () => closeHover();
+    const onKeyDown = (keyEvent: KeyboardEvent) => {
+      if (keyEvent.key === 'Escape') hide();
+    };
+    document.addEventListener('scroll', hide, true);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', hide);
+
+    return () => {
+      document.removeEventListener('scroll', hide, true);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', hide);
+    };
+  }, [closeHover, hoverRow]);
+
+  const revealFile = async (event: MonitorEvent) => {
+    const path = event.paths[0];
+    if (path === undefined) return;
+    setFolderError(null);
+    try {
+      await monitorRevealFile(path);
+    } catch (cause) {
+      setFolderError(t(normalizeError(cause).message_key));
+    }
+  };
+
+  const revealExecutable = async (event: MonitorEvent) => {
+    setFolderError(null);
+    try {
+      await monitorRevealExecutable(event.process_id);
+    } catch (cause) {
+      setFolderError(t(normalizeError(cause).message_key));
+    }
   };
 
   useEffect(() => {
@@ -133,19 +212,21 @@ export function Monitor() {
           monitorEventsPage(taskId, filter),
         ]);
         if (disposed) return;
-        setStatus(nextStatus);
-        setEvents(page.events);
+        const actions = useMonitorStore.getState();
+        actions.setStatus(nextStatus);
+        actions.setEvents(page.events);
         announceEvents(page.events);
         if (nextStatus.running) {
           const seconds = Math.max(1, nextStatus.interval_secs);
           timer = setTimeout(() => void poll(), seconds * 1000);
         } else {
-          setRunning(false);
+          actions.setRunning(false);
         }
       } catch (cause) {
         if (disposed) return;
-        setError(normalizeError(cause));
-        setRunning(false);
+        const actions = useMonitorStore.getState();
+        actions.setError(normalizeError(cause));
+        actions.setRunning(false);
       }
     };
 
@@ -171,7 +252,7 @@ export function Monitor() {
       .listen<MonitorTickEvent>('monitor-tick', (envelope) => {
         const payload = envelope.payload;
         if (payload.task_id !== taskId) return;
-        setEvents((current) => mergeEvents(current, payload.events));
+        useMonitorStore.getState().mergeEvents(payload.events);
         announceEvents(payload.events);
       })
       .then((stop) => {
@@ -196,56 +277,57 @@ export function Monitor() {
       thresholdBytes < 0 ||
       !Number.isInteger(intervalSeconds) ||
       intervalSeconds < 1 ||
-      intervalSeconds > MAX_INTERVAL
+      intervalSeconds > MONITOR_MAX_INTERVAL
     ) {
-      setValidation(t('error.validation'));
+      useMonitorStore.getState().setValidation(t('error.validation'));
       return;
     }
 
-    setValidation(null);
-    setError(null);
-    setNotice(null);
-    setLoading(true);
+    const actions = useMonitorStore.getState();
+    actions.setValidation(null);
+    actions.setError(null);
+    actions.setNotice(null);
+    actions.setLoading(true);
     try {
       const started = await monitorStart({
         threshold: thresholdBytes,
         interval: intervalSeconds,
         exclusions: splitList(exclusions),
       });
-      seen.current.clear();
-      setTaskId(started.task_id);
-      setStatus(null);
-      setEvents([]);
-      setRunning(true);
+      actions.beginSession(started.task_id);
     } catch (cause) {
-      setError(normalizeError(cause));
+      actions.setError(normalizeError(cause));
     } finally {
-      setLoading(false);
+      actions.setLoading(false);
     }
   };
 
   const stop = async () => {
-    if (taskId === null) return;
-    setLoading(true);
-    setError(null);
+    const currentTaskId = useMonitorStore.getState().taskId;
+    if (currentTaskId === null) return;
+    const actions = useMonitorStore.getState();
+    actions.setLoading(true);
+    actions.setError(null);
     try {
-      await monitorStop(taskId);
-      setStatus(await monitorStatus(taskId));
-      setRunning(false);
-      setNotice(t('monitor.summary'));
+      await monitorStop(currentTaskId);
+      actions.setStatus(await monitorStatus(currentTaskId));
+      actions.setRunning(false);
+      actions.setNotice(t('monitor.summary'));
     } catch (cause) {
-      setError(normalizeError(cause));
+      actions.setError(normalizeError(cause));
     } finally {
-      setLoading(false);
+      actions.setLoading(false);
     }
   };
 
   const applyExclusions = async () => {
-    if (taskId === null || !running) return;
+    if (useMonitorStore.getState().taskId === null || !useMonitorStore.getState().running) {
+      return;
+    }
     try {
       await monitorSetExclusions(splitList(exclusions));
     } catch (cause) {
-      setError(normalizeError(cause));
+      useMonitorStore.getState().setError(normalizeError(cause));
     }
   };
 
@@ -262,52 +344,97 @@ export function Monitor() {
       ? t('status.finished')
       : t('status.ready');
 
+  // The counter fallback reports no file paths: hide the «Путь» column and
+  // its file-folder action, but keep the executable-folder action.
+  const pathAvailable = status?.source !== 'counters';
+  // Free width is split 2:1 between the path and the owner. When the counter
+  // fallback hides the path, the owner's 1fr track absorbs all of it.
+  const pathColumn: Column<MonitorEvent> = {
+    id: 'path',
+    header: t('monitor.path'),
+    width: 'minmax(220px, 2fr)',
+    render: (row) => {
+      const path = row.paths[0] ?? '';
+
+      return (
+        <span className={styles.pathCell} title={path}>
+          {path === '' ? '—' : path}
+        </span>
+      );
+    },
+  };
+
+  const openColumn: Column<MonitorEvent> = {
+    id: 'open',
+    header: '',
+    // Two 30px buttons + 4px gap + the shared cell padding (16px) need 80px;
+    // without the file-folder action one button needs 48px. A narrower track
+    // clips the icons and paints an ellipsis.
+    width: pathAvailable ? '80px' : '48px',
+    render: (row) => (
+      <span className={styles.iconGroup}>
+        {pathAvailable ? (
+          <IconButton
+            label={t('monitor.open_file_folder')}
+            disabled={row.paths.length === 0}
+            onClick={() => void revealFile(row)}
+          >
+            <Folder size={15} strokeWidth={1.7} aria-hidden="true" />
+          </IconButton>
+        ) : null}
+        <IconButton
+          label={t('monitor.open_executable_folder')}
+          disabled={row.process_id === 0}
+          onClick={() => void revealExecutable(row)}
+        >
+          <FolderOpen size={15} strokeWidth={1.7} aria-hidden="true" />
+        </IconButton>
+      </span>
+    ),
+  };
+
   const columns: Column<MonitorEvent>[] = [
     {
-      id: 'window',
-      header: t('monitor.window'),
-      width: '170px',
-      render: (row) => formatDate(row.timestamp, language),
+      id: 'date',
+      header: t('monitor.date'),
+      width: '166px',
+      sortable: true,
+      render: (row) => (
+        <span className={styles.dateCell}>{formatDateTimeShort(row.timestamp)}</span>
+      ),
     },
     {
       id: 'owner',
       header: t('operations.monitor.owner'),
       width: 'minmax(140px, 1fr)',
-      render: (row) => (
-        <span className={styles.owner}>
-          <span>{row.process}</span>
-          <span className={styles.hint}>#{formatNumber(row.process_id, language)}</span>
-        </span>
-      ),
+      render: (row) => <span className={styles.owner}>{row.process}</span>,
     },
-    {
-      id: 'paths',
-      header: t('monitor.paths'),
-      width: 'minmax(220px, 2fr)',
-      render: (row) => (
-        <span className={styles.pathCell} title={row.paths.join('; ')}>
-          {row.paths.join('; ')}
-        </span>
-      ),
-    },
+    ...(pathAvailable ? [pathColumn] : []),
     {
       id: 'bytes',
       header: t('monitor.bytes'),
-      width: '120px',
+      width: valueWidth(
+        visibleEvents.map((row) => formatBytes(row.bytes, units)),
+        6,
+      ),
       align: 'end',
       render: (row) => formatBytes(row.bytes, units),
     },
     {
-      id: 'threshold',
-      header: t('monitor.threshold_hit'),
-      width: '120px',
-      render: (row) =>
-        row.threshold_exceeded ? (
-          <Badge tone="warning">{t('monitor.threshold_hit')}</Badge>
-        ) : (
-          <span aria-hidden="true">—</span>
+      id: 'pid',
+      header: t('monitor.pid'),
+      width: valueWidth(
+        visibleEvents.map((row) =>
+          row.process_id === 0 ? '—' : formatNumber(row.process_id, language),
         ),
+      ),
+      render: (row) => (
+        <span className={styles.pidCell}>
+          {row.process_id === 0 ? '—' : formatNumber(row.process_id, language)}
+        </span>
+      ),
     },
+    openColumn,
   ];
 
   return (
@@ -334,25 +461,25 @@ export function Monitor() {
                 step={1024 * 1024}
                 value={threshold}
                 onChange={(event) => {
-                  setThreshold(event.target.value);
+                  useMonitorStore.getState().setThreshold(event.target.value);
                 }}
               />
             </Field>
 
             <Field
               id="monitor-interval"
-              label={`${t('monitor.interval')} (1 – ${MAX_INTERVAL})`}
+              label={`${t('monitor.interval')} (1 – ${MONITOR_MAX_INTERVAL})`}
             >
               <input
                 id="monitor-interval"
                 className={`${styles.control} ${styles.number}`}
                 type="number"
                 min={1}
-                max={MAX_INTERVAL}
+                max={MONITOR_MAX_INTERVAL}
                 step={1}
                 value={interval}
                 onChange={(event) => {
-                  setIntervalValue(event.target.value);
+                  useMonitorStore.getState().setInterval(event.target.value);
                 }}
               />
             </Field>
@@ -366,7 +493,7 @@ export function Monitor() {
                 rows={2}
                 value={exclusions}
                 onChange={(event) => {
-                  setExclusions(event.target.value);
+                  useMonitorStore.getState().setExclusions(event.target.value);
                 }}
                 onBlur={() => void applyExclusions()}
               />
@@ -413,6 +540,7 @@ export function Monitor() {
       ) : null}
 
       {notice !== null ? <Banner tone="info">{notice}</Banner> : null}
+      {folderError !== null ? <Banner tone="error">{folderError}</Banner> : null}
 
       <Panel>
         <div className={styles.stateRow} data-testid="monitor-status" data-task-id={taskId ?? ''}>
@@ -444,21 +572,25 @@ export function Monitor() {
             label={t('monitor.process')}
             placeholder={t('monitor.process')}
             value={processFilter}
-            onValueChange={setProcessFilter}
+            onValueChange={(value) => {
+              useMonitorStore.getState().setProcessFilter(value);
+            }}
           />
           <SearchField
             className={styles.search}
             label={t('monitor.paths')}
             placeholder={t('monitor.paths')}
             value={pathFilter}
-            onValueChange={setPathFilter}
+            onValueChange={(value) => {
+              useMonitorStore.getState().setPathFilter(value);
+            }}
           />
           <Checkbox
             id="monitor-threshold-only"
             checked={thresholdOnly}
             label={t('monitor.threshold_only')}
             onChange={(event) => {
-              setThresholdOnly(event.target.checked);
+              useMonitorStore.getState().setThresholdOnly(event.target.checked);
             }}
           />
         </div>
@@ -468,10 +600,54 @@ export function Monitor() {
           rows={visibleEvents}
           columns={columns}
           rowKey={(row) => String(row.sequence)}
+          sort={sort}
+          onSortChange={setSort}
+          onRowHoverStart={openHover}
+          onRowHoverEnd={closeHover}
           loading={loading}
           height={360}
           empty={<EmptyState title={t('monitor.no_events')} />}
         />
+
+        {hoverRow !== null ? (
+          <HoverCard anchor={hoverRow.anchor} label={t('operations.monitor.events')}>
+            <HoverCardHead
+              title={hoverRow.event.process === '' ? t('monitor.process') : hoverRow.event.process}
+              meta={`#${formatNumber(hoverRow.event.process_id, language)}`}
+            />
+            {pathAvailable ? (
+              <HoverCardPath title={hoverRow.event.paths[0] ?? ''}>
+                {hoverRow.event.paths[0] ?? '—'}
+              </HoverCardPath>
+            ) : (
+              <HoverCardNote>{t('monitor.path_unavailable')}</HoverCardNote>
+            )}
+            <HoverCardRows>
+              <HoverCardRow
+                label={t('monitor.date')}
+                value={formatDateTimeShort(hoverRow.event.timestamp)}
+              />
+              <HoverCardRow
+                label={t('monitor.bytes')}
+                value={formatBytes(hoverRow.event.bytes, units)}
+              />
+              <HoverCardRow
+                label={t('monitor.pid')}
+                value={formatNumber(hoverRow.event.process_id, language)}
+              />
+              <HoverCardRow
+                label={t('monitor.sequence')}
+                value={formatNumber(hoverRow.event.sequence, language)}
+              />
+              <HoverCardRow
+                label={t('monitor.threshold_hit')}
+                value={
+                  hoverRow.event.threshold_exceeded ? t('monitor.threshold_hit') : '—'
+                }
+              />
+            </HoverCardRows>
+          </HoverCard>
+        ) : null}
       </Panel>
     </Screen>
   );

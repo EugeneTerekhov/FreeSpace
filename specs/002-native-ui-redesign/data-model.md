@@ -243,7 +243,7 @@ cancelled`; запрещено `completed → running`.
 | `density` | enum (`comfortable`, `compact`) | `comfortable` | Влияет на высоту строк |
 | `units` | enum (`binary`, `decimal`) | `binary` | KiB/MiB vs KB/MB |
 | `reduced_motion` | enum (`system`, `on`, `off`) | `system` | Системное уважается |
-| `last_screen` | `Screen.id?` | null | Восстанавливается, если доступен |
+| `last_screen` | `Screen.id?` | null | Не влияет на запуск: всегда «Обзор» |
 | `sidebar_collapsed` | bool | false | — |
 | `column_layouts` | map<Screen.id, ColumnState[]> | {} | Версия схемы |
 | `saved_filters` | map<Screen.id, FilterSet[]> | {} | ≤ 20 на экран |

@@ -112,6 +112,21 @@ describe('DataTable', () => {
     expect(onActivate).toHaveBeenCalledWith(ROWS[1]);
   });
 
+  it('pins the header group so column names stay visible while rows scroll', () => {
+    render(
+      <DataTable
+        label="Tree"
+        rows={ROWS}
+        columns={COLUMNS}
+        rowKey={(row) => row.id}
+      />,
+    );
+
+    const header = screen.getByRole('columnheader', { name: /Name/ });
+    const group = header.closest('[role="rowgroup"]');
+    expect(group?.className).toContain('headerGroup');
+  });
+
   it('renders the empty slot', () => {
     render(
       <DataTable

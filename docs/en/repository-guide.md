@@ -51,6 +51,8 @@ FreeSpace/
 │   ├── checklists/                    # requirements quality checklists
 │   └── tasks.md                       # phased task list
 ├── specs/002-native-ui-redesign/      # native interface specification
+├── specs/003-cross-platform-portable/ # cross-platform portable release
+├── specs/004-multi-volume-snapshot/   # multi-volume snapshot
 ├── docs/ru/                           # general Russian documents
 ├── docs/en/                           # English translations
 ├── apps/freespace-desktop/            # Tauri 2 + React client

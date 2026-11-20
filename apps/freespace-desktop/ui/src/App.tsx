@@ -24,7 +24,7 @@ import type {
   Task,
   UiSettings,
 } from './api/dto';
-import { AppShell, Header, Sidebar, SidebarDrive, StatusBar } from './app/AppShell';
+import { AppShell, Header, Sidebar, StatusBar } from './app/AppShell';
 import { CommandPalette, type PaletteCommand } from './app/CommandPalette';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { useHotkeys } from './app/hotkeys';
@@ -39,7 +39,7 @@ import { startSystemThemeSync } from './app/theme';
 import { Button, IconButton } from './components/Button';
 import { ErrorState, Loading } from './components/Feedback';
 import { setLanguage, t } from './i18n';
-import { formatBytes, formatNumber } from './i18n/format';
+import { formatNumber } from './i18n/format';
 import { ScreenRouter } from './screens/ScreenRouter';
 import { useSettingsStore } from './stores/settingsStore';
 import { useShellStore } from './stores/shellStore';
@@ -75,8 +75,6 @@ export function App() {
   const updateState = useTasksStore((state) => state.updateState);
   const setSettings = useSettingsStore((state) => state.setSettings);
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
-  const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
-  const volume = useSnapshotStore((state) => state.volume);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const history = useRef<{ entries: ScreenId[]; index: number }>({
     entries: [screen],
@@ -139,9 +137,9 @@ export function App() {
           if (event.state === 'completed' || event.state === 'partial') {
             useSnapshotStore.getState().setGeneration(event.generation);
             void api
-              .volumesCurrent()
-              .then((volume) => {
-                useSnapshotStore.getState().setVolume(volume);
+              .snapshotVolumes(event.generation)
+              .then((volumes) => {
+                useSnapshotStore.getState().setVolumes(volumes);
               })
               .catch(() => undefined);
           }
@@ -181,11 +179,6 @@ export function App() {
       for (const cleanup of cleanups) cleanup();
     };
   }, [applyProgress, setScreen, setSettings, setTasks, updateState]);
-
-  useEffect(() => {
-    if (!ready || screen === 'overview') return;
-    void api.appSettingsSet({ last_screen: screen });
-  }, [ready, screen]);
 
   // History for Alt+Left / Alt+Right; back/forward navigation must not append.
   useEffect(() => {
@@ -289,15 +282,6 @@ export function App() {
               const target = normalizeScreenId(id);
               if (target !== null) setScreen(target);
             }}
-            footer={
-              volume === null ? undefined : (
-                <SidebarDrive
-                  mount={volume.mount_point}
-                  free={formatBytes(volume.free_bytes, units)}
-                  total={formatBytes(volume.total_bytes, units)}
-                />
-              )
-            }
           />
         }
         header={

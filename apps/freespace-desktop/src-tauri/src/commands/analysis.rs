@@ -110,15 +110,14 @@ pub fn duplicates_start(
 ) -> Result<TaskStarted, UiError> {
     let snapshot = state.snapshot()?;
     let requested = crate::security::canonicalize(std::path::Path::new(&request.path))?;
-    let root = snapshot
-        .root_id()
-        .map(|id| snapshot.node_row(id).map(|row| row.path))
-        .transpose()?
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from(snapshot.volume().mount_point.as_os_str()));
-    if !crate::security::is_within(&root, &requested)
-        && !crate::security::is_within(&requested, &root)
-    {
+    let roots: Vec<std::path::PathBuf> = snapshot
+        .tree()
+        .roots()
+        .map(|id| snapshot.tree().path(id))
+        .collect();
+    if !roots.iter().any(|root| {
+        crate::security::is_within(root, &requested) || crate::security::is_within(&requested, root)
+    }) {
         return Err(UiError::validation(
             "start a duplicate search inside the scanned area",
         ));
@@ -129,11 +128,11 @@ pub fn duplicates_start(
 
     let task_id = Uuid::new_v4().to_string();
     let cancel = Arc::new(AtomicBool::new(false));
-    state.reserve_duplicates(
-        &task_id,
-        Some(snapshot.volume().id.to_string()),
-        cancel.clone(),
-    )?;
+    let volume_id = snapshot
+        .volume_for_path(&requested)
+        .or_else(|| snapshot.volumes().first())
+        .map(|volume| volume.id.to_string());
+    state.reserve_duplicates(&task_id, volume_id, cancel.clone())?;
 
     let handle = app.clone();
     let worker_task = task_id.clone();
@@ -413,6 +412,7 @@ pub fn snapshots_status(state: State<'_, AppState>, task_id: String) -> Result<T
         kind: TaskKind::SnapshotCompare,
         state: TaskState::Completed,
         volume_id: None,
+        volume_ids: Vec::new(),
         progress: None,
         started_at: freespace_core::time::Timestamp::now().as_millis(),
         finished_at: Some(freespace_core::time::Timestamp::now().as_millis()),

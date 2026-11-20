@@ -1,13 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
-import { api } from '../api/runtime';
 import type { FilterSet } from '../api/dto';
 import { Button } from './Button';
 import { Chip } from './Choice';
-import { SearchField, Select } from './Fields';
+import { SearchField } from './Fields';
 import { t } from '../i18n';
 import { emptyFilter } from '../lib/filters';
-import { useSettingsStore } from '../stores/settingsStore';
 import styles from './FilterBar.module.css';
 
 const CATEGORIES = [
@@ -23,47 +21,40 @@ const CATEGORIES = [
   'other',
 ] as const;
 
+export interface FilterCategoryOption {
+  id: string;
+  labelKey: string;
+}
+
 export interface FilterBarProps {
-  /**
-   * Persistence key for saved sets. Absorbed screens keep their historical key
-   * (`top_files`, `owners`, …) so filters do not mix between tabs.
-   */
-  screen: string;
   filter: FilterSet;
   onChange: (filter: FilterSet) => void;
   disabled?: boolean;
+  /** Extra filter chips (for example cleanup reasons) appended to file types. */
+  extraCategories?: readonly FilterCategoryOption[];
 }
 
-/** Shared filter bar with saved sets and explicit active conditions. */
-export function FilterBar({ screen, filter, onChange, disabled = false }: FilterBarProps) {
-  const settings = useSettingsStore((state) => state.settings);
-  const savedSets = useMemo(
-    () => (settings?.saved_filters ?? {}) as Record<string, FilterSet[] | undefined>,
-    [settings],
-  );
-  const saved = useMemo(() => savedSets[screen] ?? [], [savedSets, screen]);
+/** Shared filter bar with explicit active conditions. */
+export function FilterBar({
+  filter,
+  onChange,
+  disabled = false,
+  extraCategories = [],
+}: FilterBarProps) {
   const [extension, setExtension] = useState('');
   const [minSizeMb, setMinSizeMb] = useState(
     filter.min_size === null ? '' : String(Math.round(filter.min_size / (1024 * 1024))),
   );
 
-  const save = async () => {
-    const name = `Filter ${saved.length + 1}`;
-    const next = [...saved, { ...filter, name }];
-    const updated = await api.appSettingsSet({
-      saved_filters: {
-        ...savedSets,
-        [screen]: next,
-      },
-    });
-    useSettingsStore.getState().setSettings(updated);
-  };
+  const categoryLabelKey = (category: string) =>
+    extraCategories.find((item) => item.id === category)?.labelKey ??
+    `treemap.category.${category}`;
 
   const active = [
     filter.text !== '' ? { id: 'text', label: filter.text } : null,
     ...filter.categories.map((category) => ({
       id: `category-${category}`,
-      label: t(`treemap.category.${category}`),
+      label: t(categoryLabelKey(category)),
     })),
     ...filter.extensions.map((item) => ({ id: `extension-${item}`, label: `.${item}` })),
     filter.min_size !== null
@@ -95,26 +86,8 @@ export function FilterBar({ screen, filter, onChange, disabled = false }: Filter
           label={t('filter.text')}
           placeholder={t('tree.filter_hint')}
           value={filter.text}
-          disabled={disabled}
           onValueChange={(text) => {
             onChange({ ...filter, text });
-          }}
-        />
-        <Select
-          aria-label={t('filter.saved')}
-          disabled={disabled || saved.length === 0}
-          value=""
-          options={[
-            { value: '', label: t('filter.saved') },
-            ...saved.map((item, index) => ({
-              value: String(index),
-              label: item.name ?? `Filter ${index + 1}`,
-            })),
-          ]}
-          onChange={(event) => {
-            const index = Number(event.target.value);
-            const next = saved[index];
-            if (next !== undefined) onChange({ ...next });
           }}
         />
         <input
@@ -122,7 +95,6 @@ export function FilterBar({ screen, filter, onChange, disabled = false }: Filter
           aria-label={t('filter.extension')}
           placeholder={t('filter.extension')}
           value={extension}
-          disabled={disabled}
           onChange={(event) => {
             setExtension(event.target.value);
           }}
@@ -146,7 +118,6 @@ export function FilterBar({ screen, filter, onChange, disabled = false }: Filter
           aria-label={t('filter.min_size')}
           placeholder={t('filter.min_size')}
           value={minSizeMb}
-          disabled={disabled}
           onChange={(event) => {
             const value = event.target.value;
             setMinSizeMb(value);
@@ -161,13 +132,10 @@ export function FilterBar({ screen, filter, onChange, disabled = false }: Filter
         <Button variant="ghost" disabled={disabled} onClick={clear}>
           {t('filter.reset')}
         </Button>
-        <Button variant="secondary" disabled={disabled} onClick={() => void save()}>
-          {t('filter.save')}
-        </Button>
       </div>
       <div className={styles.row}>
         <span className={styles.label}>{t('filter.categories')}</span>
-        {CATEGORIES.map((category) => (
+        {[...CATEGORIES, ...extraCategories.map((item) => item.id)].map((category) => (
           <Chip
             key={category}
             selected={filter.categories.includes(category)}
@@ -175,7 +143,7 @@ export function FilterBar({ screen, filter, onChange, disabled = false }: Filter
               toggleCategory(category);
             }}
           >
-            {t(`treemap.category.${category}`)}
+            {t(categoryLabelKey(category))}
           </Chip>
         ))}
       </div>

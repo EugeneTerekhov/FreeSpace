@@ -14,7 +14,7 @@ use freespace_app::{
 use crate::events::EVENT_NAMES;
 
 /// Commands implemented today, in contract order.
-pub const COMMANDS: [&str; 76] = [
+pub const COMMANDS: [&str; 79] = [
     "about_info",
     "about_licenses",
     "app_about_info",
@@ -47,6 +47,8 @@ pub const COMMANDS: [&str; 76] = [
     "long_paths_validate",
     "metadata_get",
     "monitor_events_page",
+    "monitor_reveal_executable",
+    "monitor_reveal_file",
     "monitor_set_exclusions",
     "monitor_start",
     "monitor_status",
@@ -70,6 +72,7 @@ pub const COMMANDS: [&str; 76] = [
     "settings_set",
     "settings_validate_paths",
     "size_details",
+    "snapshot_volumes",
     "snapshots_compare",
     "snapshots_create",
     "snapshots_delete",

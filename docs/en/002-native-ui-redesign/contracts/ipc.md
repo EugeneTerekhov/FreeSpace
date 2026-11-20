@@ -106,9 +106,12 @@ the hover card.
 
 ## 6. Analysis and cleanup
 
+`sort` accepts the keys `name`, `path`, `size`, `modified`, `items`. The `path` key sorts by the full
+path and therefore groups objects by volume in a multi-volume snapshot.
+
 | Command | Input | Output | Errors |
 |---------|------|-------|--------|
-| `top_files_page` | `{ generation, limit, filter, cursor?, page_size }` | `TreePage` | `E_STALE_CURSOR` |
+| `top_files_page` | `{ generation, limit, metric?, sort?, filter, cursor?, page_size }` | `TreePage` | `E_STALE_CURSOR` |
 | `types_summary` | `{ generation, filter }` | `TypeSummary[]` | `E_STALE_CURSOR` |
 | `types_files_page` | `{ generation, type, filter, cursor?, page_size }` | `TreePage` | `E_STALE_CURSOR` |
 | `duplicates_start` | `{ path, min_size, algorithm, keep_rule, exclusions }` | `{ task_id }` | `E_VALIDATION`, `E_BUSY` |
@@ -202,7 +205,12 @@ Password-protected/corrupted archives return `E_UNSUPPORTED` with a clear key.
 | `monitor_stop` | `{ task_id }` | `{}` | `E_NOT_FOUND` |
 | `monitor_status` | `{ task_id }` | `MonitorStatus` | `E_NOT_FOUND` |
 | `monitor_events_page` | `{ task_id, filter, cursor?, page_size }` | `MonitorEventPage` | `E_STALE_CURSOR` |
+| `monitor_reveal_file` | `{ path }` | `{}` | `E_VALIDATION`, `E_NOT_FOUND`, `E_ACCESS_DENIED` |
+| `monitor_reveal_executable` | `{ process_id }` | `{}` | `E_VALIDATION`, `E_NOT_FOUND`, `E_ACCESS_DENIED` |
 | `monitor_set_exclusions` | `{ exclusions }` | `{}` | `E_VALIDATION` |
+
+`monitor_reveal_file` and `monitor_reveal_executable` open Explorer at the folder of a monitor
+event's file or process executable; they are not limited to the snapshot scope and change nothing.
 
 Rules: `operation_confirm` without a valid `preview_id` + `confirmation_token` is prohibited;
 `shred` is always irreversible and requires separate confirmation; `operation_cancel` may

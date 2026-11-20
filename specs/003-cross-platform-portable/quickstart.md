@@ -97,8 +97,9 @@ C:\Temp\FreeSpace\freespace-gui.exe
 
 1. Открыть GUI.
 2. Проверить сайдбар: 9 экранов, нет «Шредер» и «Файловые операции».
-3. Открыть сохранённый `last_screen = "fileops"` (вручную) → должен открыться `tree`;
-   `last_screen = "shred"` → `journal`.
+3. Подтвердить, что при запуске GUI открывается «Обзор» даже при сохранённом
+   `last_screen = "fileops"`; глубокие ссылки `fileops` и `shred` по-прежнему открывают `tree` и
+   `journal` соответственно.
 4. В дереве вызвать контекстное меню → rename работает.
 5. CLI: `freespace shred`, `freespace acl`, `freespace attrs` доступны на Windows; на Linux —
    `E_UNSUPPORTED`.

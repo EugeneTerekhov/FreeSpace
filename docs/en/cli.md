@@ -153,13 +153,15 @@ the key stays readable but cannot be enabled, and the `context-menu` command doe
 ### `scan`
 
 ```text
-freespace scan <path> [--method auto|mft|walk] [--incremental]
-                      [--exclude <glob>]... [--snapshot-out <file>]
-                      [--include-ads] [--size-mode logical|on-disk|physical]
-                      [--json]
+freespace scan <path>... [--method auto|mft|walk] [--incremental]
+                       [--exclude <glob>]... [--snapshot-out <file>]
+                       [--include-ads] [--size-mode logical|on-disk|physical]
+                       [--json]
 ```
 
-`data`: `{ "session_id", "volume", "nodes_count", "total": SizeMetrics, "roots": [...] }`.
+`data`: `{ "session_id", "volume", "volumes", "nodes_count", "total": SizeMetrics, "roots": [...],
+"methods": [...] }`. Several paths are scanned sequentially into one snapshot; duplicate and
+overlapping paths are rejected with `E_INVALID_ARGUMENT`.
 
 On Windows `auto`, `mft` and `walk` are available, and `--incremental` updates a previous NTFS scan
 through the USN journal. On Linux only the directory walk is used; `--method mft` and `--incremental`
@@ -168,10 +170,11 @@ return `E_UNSUPPORTED`, and the scan method is reported explicitly in the result
 ### `tree`
 
 ```text
-freespace tree <path> [--depth <n>] [--min-size <bytes>] [--json]
+freespace tree <path>... [--depth <n>] [--min-size <bytes>] [--json]
 ```
 
-`data`: hierarchical nodes `{ "name", "path", "kind", "size": SizeMetrics, "children": [] }`.
+`data`: hierarchical nodes `{ "name", "path", "kind", "size": SizeMetrics, "children": [] }`;
+`roots` contains every passed root.
 
 ### `top`
 

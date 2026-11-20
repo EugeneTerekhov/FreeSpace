@@ -11,8 +11,9 @@ English translations of the Russian documentation. The canonical documents live 
 
 Feature specs, plans and tasks live in
 [`../../specs/001-freespace-disk-analyzer/`](../../specs/001-freespace-disk-analyzer/),
-[`../../specs/002-native-ui-redesign/`](../../specs/002-native-ui-redesign/) and
-[`../../specs/003-cross-platform-portable/`](../../specs/003-cross-platform-portable/).
+[`../../specs/002-native-ui-redesign/`](../../specs/002-native-ui-redesign/),
+[`../../specs/003-cross-platform-portable/`](../../specs/003-cross-platform-portable/) and
+[`../../specs/004-multi-volume-snapshot/`](../../specs/004-multi-volume-snapshot/).
 Report and snapshot formats are described in
 [`../../specs/001-freespace-disk-analyzer/contracts/`](../../specs/001-freespace-disk-analyzer/contracts/).
 The 2.0 portable distribution and its verification steps are described in

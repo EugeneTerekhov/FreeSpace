@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Folder } from 'lucide-react';
 
 import { api } from '../api/runtime';
 import type {
@@ -12,7 +13,7 @@ import type {
 } from '../api/dto';
 import { normalizeError } from '../app/errors';
 import { openInTree } from '../app/navigation';
-import { Button } from '../components/Button';
+import { Button, IconButton } from '../components/Button';
 import { Segmented } from '../components/Choice';
 import { DataTable, type Column, type SortState } from '../components/DataTable';
 import { EmptyState, ErrorState, Progress } from '../components/Feedback';
@@ -170,7 +171,7 @@ export function Types() {
     {
       id: 'size',
       header: t('types.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       sortable: true,
       render: (row) => formatBytes(row.logical_size, units),
@@ -186,11 +187,11 @@ export function Types() {
     {
       id: 'open',
       header: '',
-      width: '140px',
+      width: '54px',
       render: (row) => (
-        <Button variant="ghost" onClick={() => openInTree(row.id)}>
-          {t('treemap.open_tree')}
-        </Button>
+        <IconButton label={t('treemap.open_tree')} onClick={() => openInTree(row.id)}>
+          <Folder size={15} strokeWidth={1.7} aria-hidden="true" />
+        </IconButton>
       ),
     },
   ];
@@ -277,7 +278,7 @@ export function Types() {
         </Button>
       </div>
 
-      <FilterBar screen="types" filter={filter} onChange={setFilter} />
+      <FilterBar filter={filter} onChange={setFilter} />
 
       {error !== null ? (
         <ErrorState
@@ -345,6 +346,11 @@ export function Types() {
                       key={key}
                       className={`${styles.row} ${active ? styles.rowSelected : ''}`}
                       aria-selected={active}
+                      // The whole row is the selection target: the label button only
+                      // covers a few pixels, so clicks on counts/size/bar must work too.
+                      onClick={() => {
+                        setSelectedType(key);
+                      }}
                     >
                       <td>
                         <button

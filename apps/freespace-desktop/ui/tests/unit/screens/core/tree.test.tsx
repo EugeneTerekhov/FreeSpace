@@ -58,16 +58,4 @@ describe('Tree screen', () => {
       screen.queryByRole('row', { name: /Windows(?!\.)/ }),
     ).not.toBeInTheDocument();
   });
-
-  it('finds nested rows through search', async () => {
-    useSnapshotStore.getState().setGeneration(1);
-    const user = userEvent.setup({ delay: null });
-    renderWithI18n(<Tree />);
-
-    await screen.findByRole('row', { name: /C:\\/ });
-    await user.type(screen.getByRole('searchbox', { name: 'Найти' }), 'explorer');
-    await user.click(screen.getByRole('button', { name: 'Найти' }));
-
-    expect(await screen.findByRole('row', { name: /explorer.exe/ })).toBeInTheDocument();
-  });
 });

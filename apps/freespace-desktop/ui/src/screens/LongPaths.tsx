@@ -19,7 +19,7 @@ import { FilterBar } from '../components/FilterBar';
 import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
 import { t } from '../i18n';
-import { formatBytes, formatDate } from '../i18n/format';
+import { formatBytes, formatDateTimeShort } from '../i18n/format';
 import { emptyFilter } from '../lib/filters';
 import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -40,7 +40,6 @@ import local from './inspect.module.css';
 export function LongPaths() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
-  const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
   const [filter, setFilter] = useState<FilterSet>(emptyFilter());
   const [appliedFilter] = useDebounced(filter);
   const [rows, setRows] = useState<NodeRow[]>([]);
@@ -163,15 +162,15 @@ export function LongPaths() {
     {
       id: 'size',
       header: t('details.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       render: (row) => formatBytes(row.logical_size, units),
     },
     {
       id: 'modified',
       header: t('top.modified'),
-      width: '180px',
-      render: (row) => formatDate(row.modified_at, language),
+      width: '168px',
+      render: (row) => formatDateTimeShort(row.modified_at),
     },
   ];
 
@@ -298,7 +297,7 @@ export function LongPaths() {
         ) : null}
       </Panel>
 
-      <FilterBar screen="long_paths" filter={filter} onChange={setFilter} />
+      <FilterBar filter={filter} onChange={setFilter} />
 
       {error !== null ? (
         <ErrorState

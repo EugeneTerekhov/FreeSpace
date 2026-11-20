@@ -10,12 +10,27 @@ use freespace_core::{
 };
 use freespace_platform::paths;
 use freespace_report::{SnapshotSettings, from_tree};
-use freespace_scan::{MethodChoice, NoopObserver, ScanRequest, ScanResult, scan};
+use freespace_scan::{
+    MethodChoice, NoopObserver, ScanManyResult, ScanRequest, ScanResult, scan, scan_many,
+};
 use serde_json::{Value, json};
 
 use super::Outcome;
 
-/// Arguments of the `scan` command.
+/// Arguments of the multi-root `scan` command.
+#[derive(Debug, Clone, Copy)]
+pub struct ScanManyArgs<'a> {
+    /// Volumes or directories, in scan order.
+    pub paths: &'a [std::path::PathBuf],
+    /// Requested method (`auto`, `mft`, `walk`).
+    pub method: &'a str,
+    /// Request an incremental update.
+    pub incremental: bool,
+    /// Exclusion globs.
+    pub exclusions: &'a [String],
+}
+
+/// Arguments of the single-root `scan` command.
 #[derive(Debug, Clone, Copy)]
 pub struct ScanArgs<'a> {
     /// Volume or directory.
@@ -33,7 +48,11 @@ pub struct ScanArgs<'a> {
 /// # Errors
 /// Returns an error when the method is unknown, the scan fails or the snapshot
 /// cannot be written.
-pub fn run_scan(args: ScanArgs<'_>, units: Units, snapshot_out: Option<&Path>) -> Result<Outcome> {
+pub fn run_scan(
+    args: ScanManyArgs<'_>,
+    units: Units,
+    snapshot_out: Option<&Path>,
+) -> Result<Outcome> {
     run_scan_with(args, units, snapshot_out, false, "logical")
 }
 
@@ -42,7 +61,7 @@ pub fn run_scan(args: ScanArgs<'_>, units: Units, snapshot_out: Option<&Path>) -
 /// # Errors
 /// Returns an error for an unknown size mode or a failed scan.
 pub fn run_scan_with(
-    args: ScanArgs<'_>,
+    args: ScanManyArgs<'_>,
     units: Units,
     snapshot_out: Option<&Path>,
     include_ads: bool,
@@ -53,8 +72,8 @@ pub fn run_scan_with(
             "unknown size mode `{size_mode}`; expected `logical`, `on-disk` or `physical`"
         ))
     })?;
-    let mut result = execute(args)?;
-    let mut warnings = result.warnings.clone();
+    let mut result = execute_many(args)?;
+    let mut warnings = warnings_for(&result);
     if include_ads {
         let report = enrich_ads(&mut result.tree);
         warnings.push(format!(
@@ -70,18 +89,21 @@ pub fn run_scan_with(
     }
     let mut data = json_data(&result);
     data["size_mode"] = json!(size_mode.as_str());
-    let total = result
-        .tree
-        .roots()
-        .next()
-        .map_or(SizeMetrics::ZERO, |root| result.tree.node(root).size);
+    let total = total_size(&result.tree);
     data["total_selected"] = json!(size_mode.value(total));
 
     if let Some(out) = snapshot_out {
+        let volume = result
+            .roots
+            .first()
+            .map(|root| &root.volume)
+            .ok_or_else(|| Error::Cancelled("no root was scanned".to_owned()))?;
+        let roots: Vec<std::path::PathBuf> =
+            result.tree.roots().map(|id| result.tree.path(id)).collect();
         let payload = from_tree(
             &result.tree,
-            &result.volume,
-            &result.session.roots,
+            volume,
+            &roots,
             SnapshotSettings {
                 units: units.as_str().to_owned(),
                 follow_links: false,
@@ -96,24 +118,29 @@ pub fn run_scan_with(
             "node_count": payload.node_count,
             "checksum": checksum,
         });
+        if result.roots.len() > 1 {
+            warnings.push(
+                "the snapshot records the first volume and lists every scanned root".to_owned(),
+            );
+        }
         warnings.push(format!("snapshot written to `{}`", paths::display(out)));
     }
 
     Ok(Outcome::new(data, human_summary(&result, units)).with_warnings(warnings))
 }
 
-/// Runs `tree`: scans the path and renders a hierarchical list.
+/// Runs `tree`: scans the paths and renders a hierarchical list.
 ///
 /// # Errors
 /// Returns an error when the scan fails.
 pub fn run_tree(
-    path: &Path,
+    paths: &[std::path::PathBuf],
     depth: Option<u32>,
     min_size: Option<u64>,
     units: Units,
 ) -> Result<Outcome> {
-    let result = execute(ScanArgs {
-        path,
+    let result = execute_many(ScanManyArgs {
+        paths,
         method: "auto",
         incremental: false,
         exclusions: &[],
@@ -129,23 +156,19 @@ pub fn run_tree(
         .roots()
         .map(|root| node_json(&result.tree, root, 0, depth, min_size))
         .collect();
-    let total = result
-        .tree
-        .roots()
-        .next()
-        .map_or(SizeMetrics::ZERO, |root| result.tree.node(root).size);
+    let total = total_size(&result.tree);
 
     Ok(Outcome::new(
         json!({
-            "method": result.method.as_str(),
-            "session_id": result.session.id,
-            "nodes_count": result.session.nodes_count,
+            "method": summary_method(&result),
+            "session_id": result.roots.first().map(|root| root.session.id),
+            "nodes_count": result.roots.iter().map(|root| root.session.nodes_count).sum::<u64>(),
             "total": total,
             "roots": roots,
         }),
         lines,
     )
-    .with_warnings(result.warnings.clone()))
+    .with_warnings(warnings_for(&result)))
 }
 
 pub(crate) fn execute(args: ScanArgs<'_>) -> Result<ScanResult> {
@@ -165,21 +188,106 @@ pub(crate) fn execute(args: ScanArgs<'_>) -> Result<ScanResult> {
     scan(&request, &mut NoopObserver)
 }
 
-fn json_data(result: &ScanResult) -> Value {
-    let roots: Vec<String> = result
-        .session
+pub(crate) fn execute_many(args: ScanManyArgs<'_>) -> Result<ScanManyResult> {
+    let method = MethodChoice::parse_value(args.method).ok_or_else(|| {
+        Error::InvalidArgument(format!(
+            "unknown scan method `{}`; expected `auto`, `mft` or `walk`",
+            args.method
+        ))
+    })?;
+    let requests: Vec<ScanRequest> = args
+        .paths
+        .iter()
+        .map(|path| ScanRequest {
+            root: path.clone(),
+            method,
+            exclusions: args.exclusions.to_vec(),
+            incremental: args.incremental,
+        })
+        .collect();
+
+    let result = scan_many(&requests, &mut NoopObserver)?;
+    if result.roots.is_empty() {
+        return Err(Error::Cancelled(
+            "the scan was cancelled before the first root".to_owned(),
+        ));
+    }
+
+    Ok(result)
+}
+
+fn warnings_for(result: &ScanManyResult) -> Vec<String> {
+    let mut warnings: Vec<String> = result
         .roots
         .iter()
-        .map(|root| paths::display(root))
+        .flat_map(|root| root.warnings.iter().cloned())
         .collect();
-    let total = result
+    for failure in &result.failures {
+        warnings.push(format!(
+            "{}: {}",
+            paths::display(&failure.root),
+            failure.error
+        ));
+    }
+
+    warnings
+}
+
+fn summary_method(result: &ScanManyResult) -> String {
+    let methods: Vec<&str> = result
+        .roots
+        .iter()
+        .map(|root| root.method.as_str())
+        .collect();
+    match methods.first() {
+        Some(first) if methods.iter().all(|method| method == first) => (*first).to_owned(),
+        Some(_) => "mixed".to_owned(),
+        None => "unknown".to_owned(),
+    }
+}
+
+fn total_size(tree: &FsTree) -> SizeMetrics {
+    tree.roots().map(|root| tree.node(root).size).sum()
+}
+
+fn json_data(result: &ScanManyResult) -> Value {
+    let roots: Vec<String> = result
         .tree
         .roots()
-        .next()
-        .map_or(SizeMetrics::ZERO, |root| result.tree.node(root).size);
-    let issues: Vec<Value> = result
-        .issues
+        .map(|id| paths::display(&result.tree.path(id)))
+        .collect();
+    let mut unique_volumes: Vec<&freespace_core::model::Volume> = Vec::new();
+    for root in &result.roots {
+        if !unique_volumes
+            .iter()
+            .any(|volume| volume.id == root.volume.id)
+        {
+            unique_volumes.push(&root.volume);
+        }
+    }
+    let volumes: Vec<Value> = unique_volumes
         .iter()
+        .map(|volume| {
+            json!({
+                "id": volume.id,
+                "mount_point": paths::display(&volume.mount_point),
+                "label": volume.label,
+                "file_system": volume.file_system.as_str(),
+                "total_bytes": volume.total_bytes,
+                "free_bytes": volume.free_bytes,
+            })
+        })
+        .collect();
+    let methods: Vec<&str> = result
+        .roots
+        .iter()
+        .map(|root| root.method.as_str())
+        .collect();
+    let total = total_size(&result.tree);
+    let issues: Vec<Value> = result
+        .roots
+        .iter()
+        .flat_map(|root| root.issues.iter())
         .map(|issue| {
             json!({
                 "path": paths::display(&issue.path),
@@ -190,44 +298,44 @@ fn json_data(result: &ScanResult) -> Value {
         .collect();
 
     json!({
-        "session_id": result.session.id,
-        "volume": {
-            "id": result.volume.id,
-            "mount_point": paths::display(&result.volume.mount_point),
-            "label": result.volume.label,
-            "file_system": result.volume.file_system.as_str(),
-            "total_bytes": result.volume.total_bytes,
-            "free_bytes": result.volume.free_bytes,
-        },
-        "nodes_count": result.session.nodes_count,
+        "session_id": result.roots.first().map(|root| root.session.id),
+        "volume": unique_volumes.first().map(|volume| json!({
+            "id": volume.id,
+            "mount_point": paths::display(&volume.mount_point),
+            "label": volume.label,
+            "file_system": volume.file_system.as_str(),
+            "total_bytes": volume.total_bytes,
+            "free_bytes": volume.free_bytes,
+        })),
+        "volumes": volumes,
+        "nodes_count": result.roots.iter().map(|root| root.session.nodes_count).sum::<u64>(),
         "total": total,
         "roots": roots,
-        "method": result.method.as_str(),
-        "excluded": result.excluded,
+        "methods": methods,
+        "method": summary_method(result),
+        "excluded": result.roots.iter().map(|root| root.excluded).sum::<u64>(),
         "issues": issues,
     })
 }
 
-fn human_summary(result: &ScanResult, units: Units) -> String {
-    let total = result
-        .tree
-        .roots()
-        .next()
-        .map_or(SizeMetrics::ZERO, |root| result.tree.node(root).size);
+fn human_summary(result: &ScanManyResult, units: Units) -> String {
+    let total = total_size(&result.tree);
+    let issues: usize = result.roots.iter().map(|root| root.issues.len()).sum();
     let mut text = format!(
         "{} objects, {} on disk, method {}\n",
-        result.session.nodes_count,
+        result
+            .roots
+            .iter()
+            .map(|root| root.session.nodes_count)
+            .sum::<u64>(),
         format_bytes(total.total_on_disk(), units),
-        result.method.as_str()
+        summary_method(result)
     );
-    if !result.issues.is_empty() {
-        text.push_str(&format!(
-            "{} inaccessible or unreadable objects\n",
-            result.issues.len()
-        ));
+    if issues > 0 {
+        text.push_str(&format!("{issues} inaccessible or unreadable objects\n"));
     }
-    for root in result.session.roots.iter() {
-        text.push_str(&format!("{}\n", paths::display(root)));
+    for root in result.tree.roots() {
+        text.push_str(&format!("{}\n", paths::display(&result.tree.path(root))));
     }
 
     text
@@ -301,7 +409,7 @@ fn node_json(
 mod tests {
     use freespace_core::size::Units;
 
-    use super::{ScanArgs, run_scan, run_tree};
+    use super::{ScanArgs, ScanManyArgs, run_scan, run_tree};
 
     fn fixture() -> tempfile::TempDir {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -312,12 +420,17 @@ mod tests {
         directory
     }
 
+    fn paths(directory: &tempfile::TempDir) -> Vec<std::path::PathBuf> {
+        vec![directory.path().to_path_buf()]
+    }
+
     #[test]
     fn scan_reports_nodes_and_totals() {
         let directory = fixture();
+        let scanned = paths(&directory);
         let outcome = run_scan(
-            ScanArgs {
-                path: directory.path(),
+            ScanManyArgs {
+                paths: &scanned,
                 method: "walk",
                 incremental: false,
                 exclusions: &[],
@@ -332,12 +445,43 @@ mod tests {
         assert_eq!(outcome.data["method"].as_str(), Some("directory-walk"));
         assert!(outcome.human.contains("method directory-walk"));
         assert!(outcome.data["roots"][0].as_str().is_some());
+        assert_eq!(
+            outcome.data["volumes"].as_array().expect("volumes").len(),
+            1
+        );
+    }
+
+    #[test]
+    fn scan_reports_every_root_of_a_multi_path_run() {
+        let first = fixture();
+        let second = fixture();
+        let scanned = vec![first.path().to_path_buf(), second.path().to_path_buf()];
+        let outcome = run_scan(
+            ScanManyArgs {
+                paths: &scanned,
+                method: "walk",
+                incremental: false,
+                exclusions: &[],
+            },
+            Units::Binary,
+            None,
+        )
+        .expect("scan");
+
+        assert_eq!(outcome.data["roots"].as_array().expect("roots").len(), 2);
+        assert_eq!(
+            outcome.data["volumes"].as_array().expect("volumes").len(),
+            1
+        );
+        assert_eq!(outcome.data["nodes_count"].as_u64(), Some(8));
+        assert_eq!(outcome.data["total"]["logical"].as_u64(), Some(200));
     }
 
     #[test]
     fn tree_renders_a_hierarchy_and_respects_limits() {
         let directory = fixture();
-        let outcome = run_tree(directory.path(), Some(1), Some(50), Units::Binary).expect("tree");
+        let scanned = paths(&directory);
+        let outcome = run_tree(&scanned, Some(1), Some(50), Units::Binary).expect("tree");
         let root = &outcome.data["roots"][0];
 
         assert!(root["name"].as_str().is_some());
@@ -348,9 +492,10 @@ mod tests {
     #[test]
     fn rejects_unknown_methods() {
         let directory = fixture();
+        let scanned = paths(&directory);
         let error = run_scan(
-            ScanArgs {
-                path: directory.path(),
+            ScanManyArgs {
+                paths: &scanned,
                 method: "magic",
                 incremental: false,
                 exclusions: &[],
@@ -361,5 +506,20 @@ mod tests {
         .expect_err("must fail");
 
         assert_eq!(error.code().as_str(), "E_INVALID_ARGUMENT");
+    }
+
+    #[test]
+    fn single_root_execute_still_works_for_other_commands() {
+        let directory = fixture();
+        let result = super::execute(ScanArgs {
+            path: directory.path(),
+            method: "walk",
+            incremental: false,
+            exclusions: &[],
+        })
+        .expect("scan");
+
+        assert_eq!(result.tree.roots().count(), 1);
+        assert_eq!(result.session.nodes_count, 4);
     }
 }

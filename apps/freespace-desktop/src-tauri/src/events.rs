@@ -91,10 +91,14 @@ pub struct ScanProgressEvent {
 pub struct ScanSummary {
     /// Produced nodes.
     pub nodes_count: u64,
-    /// Method that ran.
+    /// Method that ran; `mixed` when roots used different methods.
     pub method: String,
+    /// Method of each root, in request order.
+    pub methods: Vec<String>,
     /// Analysed roots.
     pub roots: Vec<String>,
+    /// Mount points of the analysed volumes.
+    pub volumes: Vec<String>,
     /// User-facing warnings.
     pub warnings: Vec<String>,
     /// Non-fatal issues.

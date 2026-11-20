@@ -75,12 +75,21 @@ fn type_report_sums_extensions_and_categories() {
         .map(|category| category.size.logical)
         .sum();
     assert_eq!(total, 1_100);
+
+    // `nested` and `empty` are folders; the scan root is not a folder row.
+    let folders = categories
+        .iter()
+        .find(|category| category.category == FileCategory::Folder)
+        .expect("folder row");
+    assert_eq!(folders.count, 2);
+    assert_eq!(folders.size.logical, 0);
+    assert_eq!(folders.share, 0.0);
     assert_eq!(
         categories
             .iter()
             .map(|category| category.count)
             .sum::<u64>(),
-        4
+        6
     );
     assert_eq!(groups.len(), 2, "no empty extensions on this fixture");
 }

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::UiError;
 
 /// Version of the IPC contract. Additive changes keep the version.
-pub const IPC_VERSION: u32 = 1;
+pub const IPC_VERSION: u32 = 2;
 
 /// Page size used when the caller does not specify one.
 pub const DEFAULT_PAGE_SIZE: u16 = 500;
@@ -215,6 +215,8 @@ impl Metric {
 pub enum SortKey {
     /// Name, case-insensitive on Windows.
     Name,
+    /// Full object path, case-insensitive on Windows.
+    Path,
     /// Selected size metric.
     #[default]
     Size,
@@ -230,6 +232,7 @@ impl SortKey {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Name => "name",
+            Self::Path => "path",
             Self::Size => "size",
             Self::Modified => "modified",
             Self::Items => "items",
@@ -443,8 +446,8 @@ pub enum ScanMethodChoice {
 /// Input of `scan_start`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScanRequest {
-    /// Volume root or directory.
-    pub path: String,
+    /// Volume roots or directories, in scan order.
+    pub paths: Vec<String>,
     /// Requested scanner.
     #[serde(default)]
     pub method: ScanMethodChoice,
@@ -460,6 +463,9 @@ pub struct ScanRequest {
     /// Metric the interface will display.
     #[serde(default)]
     pub metric: Metric,
+    /// Add the scanned roots to the current snapshot instead of replacing it.
+    #[serde(default)]
+    pub merge: bool,
 }
 
 /// Output of `scan_start`.
@@ -560,8 +566,11 @@ pub struct Task {
     pub kind: TaskKind,
     /// Lifecycle state.
     pub state: TaskState,
-    /// Volume the task works on.
+    /// Volume the task works on (the first one for a multi-volume scan).
     pub volume_id: Option<String>,
+    /// Every volume the task works on.
+    #[serde(default)]
+    pub volume_ids: Vec<String>,
     /// Progress while running.
     pub progress: Option<TaskProgress>,
     /// Start time, Unix milliseconds.

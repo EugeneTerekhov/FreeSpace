@@ -60,7 +60,7 @@ function failure(code: UiError['code'] = 'E_ACCESS_DENIED'): UiError {
 }
 
 beforeEach(() => {
-  useSnapshotStore.setState({ generation: null, volume: null });
+  useSnapshotStore.setState({ generation: null, volume: null, volumes: [] });
 });
 
 afterEach(() => {
@@ -69,43 +69,50 @@ afterEach(() => {
 });
 
 describe('overview screen', () => {
-  it('shows mounts, totals and the scan action for every volume', async () => {
+  it('shows mounts and totals for every volume', async () => {
     renderWithI18n(<Overview />);
 
-    expect(await screen.findByText('C:\\')).toBeInTheDocument();
+    expect(await screen.findByText('C', { exact: true })).toBeInTheDocument();
     expect(screen.getByText('System')).toBeInTheDocument();
     expect(screen.getByText(t('dashboard.total'))).toBeInTheDocument();
     expect(screen.getByText(t('dashboard.free'))).toBeInTheDocument();
 
-    const analyze = screen.getAllByRole('button', { name: t('dashboard.analyze') });
-    expect(analyze.length).toBeGreaterThan(0);
-    expect(analyze[0]).toBeEnabled();
+    const card = screen.getByRole('button', {
+      name: /^C\b/,
+    });
+    expect(card).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('styles the analyze action the same on every volume', async () => {
-    const transport = sharedTransport();
-    const full = { ...volume, volume_id: 'full', mount_point: 'C:\\', used_bytes: 930 * GB, free_bytes: 70 * GB };
-    const roomy = { ...volume, volume_id: 'roomy', mount_point: 'E:\\', used_bytes: 240 * GB, free_bytes: 760 * GB };
-    interceptInvoke(transport, (command) =>
-      command === 'volumes_refresh' ? Promise.resolve([full, roomy]) : null,
-    );
-
+  it('selects and deselects a volume by clicking its block', async () => {
+    const user = userEvent.setup();
     renderWithI18n(<Overview />);
 
-    const analyze = await screen.findAllByRole('button', { name: t('dashboard.analyze') });
-    // A 93 % full volume and a 24 % full one must offer the same looking action:
-    // the card button is the primary action, not a fill-level indicator.
-    expect(analyze.length).toBe(2);
-    const variants = new Set(analyze.map((button) => button.className));
-    expect(variants.size).toBe(1);
+    const card = await screen.findByRole('button', {
+      name: /^C\b/,
+    });
+    await user.click(card);
+    expect(card).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByText(t('overview.selected.title', { list: 'C' })),
+    ).toBeInTheDocument();
+
+    // The keyboard toggles the same selection.
+
+    card.focus();
+    await user.keyboard(' ');
+    expect(card).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.queryByText(t('overview.selected.title', { list: 'C' })),
+    ).not.toBeInTheDocument();
   });
 
-  it('re-enables the analyze action once the scan is finished', async () => {
+  it('offers the analyze action once a volume is selected after a finished scan', async () => {
     const task = {
       task_id: 'finished-task',
       kind: 'scan' as const,
       state: 'completed' as const,
       volume_id: volume.volume_id,
+      volume_ids: [volume.volume_id],
       progress: {
         processed: 15_125,
         total: 15_125,
@@ -122,6 +129,7 @@ describe('overview screen', () => {
     };
 
     const transport = sharedTransport();
+    const user = userEvent.setup();
     interceptInvoke(transport, (command) =>
       command === 'scan_status' ? Promise.resolve(task) : null,
     );
@@ -130,19 +138,22 @@ describe('overview screen', () => {
     renderWithI18n(<Overview />);
 
     expect(await screen.findByText(t('scan.completed'))).toBeInTheDocument();
+    const card = screen.getByRole('button', {
+      name: /^C\b/,
+    });
+    await user.click(card);
     expect(
-      screen.queryByRole('button', { name: t('overview.scan.running') }),
-    ).not.toBeInTheDocument();
-    const analyze = screen.getAllByRole('button', { name: t('dashboard.analyze') });
-    expect(analyze.length).toBeGreaterThan(0);
-    for (const button of analyze) expect(button).toBeEnabled();
+      screen.getByRole('button', {
+        name: t('overview.selected.start'),
+      }),
+    ).toBeEnabled();
   });
 
   it('filters the volume grid and shows an empty state without matches', async () => {
     const user = userEvent.setup();
     renderWithI18n(<Overview />);
 
-    await screen.findByText('C:\\');
+    await screen.findByText('C', { exact: true });
     await user.type(screen.getByRole('searchbox', { name: t('overview.search') }), 'zzz');
 
     expect(await screen.findByText(t('overview.no_matches'))).toBeInTheDocument();
@@ -152,13 +163,201 @@ describe('overview screen', () => {
     const user = userEvent.setup();
     renderWithI18n(<Overview />);
 
-    const analyze = await screen.findAllByRole('button', { name: t('dashboard.analyze') });
-    await user.click(analyze[0]!);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^C\b/,
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: t('overview.selected.start'),
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
     expect(screen.getByText(t('overview.scan.title'))).toBeInTheDocument();
+  });
+
+  it('renders the current analysis below the volume grid', async () => {
+    const task = {
+      task_id: 'below-task',
+      kind: 'scan' as const,
+      state: 'completed' as const,
+      volume_id: volume.volume_id,
+      volume_ids: [volume.volume_id],
+      progress: null,
+      started_at: Date.now(),
+      finished_at: Date.now(),
+      cancelable: false,
+      error: null,
+    };
+
+    const transport = sharedTransport();
+    interceptInvoke(transport, (command) =>
+      command === 'scan_status' ? Promise.resolve(task) : null,
+    );
+    useTasksStore.setState({ tasks: [task] });
+
+    renderWithI18n(<Overview />);
+
+    const grid = await screen.findByRole('region', { name: t('dashboard.volumes') });
+    const title = screen.getByText(t('overview.scan.title'));
+    expect(
+      grid.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('starts one scan for several selected volumes', async () => {
+    const user = userEvent.setup();
+    const transport = sharedTransport();
+    let request: Record<string, unknown> | undefined;
+    interceptInvoke(transport, (command, args) => {
+      if (command === 'scan_start') {
+        request = args?.request as Record<string, unknown> | undefined;
+        return Promise.resolve({ task_id: 'multi-scan', generation: 2 });
+      }
+      if (command === 'scan_status') {
+        return Promise.resolve({
+          task_id: 'multi-scan',
+          kind: 'scan',
+          state: 'completed',
+          volume_id: volume.volume_id,
+          volume_ids: [volume.volume_id, '22222222-2222-2222-2222-222222222222'],
+          progress: null,
+          started_at: Date.now(),
+          finished_at: Date.now(),
+          cancelable: false,
+          error: null,
+        });
+      }
+
+      return null;
+    });
+
+    renderWithI18n(<Overview />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^C\b/,
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: /^D\b/,
+      }),
+    );
+    expect(
+      screen.getByText(t('overview.selected.title', { list: 'C, D' })),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', {
+        name: t('overview.selected.start'),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(request?.paths).toEqual(['C:\\', 'D:\\']);
+    });
+    expect(request?.method).toBe('auto');
+    expect(request?.exclusions).toEqual([]);
+    expect(request?.merge).toBe(true);
+  });
+
+  it('asks the backend to merge a new volume into the current snapshot', async () => {
+    useSnapshotStore.setState({ generation: 1, volume, volumes: [volume] });
+
+    const user = userEvent.setup();
+    const transport = sharedTransport();
+    let request: Record<string, unknown> | undefined;
+    interceptInvoke(transport, (command, args) => {
+      if (command === 'scan_start') {
+        request = args?.request as Record<string, unknown> | undefined;
+        return Promise.resolve({ task_id: 'add-scan', generation: 2 });
+      }
+      if (command === 'scan_status') {
+        return Promise.resolve({
+          task_id: 'add-scan',
+          kind: 'scan',
+          state: 'completed',
+          volume_id: volume.volume_id,
+          volume_ids: [volume.volume_id, '22222222-2222-2222-2222-222222222222'],
+          progress: null,
+          started_at: Date.now(),
+          finished_at: Date.now(),
+          cancelable: false,
+          error: null,
+        });
+      }
+
+      return null;
+    });
+
+    renderWithI18n(<Overview />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^D\b/,
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: t('overview.selected.start'),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(request?.paths).toEqual(['D:\\']);
+    });
+    expect(request?.merge).toBe(true);
+  });
+
+  it('applies the scan type chosen next to the selection action', async () => {
+    const user = userEvent.setup();
+    const transport = sharedTransport();
+    let request: Record<string, unknown> | undefined;
+    interceptInvoke(transport, (command, args) => {
+      if (command === 'scan_start') {
+        request = args?.request as Record<string, unknown> | undefined;
+        return Promise.resolve({ task_id: 'options-scan', generation: 2 });
+      }
+      if (command === 'scan_status') {
+        return Promise.resolve({
+          task_id: 'options-scan',
+          kind: 'scan',
+          state: 'completed',
+          volume_id: volume.volume_id,
+          volume_ids: [volume.volume_id],
+          progress: null,
+          started_at: Date.now(),
+          finished_at: Date.now(),
+          cancelable: false,
+          error: null,
+        });
+      }
+
+      return null;
+    });
+
+    renderWithI18n(<Overview />);
+
+    expect(screen.queryByText(t('overview.scan.settings'))).not.toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^C\b/,
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText(t('scan.method')), 'walk');
+    await user.click(
+      screen.getByRole('button', {
+        name: t('overview.selected.start'),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(request?.method).toBe('walk');
+    });
+    expect(request?.exclusions).toEqual([]);
   });
 
   it('renders a recoverable error when volumes cannot be read', async () => {
@@ -185,6 +384,7 @@ describe('overview screen', () => {
       kind: 'scan' as const,
       state: 'partial' as const,
       volume_id: volume.volume_id,
+      volume_ids: [volume.volume_id],
       progress: {
         processed: 120,
         total: 200,
@@ -219,6 +419,7 @@ describe('overview screen', () => {
       kind: 'scan' as const,
       state: 'completed' as const,
       volume_id: volume.volume_id,
+      volume_ids: [volume.volume_id],
       progress: {
         processed: 10,
         total: null,

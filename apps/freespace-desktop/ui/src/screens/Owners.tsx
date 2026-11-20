@@ -15,7 +15,7 @@ import { Banner, EmptyState, ErrorState, Progress } from '../components/Feedback
 import { FilterBar } from '../components/FilterBar';
 import { Select } from '../components/Fields';
 import { t } from '../i18n';
-import { formatBytes, formatDate, formatNumber, formatPercent } from '../i18n/format';
+import { formatBytes, formatDateTimeShort, formatNumber, formatPercent } from '../i18n/format';
 import { emptyFilter } from '../lib/filters';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
@@ -164,7 +164,7 @@ export function Owners() {
     {
       id: 'size',
       header: t('owners.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       render: (owner) => formatBytes(owner.total_bytes, units),
     },
@@ -212,15 +212,15 @@ export function Owners() {
     {
       id: 'size',
       header: t('top.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       render: (row) => formatBytes(row.logical_size, units),
     },
     {
       id: 'modified',
       header: t('top.modified'),
-      width: '180px',
-      render: (row) => formatDate(row.modified_at, language),
+      width: '168px',
+      render: (row) => formatDateTimeShort(row.modified_at),
     },
     {
       id: 'access',
@@ -302,7 +302,6 @@ export function Owners() {
       </div>
 
       <FilterBar
-        screen="owners"
         filter={filter}
         onChange={(next) => {
           setFilter(next);

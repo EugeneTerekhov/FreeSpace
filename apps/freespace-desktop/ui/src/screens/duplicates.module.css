@@ -58,7 +58,7 @@
 
 .groupTable th,
 .groupTable td {
-  padding: var(--fs-space-2);
+  padding: var(--fs-space-2) calc(var(--fs-table-gap) / 2);
   border-bottom: 1px solid var(--fs-line-faint);
   text-align: start;
   vertical-align: middle;

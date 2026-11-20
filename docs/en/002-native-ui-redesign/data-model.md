@@ -243,7 +243,7 @@ a new preview; `targets` cannot go beyond the selected scope.
 | `density` | enum (`comfortable`, `compact`) | `comfortable` | Affects row height |
 | `units` | enum (`binary`, `decimal`) | `binary` | KiB/MiB vs KB/MB |
 | `reduced_motion` | enum (`system`, `on`, `off`) | `system` | The system setting is respected |
-| `last_screen` | `Screen.id?` | null | Restored if available |
+| `last_screen` | `Screen.id?` | null | Ignored at startup: always Overview |
 | `sidebar_collapsed` | bool | false | — |
 | `column_layouts` | map<Screen.id, ColumnState[]> | {} | Schema version |
 | `saved_filters` | map<Screen.id, FilterSet[]> | {} | ≤ 20 per screen |

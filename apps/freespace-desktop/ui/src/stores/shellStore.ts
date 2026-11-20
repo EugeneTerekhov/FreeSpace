@@ -33,7 +33,7 @@ export const useShellStore = create<ShellState>()((set, get) => ({
     try {
       const bootstrap = await api.appBootstrap();
       applySettingsToDocument(bootstrap.settings);
-      const screen = resolveInitialScreen(bootstrap.settings.last_screen, true);
+      const screen = resolveInitialScreen();
       set({
         ready: true,
         bootstrap,

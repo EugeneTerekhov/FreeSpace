@@ -6,6 +6,48 @@ All notable changes to FreeSpace are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-11-21
+
+### Added
+
+- Multi-volume snapshots: one scan now accepts one to 32 roots and creates a single snapshot whose
+  tree lists every volume as a top-level row. The Overview screen supports multi-select, the tree
+  totals and analysis screens cover all roots, and the CLI accepts several paths for `scan` and
+  `tree` (`freespace scan C:\ D:\ --json`). A failing root no longer discards the other roots.
+- `snapshot_volumes` IPC command returning every volume of a snapshot generation.
+
+### Changed
+
+- Cleanup recommendations are now filtered by reason in the shared filter row instead of being bulk-selected by category. The "Select all", "Clear selection" and category panel are gone; rows for deletion are picked manually with checkboxes (the selection column header checks or clears every filtered row). Multiple selected categories act as AND conditions (a reason and a file type can be combined); the backend applies the same filter to `cleanup_candidates`.
+- All checkboxes now use the same outlined box as the Monitor threshold filter, whether they come from the shared kit component or a bare table input.
+- The GUI no longer offers saving and reusing named filters. Saved filters could not be deleted
+  through the UI and provided little value; the filter bar still supports text, extension, size and
+  category conditions with active-condition chips.
+- `ScanRequest` now carries `paths` instead of `path`; the IPC version is raised to 2.
+- Tasks expose `volume_ids`, and scan summaries expose `methods` and `volumes`.
+- The operation journal records the volume that owns the target path instead of the first snapshot
+  volume.
+- Report export and `.fssnap` files keep recording the primary volume and list every root.
+- Type report: directories now form their own `folder` category ("Folders" in the GUI) in both the
+  GUI and `freespace types`; volume roots are never counted as folders. Selecting the no-extension
+  group now shows only extension-less files instead of every node in the tree.
+- The Overview selects volumes by clicking their cards; the scan options block only sets the method
+  and exclusions, and the current analysis is shown below the volume grid.
+- The GUI now always opens the Overview screen on launch; the stored `last_screen` is neither restored
+  nor overwritten. Deep links to other screens still work.
+
+### Fixed
+
+- The portable archives now embed the frontend instead of pointing at the development server. A plain
+  `cargo build --release` without the `custom-protocol` feature produced a GUI that showed
+  `ERR_CONNECTION_REFUSED` for `http://localhost:1420`; `installer/portable.ps1` and
+  `installer/portable.sh` enable the feature and a regression test guards it.
+- Analysis → File types now selects an extension when any part of its row is clicked (previously only
+  the small label button worked), so the file list on the right follows the selected extension.
+- The write monitor keeps its running session, counters, event history, form values and filters when
+  switching screens. Leaving the Monitor tab no longer resets it to "Ready"; returning reattaches to
+  the native task instead of asking to start a second session.
+
 ## [2.0.0] — 2026-11-20
 
 ### Added

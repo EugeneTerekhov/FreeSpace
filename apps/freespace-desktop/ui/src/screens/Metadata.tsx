@@ -418,7 +418,7 @@ export function Metadata() {
                   </span>
                   <span>
                     {t('details.modified')}:{' '}
-                    <strong>{formatDate(row.metadata.modified_at, language)}</strong>
+                    <strong>{formatDate(row.metadata.modified_at)}</strong>
                   </span>
                 </div>
                 {row.metadata.tags.length === 0 ? (

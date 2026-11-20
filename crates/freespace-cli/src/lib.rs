@@ -168,7 +168,7 @@ fn execute(cli: &Cli) -> Result<Outcome> {
         Command::Capabilities => commands::capabilities::run(),
         Command::Config { action } => commands::config::run(cli.config.as_deref(), action),
         Command::Scan {
-            path,
+            paths,
             method,
             incremental,
             exclusions,
@@ -178,8 +178,8 @@ fn execute(cli: &Cli) -> Result<Outcome> {
         } => {
             let settings = load_settings(cli)?;
             commands::scan::run_scan_with(
-                commands::scan::ScanArgs {
-                    path,
+                commands::scan::ScanManyArgs {
+                    paths,
                     method,
                     incremental: *incremental,
                     exclusions,
@@ -191,12 +191,12 @@ fn execute(cli: &Cli) -> Result<Outcome> {
             )
         }
         Command::Tree {
-            path,
+            paths,
             depth,
             min_size,
         } => {
             let settings = load_settings(cli)?;
-            commands::scan::run_tree(path, *depth, *min_size, settings.units)
+            commands::scan::run_tree(paths, *depth, *min_size, settings.units)
         }
         Command::Top { path, limit } => {
             let settings = load_settings(cli)?;

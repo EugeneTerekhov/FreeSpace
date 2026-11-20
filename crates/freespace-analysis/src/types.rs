@@ -1,11 +1,13 @@
 //! Aggregation of occupied space by extension and by coarse category.
 //!
 //! The report answers "what kind of data fills the disk": every row carries the
-//! number of files, the summed size and its share of the analysed file bytes.
-//! Only regular files and hard links are counted; directories are containers,
-//! not data (FR-019).
+//! number of objects, the summed size and its share of the analysed file bytes.
+//! Extension groups contain only regular files and hard links; the category
+//! report additionally counts directories (except volume roots) in the
+//! `folder` category. Directory sizes are aggregates of their children, so a
+//! folder row counts objects but always contributes zero file bytes (FR-019).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub use freespace_core::category::{FileCategory, category_for, category_for_extension};
 use freespace_core::{
@@ -86,18 +88,39 @@ pub fn group_by_extension(tree: &FsTree) -> Vec<TypeGroup> {
 }
 
 /// Aggregates occupied space by coarse category, largest category first.
+///
+/// Regular files and hard links are grouped by extension-derived category.
+/// Directories below the roots are counted in [`FileCategory::Folder`]; volume
+/// roots are not counted. A directory's size is the sum of its children, so
+/// adding it would double count file bytes — folder rows carry a count but no
+/// size.
 #[must_use]
 pub fn group_by_category(tree: &FsTree) -> Vec<CategoryTotal> {
     let mut totals: HashMap<FileCategory, (u64, SizeMetrics)> = HashMap::new();
     let mut total = 0u64;
+    let roots: HashSet<NodeId> = tree.roots().collect();
 
-    for node_id in file_nodes(tree) {
+    let mut stack: Vec<NodeId> = tree.roots().collect();
+    while let Some(node_id) = stack.pop() {
+        if tree.node(node_id).is_removed() {
+            continue;
+        }
         let node = tree.node(node_id);
-        let category = category_for(tree.name(node_id));
-        let entry = totals.entry(category).or_insert((0, SizeMetrics::ZERO));
-        entry.0 = entry.0.saturating_add(1);
-        entry.1 += node.size;
-        total = total.saturating_add(node.size.logical);
+        if roots.contains(&node_id) {
+            // Volume roots frame the report; they are not counted objects.
+        } else if node.kind.is_directory() {
+            let entry = totals
+                .entry(FileCategory::Folder)
+                .or_insert((0, SizeMetrics::ZERO));
+            entry.0 = entry.0.saturating_add(1);
+        } else if is_regular_file(node.kind) {
+            let category = category_for(tree.name(node_id));
+            let entry = totals.entry(category).or_insert((0, SizeMetrics::ZERO));
+            entry.0 = entry.0.saturating_add(1);
+            entry.1 += node.size;
+            total = total.saturating_add(node.size.logical);
+        }
+        stack.extend(tree.children(node_id));
     }
 
     let mut rows: Vec<CategoryTotal> = totals
@@ -237,7 +260,18 @@ mod tests {
         assert_eq!(video.size.logical, 600);
         assert_eq!(documents.count, 2);
         assert_eq!(documents.size.logical, 400);
-        assert_eq!(rows.iter().map(|row| row.count).sum::<u64>(), 4);
+
+        // Only the nested directory is counted; the root is a volume, not a
+        // folder in the report. A folder row never adds file bytes again.
+        let folders = rows
+            .iter()
+            .find(|row| row.category == FileCategory::Folder)
+            .expect("folder row");
+        assert_eq!(folders.count, 1);
+        assert_eq!(folders.size, SizeMetrics::ZERO);
+        assert_eq!(folders.share, 0.0);
+        assert_eq!(rows.iter().map(|row| row.count).sum::<u64>(), 5);
+        assert_eq!(rows.iter().map(|row| row.size.logical).sum::<u64>(), 1_050);
     }
 
     #[test]

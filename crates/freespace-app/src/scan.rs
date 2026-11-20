@@ -8,11 +8,12 @@
 use std::path::PathBuf;
 
 use freespace_core::{
-    model::{ScanIssue, ScanMethod, ScanSession, Volume},
+    model::{ScanIssue, ScanSession, Volume},
     tree::FsTree,
 };
 use freespace_scan::session::{
-    MethodChoice, ScanObserver, ScanRequest as CoreScanRequest, ScanResult, scan,
+    MethodChoice, RootScanOutcome, ScanFailure, ScanManyResult, ScanObserver,
+    ScanRequest as CoreScanRequest, scan_many,
 };
 
 use crate::{
@@ -26,13 +27,11 @@ use crate::{
 pub struct ScanOutcome {
     /// Immutable tree for the new generation.
     pub tree: FsTree,
-    /// Session metadata.
-    pub session: ScanSession,
-    /// Method that actually ran.
-    pub method: ScanMethod,
-    /// Analysed volume.
-    pub volume: Volume,
-    /// User-facing warnings, including method fallback.
+    /// Outcomes of the successful roots, in request order.
+    pub roots: Vec<RootScanOutcome>,
+    /// Roots that could not be scanned.
+    pub failures: Vec<ScanFailure>,
+    /// User-facing warnings, including method fallback and failed roots.
     pub warnings: Vec<String>,
     /// Non-fatal problems.
     pub issues: Vec<ScanIssue>,
@@ -42,7 +41,24 @@ pub struct ScanOutcome {
     pub ads_streams: u64,
 }
 
+impl ScanOutcome {
+    /// Splits the result into the parts [`TreeSnapshot`](crate::tree::TreeSnapshot)
+    /// needs: one arena, every successfully scanned volume and one session per
+    /// volume.
+    #[must_use]
+    pub fn into_snapshot_parts(self) -> (FsTree, Vec<Volume>, Vec<ScanSession>) {
+        let volumes = self.roots.iter().map(|root| root.volume.clone()).collect();
+        let sessions = self.roots.iter().map(|root| root.session.clone()).collect();
+
+        (self.tree, volumes, sessions)
+    }
+}
+
 /// Runs a scan for an IPC request.
+///
+/// Every path is scanned into one arena; a failing root does not discard the
+/// others. When no root succeeds the error is propagated and the previous
+/// snapshot stays current.
 ///
 /// # Errors
 /// Returns `E_VALIDATION` for a malformed request and the mapped scanner error
@@ -53,28 +69,40 @@ pub fn run_scan(
 ) -> Result<ScanOutcome, UiError> {
     validate_scan_request(request)?;
 
-    let method = match request.method {
-        ScanMethodChoice::Auto => MethodChoice::Auto,
-        ScanMethodChoice::Mft => MethodChoice::Mft,
-        ScanMethodChoice::Walk => MethodChoice::Walk,
-    };
-    let core_request = CoreScanRequest {
-        root: PathBuf::from(&request.path),
-        method,
-        exclusions: request.exclusions.clone(),
-        incremental: request.incremental,
-    };
+    let method = method_choice(request.method);
+    let requests: Vec<CoreScanRequest> = request
+        .paths
+        .iter()
+        .map(|path| CoreScanRequest {
+            root: PathBuf::from(path),
+            method,
+            exclusions: request.exclusions.clone(),
+            incremental: request.incremental,
+        })
+        .collect();
 
-    let ScanResult {
+    let ScanManyResult {
         mut tree,
-        session,
-        method,
-        volume,
-        issues,
-        warnings,
+        roots,
+        failures,
         cancelled,
-        ..
-    } = scan(&core_request, observer)?;
+    } = scan_many(&requests, observer)?;
+
+    let mut warnings: Vec<String> = roots
+        .iter()
+        .flat_map(|root| root.warnings.iter().cloned())
+        .collect();
+    for failure in &failures {
+        warnings.push(format!(
+            "{}: {}",
+            freespace_platform::paths::display(&failure.root),
+            failure.error
+        ));
+    }
+    let issues: Vec<ScanIssue> = roots
+        .iter()
+        .flat_map(|root| root.issues.iter().cloned())
+        .collect();
 
     let mut ads_streams = 0u64;
     if request.include_ads {
@@ -84,9 +112,8 @@ pub fn run_scan(
 
     Ok(ScanOutcome {
         tree,
-        session,
-        method,
-        volume,
+        roots,
+        failures,
         warnings,
         issues,
         cancelled,
@@ -135,31 +162,37 @@ mod tests {
         std::fs::write(directory.path().join("nested").join("note.txt"), b"hi").expect("file");
 
         let request = ScanRequest {
-            path: directory.path().to_string_lossy().into_owned(),
+            paths: vec![directory.path().to_string_lossy().into_owned()],
             method: ScanMethodChoice::Walk,
             incremental: false,
             exclusions: Vec::new(),
             include_ads: false,
             metric: Metric::OnDisk,
+            merge: false,
         };
         let outcome = run_scan(&request, &mut NoopObserver).expect("scan");
 
         assert!(!outcome.cancelled);
-        assert_eq!(outcome.method.as_str(), "directory-walk");
+        assert_eq!(outcome.roots.len(), 1);
+        assert_eq!(outcome.roots[0].method.as_str(), "directory-walk");
         assert!(outcome.tree.live_len() >= 4);
-        assert_eq!(outcome.session.nodes_count, outcome.tree.live_len() as u64);
-        assert!(outcome.volume.mount_point.exists());
+        assert_eq!(
+            outcome.roots[0].session.nodes_count,
+            outcome.tree.live_len() as u64
+        );
+        assert!(outcome.roots[0].volume.mount_point.exists());
     }
 
     #[test]
     fn rejects_relative_paths_before_scanning() {
         let request = ScanRequest {
-            path: "relative".to_owned(),
+            paths: vec!["relative".to_owned()],
             method: ScanMethodChoice::Auto,
             incremental: false,
             exclusions: Vec::new(),
             include_ads: false,
             metric: Metric::OnDisk,
+            merge: false,
         };
 
         let error = run_scan(&request, &mut NoopObserver).expect_err("must fail");

@@ -189,6 +189,28 @@ textarea.control {
   min-width: 0;
 }
 
+/* Fixed-width numeric value: the full date and time must never be clipped. */
+.dateCell {
+  display: block;
+  overflow: visible;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* PID is an identifier: the whole value must stay visible, never ellipsized. */
+.pidCell {
+  display: block;
+  overflow: visible;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.iconGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+}
+
 .monitorAction {
   min-inline-size: 14rem;
 }
@@ -221,7 +243,7 @@ textarea.control {
 
 .table th,
 .table td {
-  padding: var(--fs-space-2);
+  padding: var(--fs-space-2) calc(var(--fs-table-gap) / 2);
   border-bottom: 1px solid var(--fs-line);
   text-align: start;
   vertical-align: middle;

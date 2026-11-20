@@ -6,6 +6,12 @@
 
 **Status**: Implemented
 
+## Clarifications
+
+### Session 2026-11-20
+
+- Q: Which screen should open when the application starts? → A: Always the Overview, regardless of the stored `last_screen`.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -219,7 +225,7 @@ Once parity is reached, the new client remains the only FreeSpace graphical inte
 
 - **WebView2 is missing or outdated.** The installer must install a compatible version offline; if that is impossible, it must show a clear error and must not leave a partially installed application.
 - **No write permission for the `data` directory.** The interface reports an error, works with settings in memory and does not fall back to `%APPDATA%`, `%LOCALAPPDATA%` or `%ProgramData%`.
-- **WebView2 crashed or reloaded the page.** The application restores the shell and the current screen, does not lose unfinished operations and offers to repeat the safe action.
+- **WebView2 crashed or reloaded the page.** The application restores the shell, opens the Overview screen, does not lose unfinished operations and offers to repeat the safe action.
 - **Scanning 10 million nodes.** The tree does not load the whole set into presentation memory; when the memory budget is exceeded, the interface reports the limitation and stays operational.
 - **Empty volume, empty directory, zero size.** All screens show a meaningful empty state rather than an empty table or an endless spinner.
 - **Access error for part of the tree.** Inaccessible objects are marked and do not distort the totals; the interface does not block the rest of the data.
@@ -260,7 +266,7 @@ Once parity is reached, the new client remains the only FreeSpace graphical inte
 - **FR-013**: The interface MUST have a single shell: side navigation across the 11 screens in 6 groups, a top bar of contextual actions, a status bar, a notification area and a dialog layer.
 - **FR-014**: The shell MUST show the current volume, the scanning state, active background tasks and the availability of cancellation at any moment.
 - **FR-015**: Navigation MUST preserve the state of every screen when switching: filters, sorting, selection, scroll position and open panels.
-- **FR-016**: The user MUST be returned to the last screen after a restart, if the saved state is compatible with the current version.
+- **FR-016**: The application MUST open the Overview screen on every launch, regardless of the stored `last_screen` value.
 - **FR-017**: The shell MUST use the native Windows window title bar with correct drag, minimize, maximize and close behavior; a custom content header MAY exist inside the application, but the system window buttons MUST remain native.
 - **FR-018**: Closing the window during a scan or an operation MUST require an explicit decision: minimize to background, cancel the task, or exit the application with a warning.
 - **FR-019**: The application MUST support a single instance per `data` directory; a repeated launch MUST activate the existing window and pass it the requested screen or path.
@@ -429,7 +435,7 @@ Once parity is reached, the new client remains the only FreeSpace graphical inte
 - **NodeProgress**: node identifier, share of the parent, share of the volume, visibility and theme state.
 - **OperationPreview**: objects, total volume, deletion method, risks, permission requirements, reversibility and retention period.
 - **OperationProgress**: phase, processed, total, current object, speed, errors and cancellability.
-- **UiSettings**: theme, language, density, units, reduced motion, window size and position, last screen and column visibility.
+- **UiSettings**: theme, language, density, units, reduced motion, window size and position, column visibility; `last_screen` is kept only for compatibility and does not affect startup.
 - **Toast**: importance, message key, action, lifetime and a mandatory flag.
 - **UiError**: code, category, message key, details, retryability and the link to the journal.
 - **ScreenshotBaseline**: screen, theme, DPI, language, image, tolerance and update date.

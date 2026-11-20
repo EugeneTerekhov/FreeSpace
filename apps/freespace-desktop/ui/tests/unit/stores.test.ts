@@ -61,7 +61,7 @@ describe('settings store', () => {
 });
 
 describe('shell and tasks stores', () => {
-  it('loads the bootstrap and restores the last screen', async () => {
+  it('loads the bootstrap and starts on the overview even with a stored screen', async () => {
     const transport = new MockTransport();
     transport.settings = settings({ last_screen: 'tree' });
     const client = new ApiClient(transport);
@@ -71,7 +71,7 @@ describe('shell and tasks stores', () => {
     const state = useShellStore.getState();
     expect(state.ready).toBe(true);
     expect(state.error).toBeNull();
-    expect(state.screen).toBe('tree');
+    expect(state.screen).toBe('overview');
     expect(state.bootstrap?.capabilities.commands.length).toBeGreaterThan(20);
     expect(state.bootstrap?.capabilities.platform_capabilities.platform).toBe('windows');
   });
@@ -98,6 +98,7 @@ describe('shell and tasks stores', () => {
       kind: 'scan',
       state: 'running',
       volume_id: null,
+      volume_ids: [],
       progress: null,
       started_at: 1,
       finished_at: null,
@@ -121,11 +122,32 @@ describe('shell and tasks stores', () => {
     expect(useTasksStore.getState().tasks).toHaveLength(0);
   });
 
-  it('keeps the snapshot generation', () => {
+  it('keeps the snapshot generation and volumes', () => {
+    const first = {
+      volume_id: 'c',
+      mount_point: 'C:\\',
+      label: 'System',
+      file_system: 'ntfs',
+      total_bytes: 10,
+      free_bytes: 5,
+      used_bytes: 5,
+      is_removable: false,
+      status: 'available',
+      scan_method: 'mft',
+      is_elevated: true,
+    };
+    const second = { ...first, volume_id: 'd', mount_point: 'D:\\', label: 'Data' };
+
     useSnapshotStore.getState().setSnapshot(4, null);
     expect(useSnapshotStore.getState().generation).toBe(4);
+    useSnapshotStore.getState().setVolumes([first, second]);
+    expect(useSnapshotStore.getState().volumes).toHaveLength(2);
+    expect(useSnapshotStore.getState().volume?.volume_id).toBe('c');
+    useSnapshotStore.getState().setVolume(second);
+    expect(useSnapshotStore.getState().volumes.map((volume) => volume.volume_id)).toEqual(['d']);
     useSnapshotStore.getState().reset();
     expect(useSnapshotStore.getState().generation).toBeNull();
+    expect(useSnapshotStore.getState().volumes).toHaveLength(0);
   });
 });
 

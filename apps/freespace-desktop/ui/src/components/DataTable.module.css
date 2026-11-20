@@ -8,25 +8,38 @@
   outline-offset: -2px;
 }
 
-.header {
+/* Sticky must live on the rowgroup: the header row's own wrapper is only as
+ * tall as the header, so a sticky element inside it would scroll away with the
+ * rows instead of staying pinned to the top of the grid. */
+.headerGroup {
   position: sticky;
   top: 0;
   z-index: var(--fs-z-sticky);
+}
+
+.header {
   display: grid;
   align-items: center;
   min-height: 34px;
   border-bottom: 1px solid var(--fs-line-faint);
   background: var(--fs-surface-raised);
   color: var(--fs-text-subtle);
+}
+
+/* Text styles live on the cells, not the grid row: `ch` widths in the column
+ * template must resolve against the same font in the header and in the rows. */
+.headerCheckbox {
+  display: block;
+  margin: 0;
+}
+
+.headerCell {
   font-family: var(--fs-font-mono);
   font-size: var(--fs-text-2xs);
   font-weight: var(--fs-weight-medium);
   text-transform: uppercase;
   letter-spacing: var(--fs-tracking-caps);
-}
-
-.headerCell {
-  padding: 0 var(--fs-space-3);
+  padding: 0 calc(var(--fs-table-gap) / 2);
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
@@ -119,7 +132,7 @@
 .cell {
   position: relative;
   z-index: 1;
-  padding: 0 var(--fs-space-3);
+  padding: 0 calc(var(--fs-table-gap) / 2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

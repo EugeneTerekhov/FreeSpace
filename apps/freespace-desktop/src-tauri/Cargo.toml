@@ -9,6 +9,14 @@ rust-version.workspace = true
 name = "freespace-gui"
 path = "src/main.rs"
 
+# Without `tauri/custom-protocol` the Tauri build script marks the crate as a
+# development build, so the window loads `devUrl` (`http://localhost:1420`)
+# instead of the assets embedded from `ui/dist`. The Tauri CLI enables the
+# feature for its own builds; the wrapper-free `cargo build` in the portable
+# scripts must pass it explicitly via `--features freespace-desktop/custom-protocol`.
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { workspace = true }
 

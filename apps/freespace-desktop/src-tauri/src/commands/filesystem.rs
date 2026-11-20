@@ -5,7 +5,7 @@
 //! preview tokens and file-system work live in those services; nothing here
 //! touches a path directly and nothing here computes a size.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use freespace_app::{
     dto::{
@@ -73,11 +73,18 @@ pub fn long_paths_validate(path: String) -> Result<LongPathValidation, UiError> 
 /// parent with the file selected.
 #[tauri::command(rename_all = "snake_case")]
 pub fn reveal_in_explorer(state: State<'_, AppState>, path: String) -> Result<(), UiError> {
-    let root = freespace_platform::paths::normalize(&snapshot_root(&state)?)?;
     // Resolve `..` before the scope comparison, exactly like the operation
     // layer does; a path may never escape the scanned area.
     let target = freespace_platform::paths::normalize(Path::new(&path))?;
-    freespace_platform::paths::ensure_within(&root, &target)?;
+    let snapshot = state.snapshot()?;
+    if !snapshot
+        .root_paths()
+        .iter()
+        .any(|root| crate::security::is_within(root, &target))
+    {
+        return Err(UiError::new(UiErrorCode::AccessDenied)
+            .with_details("the target is outside the scanned area"));
+    }
 
     reveal(&target)
 }
@@ -133,14 +140,4 @@ pub fn rename_apply(
             now_millis(),
         )
     })
-}
-
-/// Root of the current snapshot: the scan root or the volume mount point.
-fn snapshot_root(state: &AppState) -> Result<PathBuf, UiError> {
-    let snapshot = state.snapshot()?;
-    if let Some(root) = snapshot.root_id() {
-        return Ok(PathBuf::from(snapshot.node_row(root)?.path));
-    }
-
-    Ok(PathBuf::from(snapshot.volume().mount_point.as_os_str()))
 }

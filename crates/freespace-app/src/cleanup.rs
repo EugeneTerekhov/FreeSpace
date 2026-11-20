@@ -5,7 +5,10 @@
 //! deletes data: every action still goes through the operation preview.
 
 use freespace_analysis::recommend::{RecommendOptions, recommend};
-use freespace_core::tree::{FsTree, NodeId};
+use freespace_core::{
+    category::category_for,
+    tree::{FsTree, NodeId},
+};
 
 use crate::{
     dto::{CleanupCandidateView, FilterSet, Metric, SortSpec, TreePage},
@@ -138,6 +141,23 @@ fn matches_cleanup_filter(
             return false;
         }
     }
+    if !filter.categories.is_empty() {
+        // The cleanup screen shares one category row between the file types and
+        // the cleanup reasons. Every selected category is a condition: a
+        // candidate is kept only when it matches all of them (AND).
+        let name = candidate
+            .path
+            .file_name()
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let file_category = category_for(&name);
+        let matched = filter.categories.iter().all(|wanted| {
+            wanted == candidate.category.as_str() || wanted == file_category.as_str()
+        });
+        if !matched {
+            return false;
+        }
+    }
 
     true
 }
@@ -263,6 +283,39 @@ mod tests {
         let backups = cleanup_candidates(&snapshot, 0, &filter).expect("backups");
         assert_eq!(backups.len(), 1);
         assert_eq!(backups[0].risk, "high");
+    }
+
+    #[test]
+    fn filters_by_reason_and_file_category() {
+        let snapshot = snapshot();
+        // Reasons are mutually exclusive: two of them cannot be satisfied.
+        let reasons = FilterSet {
+            categories: vec!["cache".to_owned(), "backup".to_owned()],
+            ..FilterSet::default()
+        };
+        assert!(
+            cleanup_candidates(&snapshot, 0, &reasons)
+                .expect("reasons")
+                .is_empty()
+        );
+
+        let single = FilterSet {
+            categories: vec!["cache".to_owned()],
+            ..FilterSet::default()
+        };
+        let views = cleanup_candidates(&snapshot, 0, &single).expect("reason");
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].category, "cache");
+
+        // A reason combined with a file-type category is satisfied by the
+        // cached "Cache" directory, whose file category is "other".
+        let combined = FilterSet {
+            categories: vec!["cache".to_owned(), "other".to_owned()],
+            ..FilterSet::default()
+        };
+        let views = cleanup_candidates(&snapshot, 0, &combined).expect("combined");
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].category, "cache");
     }
 
     #[test]

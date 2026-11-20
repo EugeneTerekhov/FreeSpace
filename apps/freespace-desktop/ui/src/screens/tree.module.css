@@ -1,23 +1,4 @@
-/* Tree screen: toolbar, inline share bars and the tree-only parts of the row hover card. */
-
-.searchForm {
-  display: flex;
-  align-items: center;
-  gap: var(--fs-space-2);
-  flex-wrap: nowrap;
-}
-
-.search {
-  width: 220px;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--fs-space-3);
-  flex-wrap: wrap;
-  min-height: 30px;
-}
+/* Tree screen: inline share bars and the tree-only parts of the row hover card. */
 
 .table {
   min-width: 0;
@@ -79,10 +60,4 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--fs-space-2);
-}
-
-@media (max-width: 900px) {
-  .search {
-    width: 160px;
-  }
 }

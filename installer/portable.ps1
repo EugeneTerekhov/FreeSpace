@@ -160,9 +160,14 @@ if (-not $SkipBuild) {
     }
 
     # `--no-default-features` disables the optional `context-menu` feature, so
-    # the portable build registers nothing in Explorer.
+    # the portable build registers nothing in Explorer. The explicit
+    # `custom-protocol` feature is required because a plain `cargo build` does
+    # not enable it the way the Tauri CLI does; without it the GUI loads the
+    # development URL instead of the embedded frontend and shows
+    # ERR_CONNECTION_REFUSED for http://localhost:1420.
     Invoke-External -FilePath 'cargo' -Arguments @(
         'build', '--release', '--no-default-features',
+        '--features', 'freespace-desktop/custom-protocol',
         '-p', 'freespace-cli', '-p', 'freespace-desktop'
     ) -WorkingDirectory $root
 }
