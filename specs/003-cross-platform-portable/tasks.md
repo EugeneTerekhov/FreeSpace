@@ -16,7 +16,7 @@
 - [x] T003 Создать `specs/003-cross-platform-portable/spec.md` с Clarifications и Out of Scope.
 - [x] T004 Создать `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`.
 - [x] T005 Создать `tasks.md` и зафиксировать зависимости фаз.
-- [ ] T006 Проверить, что `.specify/feature.json` указывает на `specs/003-cross-platform-portable`, и закоммитить SDD-артефакты.
+- [x] T006 Проверить, что `.specify/feature.json` указывает на `specs/003-cross-platform-portable`, и закоммитить SDD-артефакты.
 - [x] T007 Добавить в `CHANGELOG.md` раздел `[Unreleased]` с `Changed`/`Removed` для 2.0.0.
 
 ## Phase 1 — Платформенный интерфейс (US1, US2, US6)
