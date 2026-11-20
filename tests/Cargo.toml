@@ -124,6 +124,10 @@ name = "settings"
 path = "settings.rs"
 
 [[test]]
+name = "portable_package"
+path = "portable_package.rs"
+
+[[test]]
 name = "privacy"
 path = "privacy.rs"
 

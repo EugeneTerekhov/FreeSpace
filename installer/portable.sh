@@ -87,8 +87,11 @@ if [ "$skip_build" -eq 0 ]; then
   fi
 
   # `--no-default-features` disables the optional `context-menu` feature, so
-  # the portable build registers nothing in any desktop environment.
-  ( cd "$root" && cargo build --release --no-default-features -p freespace-cli -p freespace-desktop )
+  # the portable build registers nothing in any desktop environment. The
+  # explicit `custom-protocol` feature is required because a plain
+  # `cargo build` does not enable it the way the Tauri CLI does; without it the
+  # GUI loads the development URL instead of the embedded frontend.
+  ( cd "$root" && cargo build --release --no-default-features --features freespace-desktop/custom-protocol -p freespace-cli -p freespace-desktop )
 fi
 
 for binary in "$root/target/release/freespace-gui" "$root/target/release/freespace"; do
