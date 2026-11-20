@@ -834,7 +834,11 @@ mod tests {
             .add_node(Some(alice), file("note.txt", 5))
             .expect("note");
 
-        assert_eq!(tree.path(note), PathBuf::from(r"C:\Users\Alice\note.txt"));
+        let expected = PathBuf::from(r"C:\")
+            .join("Users")
+            .join("Alice")
+            .join("note.txt");
+        assert_eq!(tree.path(note), expected);
         assert_eq!(tree.depth(root), 0);
         assert_eq!(tree.depth(note), 3);
         assert_eq!(tree.root_count(), 1);
