@@ -742,7 +742,7 @@ export function Tree() {
       ? t('tree.search_results')
       : trail.at(-1)?.path ?? volume?.mount_point ?? t('nav.tree');
   const nextCursor = page?.next_cursor ?? null;
-  const total = page?.total_estimate ?? visible.rows.length;
+
   const hasInaccessible = visible.rows.some((row) => !row.accessible);
   const emptyLabel = mode === 'search' ? t('tree.no_matches') : t('tree.empty');
 
@@ -795,10 +795,7 @@ export function Tree() {
 
   return (
     <Screen
-      context={t('tree2.context', {
-        scope,
-        count: formatNumber(total, language),
-      })}
+      context={scope}
       actions={
         <>
           <form

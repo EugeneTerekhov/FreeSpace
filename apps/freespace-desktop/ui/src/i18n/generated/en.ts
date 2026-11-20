@@ -649,7 +649,6 @@ export const en = {
   "tree2.actions": "Actions",
   "tree2.ads": "ADS streams",
   "tree2.compression": "NTFS compression",
-  "tree2.context": "%{scope} · items: %{count}",
   "tree2.copied": "The path was copied to the clipboard.",
   "tree2.copy_failed": "Could not copy the path.",
   "tree2.delete_cancelled": "The deletion was cancelled.",

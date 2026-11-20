@@ -800,7 +800,6 @@ diff_page_hint = "Growth and shrink counts cover the loaded rows: %{loaded} of %
 # Tree after the re-composition: inline share bars and a size card on hover.
 [tree2]
 title_details = "Size details"
-context = "%{scope} · items: %{count}"
 partial = "Some objects are unavailable: certain rows cannot be read."
 hover_hint = "Hover a row or focus it with the keyboard to see its size details."
 details_path = "Path"

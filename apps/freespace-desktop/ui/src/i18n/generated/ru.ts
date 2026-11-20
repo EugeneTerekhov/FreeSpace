@@ -649,7 +649,6 @@ export const ru = {
   "tree2.actions": "Действия",
   "tree2.ads": "Потоки ADS",
   "tree2.compression": "Сжатие NTFS",
-  "tree2.context": "%{scope} · объектов: %{count}",
   "tree2.copied": "Путь скопирован в буфер обмена.",
   "tree2.copy_failed": "Не удалось скопировать путь.",
   "tree2.delete_cancelled": "Удаление отменено.",
