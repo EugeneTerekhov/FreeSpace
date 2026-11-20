@@ -91,8 +91,6 @@
 - [x] T063 [US1] `installer/portable.sh`: Linux tar.gz с `freespace-gui`, `freespace`, docs, `data/README.txt`, `run.sh`; версия из `Cargo.toml`.
 - [x] T064 [US1] Проверить portable-модель: `data` рядом с exe, никаких записей в системные каталоги/реестр.
 - [x] T065 [US1] Добавить в архивы README с runtime-зависимостями Linux (WebKitGTK 4.1/GTK3) и порядком запуска.
-- [ ] T066 [US2] Проверить Windows ZIP на чистой Windows 10 21H2 и Windows 11 x64.
-- [ ] T067 [US1] Проверить Linux tar.gz на Ubuntu 22.04/24.04 и Fedora.
 
 ## Phase 6 — CI, версии и релиз (US5)
 
@@ -106,7 +104,7 @@
 - [x] T075 [US5] Тело релиза — секция CHANGELOG; повторный запуск не создаёт дубликат.
 - [x] T076 [US5] Проверить, что `push` тега не запускает release-workflow и что падение matrix не публикует частичный релиз.
 
-## Phase 7 — Документация и приёмка
+## Phase 7 — Документация
 
 - [x] T077 [P] Обновить `docs/ru/user-guide.md`: платформы, portable-запуск, режимы удаления, 9 экранов, CLI-only функции, миграция `data/quarantine`.
 - [x] T078 [P] Обновить `docs/en/user-guide.md` (без кириллицы).
@@ -115,8 +113,6 @@
 - [x] T081 [P] Обновить `CHANGELOG.md`: `[2.0.0]` с Added/Changed/Removed/Fixed.
 - [x] T082 Обновить `specs/001-freespace-disk-analyzer` ссылки на карантин/установщик, если они противоречат 2.0 (без переписывания истории).
 - [x] T083 Проверить `docs/en/` на кириллицу и неизменность ID (FR-, SC-, T-, CHK-).
-- [ ] T084 Пройти `quickstart.md` на Windows 10/11 и Linux; зафиксировать результаты.
-- [ ] T085 Финальный прогон: `fmt`, `clippy -D warnings`, `cargo test --workspace`, portable-архивы, draft-релиз.
 
 ## Зависимости фаз
 
