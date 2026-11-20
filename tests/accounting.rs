@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US10: hard-link de-duplication, reparse points and alternate data streams.
 
 mod common;

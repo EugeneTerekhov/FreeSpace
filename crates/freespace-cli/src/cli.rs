@@ -16,7 +16,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "freespace",
     version,
-    about = "Analyze and reclaim disk space on Windows",
+    about = "Analyze and reclaim disk space",
     long_about = "FreeSpace analyzes and reclaims disk space on Windows. Every GUI capability is \
                   available from the command line with a machine-readable JSON envelope."
 )]
@@ -67,6 +67,9 @@ pub struct Cli {
 pub enum Command {
     /// List logical drives with sizes and file systems.
     Drives,
+
+    /// Describe the capabilities available on the current platform.
+    Capabilities,
 
     /// Read and write configuration values.
     Config {
@@ -181,7 +184,7 @@ pub enum Command {
         action: CleanupAction,
     },
 
-    /// Inspect and release file locks.
+    /// Inspect and release file locks (Windows only).
     Unlock {
         /// Locked file.
         path: PathBuf,
@@ -196,17 +199,17 @@ pub enum Command {
         force: bool,
     },
 
-    /// Delete objects through the Recycle Bin, quarantine or permanently.
+    /// Delete objects through the Recycle Bin or permanently.
     Delete {
         /// Objects to delete.
         #[arg(required = true)]
         paths: Vec<PathBuf>,
-        /// Deletion mode: `recycle`, `quarantine` or `permanent`.
+        /// Deletion mode: `recycle` or `permanent`.
         #[arg(long)]
         mode: Option<String>,
     },
 
-    /// Overwrite and remove files.
+    /// Overwrite and remove files (Windows only).
     Shred {
         /// Files to shred.
         #[arg(required = true)]
@@ -238,7 +241,7 @@ pub enum Command {
         preview: bool,
     },
 
-    /// Set or clear file attributes.
+    /// Set or clear file attributes (Windows only).
     Attrs {
         /// Objects to update.
         #[arg(required = true)]
@@ -251,7 +254,7 @@ pub enum Command {
         clear: Option<String>,
     },
 
-    /// Change NTFS ownership or permissions.
+    /// Change NTFS ownership or permissions (Windows only).
     Acl {
         /// Objects to update.
         #[arg(required = true)]
@@ -323,8 +326,7 @@ pub enum Command {
         no_etw: bool,
     },
 
-    /// Install or remove Explorer context-menu entries.
-    #[cfg(feature = "context-menu")]
+    /// Install or remove Explorer context-menu entries (Windows only).
     ContextMenu {
         /// Integration action.
         #[command(subcommand)]
@@ -345,6 +347,7 @@ impl Command {
     pub const fn name(&self) -> &'static str {
         match self {
             Self::Drives => "drives",
+            Self::Capabilities => "capabilities",
             Self::Config { .. } => "config",
             Self::Scan { .. } => "scan",
             Self::Tree { .. } => "tree",
@@ -364,7 +367,6 @@ impl Command {
             Self::Export { .. } => "export",
             Self::Archives { .. } => "archives",
             Self::Monitor { .. } => "monitor",
-            #[cfg(feature = "context-menu")]
             Self::ContextMenu { .. } => "context-menu",
             Self::Schedule { .. } => "schedule",
         }

@@ -3,8 +3,11 @@
 //! The screen lists the objects whose full path is longer than the legacy 260
 //! character limit and validates user input before any operation touches the
 //! file system. FreeSpace never relies on the system-wide `LongPathsEnabled`
-//! policy: [`validate`] reports the canonical `\\?\` form accepted by every
-//! operation, and the scanner has already recorded the same full paths.
+//! policy: [`validate`] reports the canonical form accepted by every operation,
+//! and the scanner has already recorded the same full paths. The concept is
+//! Windows-specific (`long_paths` is `false` on Linux), but the listing helpers
+//! remain platform-neutral so the shared table can render a snapshot from any
+//! source.
 
 use std::path::Path;
 
@@ -299,6 +302,20 @@ mod tests {
         assert!(second.next_cursor.is_none());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn validates_an_absolute_unix_path() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("payload.bin");
+        std::fs::write(&path, b"payload").expect("file");
+
+        let validation = validate(&path.to_string_lossy()).expect("validate");
+
+        assert!(validation.valid);
+        assert!(validation.reason_key.is_none());
+        assert!(validation.display.is_some());
+    }
+
     #[test]
     fn rejects_a_page_size_outside_the_contract() {
         let (snapshot, _segments) = long_snapshot();
@@ -315,6 +332,7 @@ mod tests {
         assert_eq!(error.code, UiErrorCode::Validation);
     }
 
+    #[cfg(windows)]
     #[test]
     fn accepts_verbatim_input_and_reports_the_canonical_form() {
         let validation = validate(r"\\?\C:\very\long\path\..\file.bin").expect("validate");
@@ -331,6 +349,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn accepts_a_path_longer_than_max_path() {
         let long = format!(r"C:\{}", vec!["segment"; 40].join(r"\"));

@@ -262,7 +262,6 @@ impl SettingsStore {
             outdated_threshold_days: self.core.outdated_threshold_days,
             monitor_threshold_bytes: self.core.monitor_threshold.threshold_bytes,
             monitor_interval_secs: self.core.monitor_threshold.interval_secs,
-            quarantine_retention_days: self.core.quarantine_retention_days,
             context_menu_enabled: self.core.context_menu_enabled,
             confirm_destructive_actions: self.core.confirm_destructive_actions,
             ui: self.ui.clone(),
@@ -334,9 +333,6 @@ impl SettingsStore {
         }
         if let Some(days) = patch.outdated_threshold_days {
             next_core.outdated_threshold_days = validate_days("outdated_threshold_days", days)?;
-        }
-        if let Some(days) = patch.quarantine_retention_days {
-            next_core.quarantine_retention_days = validate_days("quarantine_retention_days", days)?;
         }
         if let Some(threshold) = patch.monitor_threshold_bytes {
             next_core.monitor_threshold.threshold_bytes = threshold;
@@ -822,7 +818,6 @@ value = 42
                 outdated_threshold_days: Some(90),
                 monitor_threshold_bytes: Some(4_096),
                 monitor_interval_secs: Some(5),
-                quarantine_retention_days: Some(14),
                 confirm_destructive_actions: Some(false),
                 ..crate::dto::SettingsPatch::default()
             })

@@ -2,6 +2,11 @@
 
 **Feature**: `001-freespace-disk-analyzer` | **Date**: 2026-11-15
 
+> **2.0 note (2026-11-20)**: the 1.x decisions about egui/eframe, Inno Setup and quarantine are
+> historical. Tauri 2 + React (ADR 0001), portable archives without an installer and the system
+> trash instead of quarantine are current; see
+> [003/plan.md](../../specs/003-cross-platform-portable/plan.md).
+
 All key technical unknowns from the plan are resolved below in the format "decision — rationale —
 alternatives".
 

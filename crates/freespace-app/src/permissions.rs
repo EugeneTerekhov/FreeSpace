@@ -1,4 +1,8 @@
-//! Permission and attribute previews (US4, T101).
+//! Permission and attribute previews (US4, T101) — Windows implementation.
+//!
+//! This module is compiled on Windows only; on other platforms
+//! `permissions_unix.rs` provides the same public API and returns
+//! `E_UNSUPPORTED` because the `acl` and `attrs` capabilities are `false`.
 //!
 //! A permission change is read-only until its one-time token is consumed. The
 //! preview resolves the current owner, the raw attribute mask and every planned

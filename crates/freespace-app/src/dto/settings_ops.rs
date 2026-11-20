@@ -31,8 +31,6 @@ pub struct SettingsView {
     pub monitor_threshold_bytes: u64,
     /// Write-monitoring interval in seconds.
     pub monitor_interval_secs: u64,
-    /// Quarantine retention in days.
-    pub quarantine_retention_days: u32,
     /// Explorer context-menu registration.
     pub context_menu_enabled: bool,
     /// Always ask before destructive actions.
@@ -63,8 +61,6 @@ pub struct SettingsPatch {
     pub monitor_threshold_bytes: Option<u64>,
     /// Monitoring interval in seconds.
     pub monitor_interval_secs: Option<u64>,
-    /// Quarantine retention in days.
-    pub quarantine_retention_days: Option<u32>,
     /// Explorer context-menu registration.
     pub context_menu_enabled: Option<bool>,
     /// Always ask before destructive actions.
@@ -288,7 +284,6 @@ mod tests {
             outdated_threshold_days: 90,
             monitor_threshold_bytes: 4_096,
             monitor_interval_secs: 15,
-            quarantine_retention_days: 7,
             context_menu_enabled: false,
             confirm_destructive_actions: true,
             ui: UiSettings::default(),

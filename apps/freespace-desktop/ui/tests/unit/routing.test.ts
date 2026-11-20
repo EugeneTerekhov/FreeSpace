@@ -12,9 +12,9 @@ import {
 } from '../../src/app/routing';
 
 describe('screen registry', () => {
-  it('contains exactly 11 unique screens', () => {
-    expect(SCREENS).toHaveLength(11);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(11);
+  it('contains exactly 9 unique screens', () => {
+    expect(SCREENS).toHaveLength(9);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(9);
 
     for (const screen of SCREENS) {
       expect(SCREEN_BY_ID[screen.id]).toBe(screen);
@@ -64,8 +64,10 @@ describe('screen registry', () => {
     expect(normalizeScreenId('archives')).toBe('inspect');
     expect(normalizeScreenId('unlock')).toBe('inspect');
     expect(normalizeScreenId('long_paths')).toBe('inspect');
-    expect(normalizeScreenId('rename')).toBe('fileops');
-    expect(normalizeScreenId('permissions')).toBe('fileops');
+    expect(normalizeScreenId('shred')).toBe('journal');
+    expect(normalizeScreenId('fileops')).toBe('tree');
+    expect(normalizeScreenId('rename')).toBe('tree');
+    expect(normalizeScreenId('permissions')).toBe('tree');
     expect(normalizeScreenId('elevation')).toBe('settings');
     expect(normalizeScreenId('about')).toBe('settings');
     expect(normalizeScreenId('export')).toBe('analysis');

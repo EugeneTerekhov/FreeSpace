@@ -1,5 +1,7 @@
-//! Contract checks for the settings, shredder, monitor, About and elevation
-//! command families (US6, T122).
+#![cfg(windows)]
+
+//! Contract checks for the settings, monitor, About and elevation command
+//! families (US6, T122).
 //!
 //! The checks call the application services that back the Tauri commands, so
 //! they run without a WebView. Only temporary directories are touched; ETW is
@@ -10,33 +12,16 @@ use std::fs;
 use freespace_app::{
     about,
     dto::{
-        DeleteMode, Density, ElevationResponse, MonitorEventFilter, MonitorSample,
-        MonitorStartRequest, OperationKind, OperationState, SettingsPatch, ShredPatternChoice,
-        ShredPreviewRequest, TaskState, ThemePreference, UiSettingsPatch,
+        Density, ElevationResponse, MonitorEventFilter, MonitorSample, MonitorStartRequest,
+        SettingsPatch, TaskState, ThemePreference, UiSettingsPatch,
     },
     error::UiErrorCode,
     monitor::{
         ETW_UNAVAILABLE_KEY, MonitorService, SOURCE_COUNTERS, SOURCE_COUNTERS_KEY, SOURCE_ETW_KEY,
     },
-    operations::OperationService,
     settings::{BACKUP_SUFFIX, SETTINGS_FILE_NAME, SettingsSection, SettingsStore},
-    shred::{IRREVERSIBLE_WARNING_KEY, MAX_PASSES, ShredService, execute},
 };
-use freespace_ops::Store;
 use freespace_platform::elevation;
-
-const PREVIEW_TTL: i64 = 1_000;
-
-fn shred_request(paths: &[&std::path::Path], passes: u32) -> ShredPreviewRequest {
-    ShredPreviewRequest {
-        targets: paths
-            .iter()
-            .map(|path| path.to_string_lossy().into_owned())
-            .collect(),
-        passes,
-        pattern: ShredPatternChoice::Random,
-    }
-}
 
 fn sample(process: &str, bytes: u64, path: &str) -> MonitorSample {
     MonitorSample {
@@ -66,7 +51,6 @@ fn settings_round_trip_reset_and_cli_visibility() {
             outdated_threshold_days: Some(90),
             monitor_threshold_bytes: Some(8_192),
             monitor_interval_secs: Some(5),
-            quarantine_retention_days: Some(14),
             confirm_destructive_actions: Some(false),
             ..SettingsPatch::default()
         })
@@ -214,123 +198,6 @@ fn settings_validation_and_path_checks_are_strict() {
         results[3].error_key.as_deref(),
         Some("settings.path.invalid")
     );
-}
-
-#[test]
-fn shred_preview_token_is_one_time_and_irreversible() {
-    let directory = tempfile::tempdir().expect("temp dir");
-    let path = directory.path().join("secret.bin");
-    fs::write(&path, b"payload").expect("write");
-    let operations = OperationService::with_ttl(PREVIEW_TTL);
-    let shredder = ShredService::new();
-
-    let preview = shredder
-        .preview(&operations, &shred_request(&[&path], 3), None, 0)
-        .expect("preview");
-    assert_eq!(preview.kind, OperationKind::Shred);
-    assert_eq!(preview.delete_mode, Some(DeleteMode::Permanent));
-    assert!(!preview.reversible);
-    assert!(
-        preview
-            .warnings
-            .iter()
-            .any(|warning| warning == IRREVERSIBLE_WARNING_KEY)
-    );
-    assert!(
-        preview
-            .warnings
-            .iter()
-            .any(|warning| warning == "confirm.warning.permanent")
-    );
-    assert_eq!(preview.expires_at, PREVIEW_TTL);
-
-    let refused = shredder
-        .take(&operations, &preview.preview_id, "wrong", false, 1)
-        .expect_err("wrong token");
-    assert_eq!(refused.code, UiErrorCode::PreviewExpired);
-
-    let fresh = shredder
-        .preview(&operations, &shred_request(&[&path], 2), None, 0)
-        .expect("second preview");
-    let expired = shredder
-        .take(
-            &operations,
-            &fresh.preview_id,
-            &fresh.confirmation_token,
-            false,
-            PREVIEW_TTL + 1,
-        )
-        .expect_err("expired");
-    assert_eq!(expired.code, UiErrorCode::PreviewExpired);
-    assert!(path.exists());
-
-    let missing = shredder
-        .take(&operations, "unknown", "unknown", false, 0)
-        .expect_err("no preview");
-    assert_eq!(missing.code, UiErrorCode::PreviewExpired);
-}
-
-#[test]
-fn shred_destroys_temporary_files_and_journals_the_run() {
-    let directory = tempfile::tempdir().expect("temp dir");
-    let first = directory.path().join("first.bin");
-    let second = directory.path().join("second.bin");
-    fs::write(&first, vec![3u8; 4_096]).expect("first");
-    fs::write(&second, vec![4u8; 2_048]).expect("second");
-    let store = Store::open_in_memory().expect("store");
-    let operations = OperationService::new();
-    let shredder = ShredService::new();
-
-    let preview = shredder
-        .preview(
-            &operations,
-            &shred_request(&[&first, &second], MAX_PASSES),
-            None,
-            0,
-        )
-        .expect("preview");
-    assert_eq!(preview.total_size, 6_144);
-    let (prepared, plan) = shredder
-        .take(
-            &operations,
-            &preview.preview_id,
-            &preview.confirmation_token,
-            false,
-            1,
-        )
-        .expect("take");
-    assert_eq!(plan.passes, MAX_PASSES);
-
-    let mut seen = Vec::new();
-    let outcome = execute(
-        &operations,
-        &store,
-        &prepared,
-        plan,
-        "contract-volume",
-        &mut |progress| seen.push(progress.processed),
-    )
-    .expect("execute");
-
-    assert_eq!(outcome.state, OperationState::Completed);
-    assert_eq!(outcome.processed, 2);
-    assert!(!outcome.undo_available);
-    assert!(outcome.journal_entry_id.is_some());
-    assert!(!first.exists());
-    assert!(!second.exists());
-    assert_eq!(seen, [1, 2]);
-
-    let entries = store.journal_list(10).expect("journal");
-    assert_eq!(entries.len(), 1);
-    assert_eq!(entries[0].details["passes"], MAX_PASSES);
-    assert_eq!(entries[0].details["pattern"], "random");
-
-    for passes in [0, MAX_PASSES + 1] {
-        let error = shredder
-            .preview(&operations, &shred_request(&[], passes), None, 0)
-            .expect_err("invalid passes");
-        assert_eq!(error.code, UiErrorCode::Validation);
-    }
 }
 
 #[test]

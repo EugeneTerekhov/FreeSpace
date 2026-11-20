@@ -34,6 +34,7 @@ fn fixture_supports_unicode_names() {
     );
 }
 
+#[cfg(windows)]
 #[test]
 fn fixture_creates_paths_beyond_the_legacy_limit() {
     let fixture = TestTree::new();

@@ -16,7 +16,8 @@ use std::{
 
 use freespace_analysis::owners::{self as analysis_owners, OwnerTable, UNKNOWN_OWNER};
 use freespace_core::tree::{FsTree, NodeId};
-use freespace_platform::security::{self, OwnerIdentity};
+
+pub use freespace_analysis::owners::OwnerIdentity;
 
 use crate::{
     dto::{
@@ -32,6 +33,22 @@ use crate::{
 /// Resolver used to read the owner of one path.
 pub type OwnerResolver =
     Arc<dyn Fn(&Path) -> freespace_core::Result<Option<OwnerIdentity>> + Send + Sync>;
+
+/// Default resolver: Windows keeps the security-descriptor SID, other platforms
+/// use the owner string exposed by the metadata backend.
+fn default_resolver(path: &Path) -> freespace_core::Result<Option<OwnerIdentity>> {
+    #[cfg(windows)]
+    {
+        freespace_platform::security::owner_identity(path)
+    }
+    #[cfg(not(windows))]
+    {
+        freespace_platform::platform()
+            .metadata
+            .owner(path)
+            .map(|owner| owner.map(OwnerIdentity::from_owner))
+    }
+}
 
 /// Annotated ownership of one generation.
 #[derive(Debug, Clone)]
@@ -86,10 +103,10 @@ impl Default for OwnerService {
 }
 
 impl OwnerService {
-    /// Creates a service that reads real security descriptors.
+    /// Creates a service that reads real owner identities.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_resolver(Arc::new(security::owner_identity))
+        Self::with_resolver(Arc::new(default_resolver))
     }
 
     /// Creates a service with an injectable resolver; used by tests.
@@ -419,9 +436,9 @@ fn matches_owner_filter(summary: &freespace_analysis::OwnerSummary, filter: &Fil
     {
         return false;
     }
-    !filter
+    filter
         .max_size
-        .is_some_and(|maximum| summary.total_bytes > maximum)
+        .is_none_or(|maximum| summary.total_bytes <= maximum)
 }
 
 fn filter_scope(filter: &FilterSet) -> String {
@@ -456,17 +473,15 @@ fn root_path(snapshot: &TreeSnapshot) -> String {
 mod tests {
     use std::sync::Arc;
 
+    use super::{OwnerIdentity, OwnerResolver, OwnerService};
+    use crate::dto::{FilterSet, Metric, SortSpec};
+    use crate::error::UiErrorCode;
+    use crate::tree::TreeSnapshot;
     use freespace_core::{
         model::{FileSystem, ScanMethod, Volume, VolumeStatus},
         size::SizeMetrics,
         tree::{FsTree, NodeKind, NodeSpec},
     };
-    use freespace_platform::security::OwnerIdentity;
-
-    use super::{OwnerResolver, OwnerService};
-    use crate::dto::{FilterSet, Metric, SortSpec};
-    use crate::error::UiErrorCode;
-    use crate::tree::TreeSnapshot;
 
     fn fixture() -> (tempfile::TempDir, TreeSnapshot) {
         let directory = tempfile::tempdir().expect("temp dir");

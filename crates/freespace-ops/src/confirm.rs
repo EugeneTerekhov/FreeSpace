@@ -5,8 +5,10 @@
 //! (FR-042, FR-043). This module builds that preview and enforces the
 //! confirmation, scope and free-space guards.
 
+#[cfg(windows)]
+use std::env;
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -16,6 +18,7 @@ use freespace_core::{Error, Result};
 use freespace_platform::paths;
 
 use crate::operation::{DeleteMode, Operation, OperationKind};
+use crate::path_compat;
 
 /// Kind of an object shown in a preview.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -66,7 +69,6 @@ impl DeleteOptionInfo {
 pub const fn delete_mode_consequence(mode: DeleteMode) -> &'static str {
     match mode {
         DeleteMode::RecycleBin => "delete.mode.recycle_bin",
-        DeleteMode::Quarantine => "delete.mode.quarantine",
         DeleteMode::Permanent => "delete.mode.permanent",
     }
 }
@@ -143,7 +145,7 @@ pub fn preview_delete(paths: &[PathBuf], available_bytes: Option<u64>) -> Result
     let mut total_bytes = 0u64;
 
     for path in paths {
-        let verbatim = paths::to_verbatim(path)?;
+        let verbatim = path_compat::to_verbatim(path)?;
         let (kind, size) = match fs::symlink_metadata(&verbatim) {
             Ok(metadata) => {
                 let file_type = metadata.file_type();
@@ -296,32 +298,41 @@ pub fn validate_scope(scope: &Path, targets: &[PathBuf]) -> Result<()> {
 /// already been removed.
 #[must_use]
 pub fn is_protected_path(path: &Path) -> bool {
-    let normalized = paths::normalize(path)
-        .map(|path| paths::strip_verbatim(&path))
-        .unwrap_or_else(|_| path.to_path_buf());
+    #[cfg(unix)]
+    {
+        freespace_platform::guarded::is_protected_path(path)
+    }
 
-    if let Ok(root) = paths::volume_root(&normalized) {
-        let root_text = paths::display(&root).to_lowercase();
-        let path_text = paths::display(&normalized).to_lowercase();
+    #[cfg(windows)]
+    {
+        let normalized = paths::normalize(path)
+            .map(|path| path_compat::strip_verbatim(&path))
+            .unwrap_or_else(|_| path.to_path_buf());
 
-        if path_text.trim_end_matches('\\') == root_text.trim_end_matches('\\') {
+        if let Ok(root) = paths::volume_root(&normalized) {
+            let root_text = paths::display(&root).to_lowercase();
+            let path_text = paths::display(&normalized).to_lowercase();
+
+            if path_text.trim_end_matches('\\') == root_text.trim_end_matches('\\') {
+                return true;
+            }
+        }
+
+        if normalized.components().any(|component| {
+            let text = component.as_os_str().to_string_lossy().to_lowercase();
+
+            text == "system volume information" || text == "$recycle.bin"
+        }) {
             return true;
         }
+
+        protected_roots()
+            .iter()
+            .any(|root| paths::ensure_within(root, &normalized).is_ok())
     }
-
-    if normalized.components().any(|component| {
-        let text = component.as_os_str().to_string_lossy().to_lowercase();
-
-        text == "system volume information" || text == "$recycle.bin"
-    }) {
-        return true;
-    }
-
-    protected_roots()
-        .iter()
-        .any(|root| paths::ensure_within(root, &normalized).is_ok())
 }
 
+#[cfg(windows)]
 fn protected_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
 
@@ -345,17 +356,13 @@ fn protected_roots() -> Vec<PathBuf> {
 }
 
 fn delete_options() -> Vec<DeleteOptionInfo> {
-    [
-        DeleteMode::RecycleBin,
-        DeleteMode::Quarantine,
-        DeleteMode::Permanent,
-    ]
-    .into_iter()
-    .map(|mode| DeleteOptionInfo {
-        mode,
-        available: true,
-    })
-    .collect()
+    [DeleteMode::RecycleBin, DeleteMode::Permanent]
+        .into_iter()
+        .map(|mode| DeleteOptionInfo {
+            mode,
+            available: true,
+        })
+        .collect()
 }
 
 /// Sums the file lengths below a directory, collecting warnings for unreadable
@@ -366,7 +373,7 @@ fn directory_size(path: &Path) -> (u64, Vec<String>) {
     let mut stack = vec![path.to_path_buf()];
 
     while let Some(directory) = stack.pop() {
-        let verbatim = match paths::to_verbatim(&directory) {
+        let verbatim = match path_compat::to_verbatim(&directory) {
             Ok(verbatim) => verbatim,
             Err(error) => {
                 warnings.push(format!(
@@ -415,7 +422,9 @@ fn directory_size(path: &Path) -> (u64, Vec<String>) {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, path::PathBuf};
+    #[cfg(windows)]
+    use std::env;
+    use std::path::PathBuf;
 
     use freespace_core::ErrorCode;
 
@@ -443,7 +452,7 @@ mod tests {
         assert_eq!(preview.kind, OperationKind::Delete);
         assert_eq!(preview.total_count, 2);
         assert_eq!(preview.total_bytes, 30);
-        assert_eq!(preview.delete_options.len(), 3);
+        assert_eq!(preview.delete_options.len(), 2);
         assert!(!preview.requires_elevation);
         assert!(preview.insufficient_space.is_none());
         assert!(preview.warnings.is_empty());
@@ -453,7 +462,7 @@ mod tests {
                 .iter()
                 .all(|item| item.kind == PreviewItemKind::File)
         );
-        assert!(preview.ensure_space_for(DeleteMode::Quarantine).is_ok());
+        assert!(preview.ensure_space_for(DeleteMode::RecycleBin).is_ok());
     }
 
     #[test]
@@ -497,7 +506,7 @@ mod tests {
         assert_eq!(shortage.available, 10);
 
         let error = preview
-            .ensure_space_for(DeleteMode::Quarantine)
+            .ensure_space_for(DeleteMode::RecycleBin)
             .expect_err("must refuse");
         assert_eq!(error.code(), ErrorCode::InsufficientSpace);
         assert!(
@@ -506,6 +515,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn marks_system_paths_as_protected() {
         let system_root =
@@ -558,7 +568,20 @@ mod tests {
 
         assert_eq!(preview.total_bytes, 12);
         assert_eq!(preview.total_count, 2);
-        assert_eq!(preview.delete_options.len(), 3);
+        assert_eq!(preview.delete_options.len(), 2);
         assert!(preview.insufficient_space.is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn marks_linux_system_paths_as_protected() {
+        let directory = tempfile::tempdir().expect("temp dir");
+
+        assert!(is_protected_path(PathBuf::from("/etc/passwd").as_path()));
+        assert!(is_protected_path(PathBuf::from("/usr/bin/env").as_path()));
+        assert!(!is_protected_path(directory.path()));
+        assert!(!is_protected_path(
+            PathBuf::from("/tmp/freespace-test").as_path()
+        ));
     }
 }

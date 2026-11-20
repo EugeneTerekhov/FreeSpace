@@ -828,6 +828,11 @@ pub struct AppCapabilities {
     pub events: Vec<String>,
     /// Version of the CSP policy.
     pub csp_version: u32,
+    /// Features the running platform backend can provide.
+    ///
+    /// The interface uses this descriptor to hide or disable actions the
+    /// platform cannot perform; it mirrors the CLI `capabilities` payload.
+    pub platform_capabilities: freespace_platform::Capabilities,
 }
 
 /// Everything the shell needs before the first screen renders.
@@ -877,7 +882,7 @@ pub struct ElevationStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OperationKind {
-    /// Delete to the Recycle Bin, quarantine or permanently.
+    /// Delete to the Recycle Bin or permanently.
     Delete,
     /// Move targets.
     Move,
@@ -887,7 +892,7 @@ pub enum OperationKind {
     Permissions,
     /// Irreversible shredding.
     Shred,
-    /// Restore from quarantine.
+    /// Restore a legacy object.
     Restore,
 }
 
@@ -897,8 +902,6 @@ pub enum OperationKind {
 pub enum DeleteMode {
     /// Move to the Recycle Bin.
     RecycleBin,
-    /// Move into the application quarantine.
-    Quarantine,
     /// Irreversible deletion.
     Permanent,
 }
@@ -1016,7 +1019,7 @@ pub enum JournalResult {
 pub struct JournalEntryView {
     /// Journal entry identifier.
     pub id: String,
-    /// Operation this entry belongs to; used by undo and restore.
+    /// Operation this entry belongs to; used by undo.
     pub operation_id: String,
     /// Occurrence time, Unix milliseconds.
     pub occurred_at: i64,
@@ -1030,10 +1033,8 @@ pub struct JournalEntryView {
     pub total_size: u64,
     /// Outcome.
     pub result: JournalResult,
-    /// Whether undo or restore is available.
+    /// Whether undo is available.
     pub reversible: bool,
-    /// Quarantine identifiers for restore.
-    pub quarantine_ids: Vec<String>,
     /// Error when the result is not a success.
     pub error: Option<UiError>,
 }
@@ -1055,7 +1056,7 @@ pub struct JournalPage {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct JournalFilter {
-    /// Free-text match over the user, operation and quarantine identifiers.
+    /// Free-text match over the user and operation identifiers.
     pub text: String,
     /// Restrict to these operation kinds.
     pub kinds: Vec<OperationKind>,
@@ -1381,7 +1382,7 @@ pub struct OperationOutcome {
     pub state: OperationState,
     /// Journal entry, when one was written.
     pub journal_entry_id: Option<String>,
-    /// True when undo or restore is available.
+    /// True when undo is available.
     pub undo_available: bool,
     /// Number of processed targets.
     pub processed: u64,
@@ -1389,8 +1390,6 @@ pub struct OperationOutcome {
     pub total: u64,
     /// Per-target errors.
     pub errors: Vec<UiError>,
-    /// Quarantine identifiers of restored or quarantined objects.
-    pub quarantine_ids: Vec<String>,
 }
 
 #[cfg(test)]
@@ -1451,10 +1450,32 @@ mod tests {
             commands: vec!["app_bootstrap".to_owned()],
             events: vec!["scan-progress".to_owned()],
             csp_version: 1,
+            platform_capabilities: freespace_platform::Capabilities::linux(),
         };
         let value = serde_json::to_value(&capabilities).expect("serialise");
         assert_eq!(value["commands"][0], "app_bootstrap");
         assert_eq!(value["csp_version"], 1);
+        assert_eq!(value["platform_capabilities"]["platform"], "linux");
+        assert_eq!(value["platform_capabilities"]["scan_methods"]["mft"], false);
+        assert_eq!(value["platform_capabilities"]["trash"], true);
+    }
+
+    #[test]
+    fn platform_capabilities_survive_a_round_trip() {
+        let capabilities = AppCapabilities {
+            commands: Vec::new(),
+            events: Vec::new(),
+            csp_version: 1,
+            platform_capabilities: freespace_platform::Capabilities::windows(),
+        };
+        let json = serde_json::to_string(&capabilities).expect("serialise");
+        let parsed: AppCapabilities = serde_json::from_str(&json).expect("parse");
+
+        assert_eq!(parsed, capabilities);
+        assert_eq!(
+            parsed.platform_capabilities.platform,
+            freespace_platform::PlatformId::Windows
+        );
     }
 }
 

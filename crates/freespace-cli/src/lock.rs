@@ -8,11 +8,14 @@
 use std::{path::PathBuf, time::Duration};
 
 use freespace_core::{Result, Timestamp};
-use freespace_platform::file_lock::FileLock;
+use freespace_platform::InstanceLockGuard;
 use serde_json::json;
 
 /// Default wait time before a queued run fails.
 pub const DEFAULT_TIMEOUT_SECS: u64 = 30;
+
+/// Held run lock; the platform backend releases it on drop.
+pub type RunLock = Box<dyn InstanceLockGuard>;
 
 /// Resolves the lock file path.
 ///
@@ -32,7 +35,7 @@ pub fn default_lock_path() -> Result<PathBuf> {
 /// Returns [`freespace_core::Error::Locked`] when another process keeps the lock
 /// for longer than the timeout, or [`freespace_core::Error::Config`] when the
 /// lock path cannot be resolved.
-pub fn acquire(timeout_secs: u64) -> Result<FileLock> {
+pub fn acquire(timeout_secs: u64) -> Result<RunLock> {
     acquire_at(&default_lock_path()?, timeout_secs)
 }
 
@@ -40,15 +43,22 @@ pub fn acquire(timeout_secs: u64) -> Result<FileLock> {
 ///
 /// # Errors
 /// Returns [`freespace_core::Error::Locked`] when the timeout expires.
-pub fn acquire_at(path: &std::path::Path, timeout_secs: u64) -> Result<FileLock> {
-    FileLock::acquire(path, Duration::from_secs(timeout_secs))
+pub fn acquire_at(path: &std::path::Path, timeout_secs: u64) -> Result<RunLock> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    freespace_platform::platform()
+        .instance_lock
+        .acquire(path, Duration::from_secs(timeout_secs))
 }
 
 /// Writes diagnostic metadata into the held lock file.
 ///
 /// # Errors
 /// Returns an error when the lock file cannot be rewritten.
-pub fn describe(lock: &mut FileLock, command: &str) -> Result<()> {
+pub fn describe(lock: &mut dyn InstanceLockGuard, command: &str) -> Result<()> {
     let metadata = json!({
         "pid": std::process::id(),
         "command": command,

@@ -4,13 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { UiError } from '../../../../src/api/dto';
 import type { CommandName } from '../../../../src/api/transport';
+import { ApiClient } from '../../../../src/api/client';
+import { MockTransport } from '../../../../src/api/mockTransport';
 import { t } from '../../../../src/i18n';
+import { LINUX_CAPABILITIES } from '../../../../src/lib/capabilities';
 import { About } from '../../../../src/screens/About';
 import { Elevation } from '../../../../src/screens/Elevation';
 import { Monitor } from '../../../../src/screens/Monitor';
 import { Settings } from '../../../../src/screens/Settings';
-import { Shred } from '../../../../src/screens/Shred';
 import { useSettingsStore } from '../../../../src/stores/settingsStore';
+import { useShellStore } from '../../../../src/stores/shellStore';
 import { sharedTransport } from '../../../helpers/mockTransport';
 import { renderWithI18n } from '../../../helpers/render';
 
@@ -47,6 +50,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   Reflect.deleteProperty(navigator, 'clipboard');
+  useShellStore.setState({ bootstrap: null });
   vi.restoreAllMocks();
 });
 
@@ -57,6 +61,7 @@ describe('settings screen', () => {
 
     const groups = await screen.findAllByRole('radiogroup');
     expect(groups).toHaveLength(4);
+    expect(screen.queryByLabelText(/Хранение карантина/)).toBeNull();
 
     const themeGroup = groups[0];
     expect(themeGroup).toBeDefined();
@@ -153,131 +158,6 @@ describe('settings screen', () => {
     const panel = await screen.findByRole('tabpanel', { name: 'Настройки' });
     expect(await within(panel).findByText('Внутренняя ошибка.')).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
-  });
-});
-
-describe('shred screen', () => {
-  it('needs a preview and an explicit acknowledgement before starting', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Shred />);
-
-    const preview = screen.getByRole('button', { name: 'Проверить' });
-    expect(preview).toBeDisabled();
-    expect(screen.getByText(/SSD/)).toBeInTheDocument();
-
-    await user.type(
-      screen.getByLabelText('Файлы (по одному в строке)'),
-      'C:\\Temp\\secret.bin\nD:\\Temp\\old.bin',
-    );
-    expect(preview).toBeEnabled();
-    await user.click(preview);
-
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Объектов: 2/)).toBeInTheDocument();
-
-    const destroy = within(dialog).getByRole('button', { name: 'Уничтожить' });
-    expect(destroy).toBeDisabled();
-
-    await user.click(
-      within(dialog).getByRole('checkbox', {
-        name: 'Я понимаю, что эти файлы будут уничтожены безвозвратно',
-      }),
-    );
-    expect(destroy).toBeEnabled();
-    await user.click(destroy);
-
-    expect(await screen.findByText('Ход операции')).toBeInTheDocument();
-    expect(await screen.findByText('Уничтожено файлов: 2')).toBeInTheDocument();
-  });
-
-  it('clamps passes to 1..35 and closes the preview with Escape', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Shred />);
-
-    const passes = screen.getByLabelText('Проходов');
-    await user.clear(passes);
-    await user.type(passes, '99');
-    expect(passes).toHaveValue(35);
-
-    await user.type(screen.getByLabelText('Файлы (по одному в строке)'), 'C:\\Temp\\a.bin');
-    await user.click(screen.getByRole('button', { name: 'Проверить' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-
-    await user.keyboard('{Escape}');
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-  });
-
-  it('reports a rejected preview without starting anything', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Shred />);
-    await user.type(screen.getByLabelText('Файлы (по одному в строке)'), 'C:\\Temp\\a.bin');
-
-    vi.spyOn(sharedTransport(), 'invoke').mockRejectedValue(
-      uiError('E_VALIDATION', 'error.validation'),
-    );
-    await user.click(screen.getByRole('button', { name: 'Проверить' }));
-
-    expect(await screen.findByText('Проверьте введённые значения.')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('shows progress and cancels a running operation', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Shred />);
-    await user.type(screen.getByLabelText('Файлы (по одному в строке)'), 'C:\\Temp\\a.bin');
-    await user.click(screen.getByRole('button', { name: 'Проверить' }));
-
-    const dialog = await screen.findByRole('dialog');
-    await user.click(
-      within(dialog).getByRole('checkbox', {
-        name: 'Я понимаю, что эти файлы будут уничтожены безвозвратно',
-      }),
-    );
-
-    const transport = sharedTransport();
-    const original = transport.invoke.bind(transport);
-    let cancelled = false;
-    const progress = {
-      operation_id: 'shred-op-test',
-      state: 'running' as const,
-      processed: 1,
-      total: 2,
-      current_target: 'C:\\Temp\\a.bin',
-      bytes_per_second: null,
-      errors: [],
-      undo_available: false,
-      journal_entry_id: null,
-    };
-    vi.spyOn(transport, 'invoke').mockImplementation(((
-      command: CommandName,
-      args?: Record<string, unknown>,
-    ) => {
-      if (command === 'shred_start') {
-        return Promise.resolve({ operation_id: 'shred-op-test' });
-      }
-      if (command === 'shred_status') {
-        return Promise.resolve(
-          cancelled ? { ...progress, state: 'cancelled' as const } : progress,
-        );
-      }
-      if (command === 'shred_cancel') {
-        cancelled = true;
-
-        return Promise.resolve({});
-      }
-
-      return original(command, args);
-    }));
-
-    await user.click(within(dialog).getByRole('button', { name: 'Уничтожить' }));
-    expect(await screen.findByText('Ход операции')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Отменить операцию' }));
-    await waitFor(() => {
-      expect(screen.getByText('отменено')).toBeInTheDocument();
-    });
   });
 });
 
@@ -443,6 +323,23 @@ describe('settings tabs', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Настройки' }));
     expect(await screen.findByLabelText('Язык')).toBeInTheDocument();
+  });
+
+  it('hides the context menu setting and the elevation tab on a backend without them', async () => {
+    const transport = new MockTransport();
+    transport.platformCapabilities = {
+      ...LINUX_CAPABILITIES,
+      context_menu: false,
+      elevation: false,
+    };
+    await useShellStore.getState().load(new ApiClient(transport));
+
+    renderWithI18n(<Settings />);
+
+    expect(await screen.findByLabelText('Язык')).toBeInTheDocument();
+    expect(screen.queryByText(t('settings.context_menu'))).not.toBeInTheDocument();
+    const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    expect(tabs).toEqual([t('nav.settings'), t('nav.about')]);
   });
 });
 

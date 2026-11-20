@@ -15,7 +15,7 @@ members = [
 default-members = ["apps/freespace-desktop/src-tauri", "crates/freespace-cli"]
 
 [workspace.package]
-version = "1.3.0"
+version = "2.0.0"
 edition = "2024"
 rust-version = "1.85"
 
@@ -69,6 +69,11 @@ rust_xlsxwriter = { version = "0.102", features = ["constant_memory"] }
 windows = "0.62"
 winreg = "0.56"
 ferrisetw = "1.2"
+
+# Unix platform layer: safe wrappers for statvfs, geteuid, flock and fsync,
+# plus percent-encoding for XDG `.trashinfo` (see specs/003 research.md).
+rustix = "1"
+percent-encoding = "2"
 
 # Frontends
 clap = { version = "4.6", features = ["derive"] }

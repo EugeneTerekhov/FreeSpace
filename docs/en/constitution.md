@@ -1,5 +1,18 @@
 # FreeSpace Constitution
 
+## Sync Impact Report
+
+- **Version change**: 1.0.1 → 2.0.0 (MAJOR)
+- **Modified principles**: I (system trash instead of quarantine, undo for rename only),
+  III (separate Windows MFT and Linux walk budgets), IV (Windows + Linux instead of
+  Windows-only), VI (GUI is a subset of CLI).
+- **Added sections**: none.
+- **Removed sections**: none.
+- **Templates**: `plan-template.md`, `spec-template.md`, `tasks-template.md` remain
+  compatible.
+- **Follow-up TODOs**: implement `Capabilities`, remove quarantine, update `docs/en/` and
+  the release workflow as part of `003-cross-platform-portable`.
+
 ## Core Principles
 
 ### I. Safety of Destructive Operations (NON-NEGOTIABLE)
@@ -7,11 +20,12 @@
 Any operation that modifies or deletes user data (deletion, overwrite, rename, move,
 permission and attribute changes) MUST be performed only after explicit user confirmation
 with a preview of the affected objects and their total size. Deletion MUST default to the
-Recycle Bin or a quarantine area; irreversible destruction (shredder) MUST be a separate,
-deliberate action with an additional warning. Batch operations MUST support undo where
-technically possible and MUST be journaled. Operations on system and protected directories
-MUST require administrator rights and additional confirmation. The application MUST NOT
-modify data outside the user-selected scope.
+system trash (Windows Recycle Bin, XDG Trash on Linux); irreversible deletion MUST be a
+separate, deliberate action with an additional warning. The application quarantine is not
+used. Batch operations MUST be journaled; undo MUST be supported for rename, while deleted
+objects are restored through the system trash. Operations on system and protected
+directories MUST require administrator rights and additional confirmation. The application
+MUST NOT modify data outside the user-selected scope.
 
 Rationale: the tool works with the only copies of user data; mistakes are irreversible, so
 safety outranks convenience and speed.
@@ -30,29 +44,36 @@ inaccurate accounting devalues every other feature.
 
 ### III. Performance at Scale
 
-Scanning an NTFS volume MUST use direct MFT reading as the primary path and MUST analyze a
-volume of up to 8 TB in no more than 60 seconds on a typical consumer SSD (target metric).
-The user interface MUST remain responsive during scanning and any long-running operation:
-work MUST run on background threads, lists and trees MUST be virtualized, and results MUST
-appear progressively. Repeated scans MUST support incremental updates via the USN journal.
-Every long-running operation MUST have a measurable time and memory budget recorded in the
-plan.
+Scanning an NTFS volume on Windows MUST use direct MFT reading as the primary path and MUST
+analyze a volume of up to 8 TB in no more than 60 seconds on a typical consumer SSD (target
+metric). On Linux, scanning MUST use directory-tree traversal and MUST meet a separate
+budget recorded in the plan: 1 million files on a local SSD in no more than 5 minutes. The
+user interface MUST remain responsive during scanning and any long-running operation: work
+MUST run on background threads, lists and trees MUST be virtualized, and results MUST appear
+progressively. Repeated scans on Windows MUST support incremental updates via the USN
+journal. Every long-running operation MUST have a measurable time and memory budget recorded
+in the plan.
 
 Rationale: on multi-terabyte disks slow scanning makes the tool unusable, and a frozen UI is
 perceived as a failure.
 
-### IV. Windows-Native Fidelity
+### IV. Native Fidelity of Each Platform
 
 The application MUST be native to Windows 10 (21H2+) and Windows 11 x64 and MUST fully
 support NTFS: long paths (beyond 260 characters) without enabling system policy, Unicode
 names, NTFS permissions and owners, file attributes, and on-demand UAC elevation. For
 non-NTFS volumes (FAT32, exFAT, ReFS) a correct fallback to directory-tree traversal MUST
-exist and the applied scan method MUST be clearly indicated. The UI framework MUST NOT limit
-the availability of core system capabilities. All system calls MUST be isolated in a
-dedicated platform layer.
+exist and the applied scan method MUST be clearly indicated. The Linux build MUST be native
+to Linux x86_64: POSIX paths, case-sensitive file systems, symbolic links and mount points,
+and the XDG trash. Capabilities unavailable on a platform (MFT/USN, ACL, ADS, Restart
+Manager, context menu, shredder) MUST be explicitly unavailable through `Capabilities` and
+`E_UNSUPPORTED`, without emulation or false promises. The UI framework MUST NOT limit the
+availability of core system capabilities. All system calls MUST be isolated in a dedicated
+platform layer behind a common interface.
 
 Rationale: the product solves tasks unavailable in plain Explorer; any loss of native
-functionality destroys its value proposition.
+functionality destroys its value proposition, and cross-platform support must not become an
+emulation of missing capabilities.
 
 ### V. Test-First File-System Operations (NON-NEGOTIABLE)
 
@@ -69,8 +90,9 @@ reproducible in CI.
 
 Every user capability available in the graphical interface MUST be available from the command
 line with machine-readable output (JSON) and MUST support a non-interactive mode for Windows
-Task Scheduler and CI. Report formats and exit codes MUST be documented and stable within a
-major version. GUI and CLI MUST share the same core.
+Task Scheduler, cron and CI. GUI MAY provide a subset of CLI capabilities; CLI MAY provide
+more capabilities than GUI. Report formats and exit codes MUST be documented and stable
+within a major version. GUI and CLI MUST share the same core.
 
 Rationale: automation is a key scenario for system administrators; divergence between GUI
 and CLI behavior produces non-reproducible results.
@@ -89,9 +111,12 @@ trust is critical.
 - Implementation language — Rust (stable, edition 2024); UI — egui/eframe as the primary
   option; Tauri is allowed only with a justified need for web technologies and must not
   reduce native functionality.
-- Target platforms for v1: Windows 10 21H2+ and Windows 11, x64. Cross-platform support is
-  not a v1 goal.
-- Primary file system — NTFS; other file systems are supported in fallback mode.
+- Target platforms for 2.0: Windows 10 21H2+ and Windows 11 x64; Linux x86_64 in a portable
+  build. macOS, ARM and mobile platforms are not a 2.0 goal.
+- Delivery for 2.0 is portable archives only: a Windows ZIP and a Linux tar.gz. Installers
+  are not produced.
+- Windows: the primary file system is NTFS; other file systems are supported in fallback
+  mode. Linux: common file systems (ext4, btrfs, xfs and others) in directory-walk mode.
 - Configuration and user data are stored locally; the snapshot format is versioned.
 - Project documentation is maintained in two languages: Russian (canonical in `specs/<feature>/`
   and `docs/ru/`) and English (`docs/en/`); no separate `ru/` mirror is created.
@@ -119,4 +144,4 @@ addition of a principle or material expansion, PATCH — wording clarifications.
 review MUST verify constitution compliance; non-compliance MUST block merging until resolved
 or explicitly justified. The change author and the reviewer are accountable for compliance.
 
-**Version**: 1.0.1 | **Ratified**: 2026-11-15 | **Last Amended**: 2026-11-18
+**Version**: 2.0.0 | **Ratified**: 2026-11-15 | **Last Amended**: 2026-11-19

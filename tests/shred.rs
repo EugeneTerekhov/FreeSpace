@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US6: shredder and deletion-on-reboot guarantees.
 //!
 //! Only temporary fixture files are destroyed. The test proves that nothing is

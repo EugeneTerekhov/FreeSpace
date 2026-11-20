@@ -1,5 +1,4 @@
-//! Filesystem commands: size details, long paths, rename, permissions and
-//! attributes (US4, T098–T101).
+//! Filesystem commands: size details, long paths and rename (US4).
 //!
 //! The commands resolve the current generation or the shared journal store and
 //! call the `freespace-app` services. All validation, conflict detection,
@@ -10,15 +9,13 @@ use std::path::{Path, PathBuf};
 
 use freespace_app::{
     dto::{
-        AttributeChangeSet, AttributesPreviewRequest, DEFAULT_PAGE_SIZE, FileOperationApplied,
-        FilterSet, LongPathPageRequest, LongPathValidation, OperationPreview, PermissionsChanges,
-        PermissionsPreview, PermissionsPreviewRequest, PermissionsView, RenameApplied, RenameCase,
-        RenamePreview, RenamePreviewRequest, SizeDetails, TreePage,
+        DEFAULT_PAGE_SIZE, FilterSet, LongPathPageRequest, LongPathValidation, RenameApplied,
+        RenameCase, RenamePreview, RenamePreviewRequest, SizeDetails, TreePage,
     },
     error::{UiError, UiErrorCode},
     long_paths,
     operations::now_millis,
-    permissions, rename, size_details,
+    rename, size_details,
 };
 use tauri::State;
 
@@ -82,7 +79,20 @@ pub fn reveal_in_explorer(state: State<'_, AppState>, path: String) -> Result<()
     let target = freespace_platform::paths::normalize(Path::new(&path))?;
     freespace_platform::paths::ensure_within(&root, &target)?;
 
-    freespace_platform::reveal::reveal(&target).map_err(UiError::from)
+    reveal(&target)
+}
+
+/// Opens an object in the platform file manager.
+#[cfg(windows)]
+fn reveal(target: &Path) -> Result<(), UiError> {
+    freespace_platform::reveal::reveal(target).map_err(UiError::from)
+}
+
+/// Opening a file manager is a Windows-only shell integration for now.
+#[cfg(not(windows))]
+fn reveal(_target: &Path) -> Result<(), UiError> {
+    Err(UiError::new(UiErrorCode::Unsupported)
+        .with_details("opening the file manager is not available on this platform"))
 }
 
 /// Builds a bulk-rename plan and stores its one-time token.
@@ -112,78 +122,10 @@ pub fn rename_apply(
     preview_id: String,
     confirmation_token: String,
 ) -> Result<RenameApplied, UiError> {
-    let elevated = freespace_platform::elevation::is_elevated();
+    let elevated = freespace_platform::platform().elevation.is_elevated();
 
     state.with_store(|store| {
         rename::apply(
-            &preview_id,
-            &confirmation_token,
-            Some(store),
-            elevated,
-            now_millis(),
-        )
-    })
-}
-
-/// Reads the owner, attributes and protection state of one object.
-#[tauri::command(rename_all = "snake_case")]
-pub fn permissions_get(path: String) -> Result<PermissionsView, UiError> {
-    permissions::permissions_view(&path)
-}
-
-/// Builds a permission preview without changing anything.
-#[tauri::command(rename_all = "snake_case")]
-pub fn permissions_preview(
-    path: String,
-    changes: PermissionsChanges,
-) -> Result<PermissionsPreview, UiError> {
-    let request = PermissionsPreviewRequest { path, changes };
-
-    permissions::preview(&request, now_millis())
-}
-
-/// Consumes a permission preview and applies its changes.
-#[tauri::command(rename_all = "snake_case")]
-pub fn permissions_apply(
-    state: State<'_, AppState>,
-    preview_id: String,
-    confirmation_token: String,
-) -> Result<FileOperationApplied, UiError> {
-    let elevated = freespace_platform::elevation::is_elevated();
-
-    state.with_store(|store| {
-        permissions::apply(
-            &preview_id,
-            &confirmation_token,
-            Some(store),
-            elevated,
-            now_millis(),
-        )
-    })
-}
-
-/// Builds a batch attribute preview in the shared operation-preview shape.
-#[tauri::command(rename_all = "snake_case")]
-pub fn attributes_preview(
-    targets: Vec<String>,
-    changes: AttributeChangeSet,
-) -> Result<OperationPreview, UiError> {
-    let request = AttributesPreviewRequest { targets, changes };
-
-    permissions::attributes_preview(&request, now_millis())
-}
-
-/// Consumes an attribute preview and applies it.
-#[tauri::command(rename_all = "snake_case")]
-pub fn attributes_apply(
-    state: State<'_, AppState>,
-    preview_id: String,
-    confirmation_token: String,
-) -> Result<FileOperationApplied, UiError> {
-    let elevated = freespace_platform::elevation::is_elevated();
-
-    state.with_store(|store| {
-        permissions::attributes_apply(
             &preview_id,
             &confirmation_token,
             Some(store),

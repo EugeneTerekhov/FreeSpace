@@ -6,6 +6,63 @@ All notable changes to FreeSpace are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-11-20
+
+### Added
+
+- Linux x86_64 portable backend: directory-walk scanning, volume discovery from the mount table and
+  `statvfs`, `st_blocks` allocation accounting with sparse-file handling, XDG trash, `/proc` write
+  monitoring, `flock` instance locking and `xdg-open` reveal. MFT, USN, ETW, ACL, ADS, Restart
+  Manager, shredding and Explorer integration are reported as unavailable.
+- `freespace capabilities [--json]` and the GUI bootstrap capability descriptor. The payload exposes
+  `platform`, `scan_methods`, `trash`, `permanent`, `shred`, `acl`, `attrs`, `ads`, `unlock`,
+  `context_menu`, `monitor`, `elevation`, `long_paths`, `case_sensitive` and `max_path`.
+- Portable-only distribution: `freespace-portable-<version>-windows-x64.zip` and
+  `freespace-portable-<version>-linux-x86_64.tar.gz`, with `SHA256SUMS.txt` and no installers.
+- Manual tagged release workflow, Linux CI job, platform-specific test gating and version-consistency
+  checks across Cargo, Tauri and npm metadata.
+
+### Changed
+
+- The GUI is reduced to 9 screens in 6 groups: Overview, Tree, Analysis, Duplicates, Cleanup,
+  Journal, Monitor, Inspect and Settings. Saved `shred`, `fileops`, `rename` and `permissions`
+  identifiers resolve to the nearest live screen.
+- Deletion offers exactly two modes: system trash (Recycle Bin on Windows, XDG trash on Linux) and
+  permanent deletion. Both keep preview, explicit confirmation and journaling.
+- Journal undo applies only to renames. Deletions are restored through the operating system trash;
+  old `quarantine` and `restore` journal entries are read-only audit records.
+- Bulk rename, permissions and attributes are CLI-only; contextual rename stays in the tree.
+- The shredder remains only in the Windows CLI. On Linux the `shred`, `acl`, `attrs`, `unlock` and
+  `context-menu` commands return `E_UNSUPPORTED` with exit code `8`.
+- Portable builds store settings, the journal, caches, the WebView profile and the CLI lock in
+  `data` next to the executables and create no registry entries.
+- Version 2.0.0 marks the removal of the quarantine and the change of supported platforms.
+
+### Removed
+
+- Application quarantine: code, database table (`SCHEMA_VERSION` 2 with `DROP TABLE quarantine`),
+  settings key `quarantine_retention_days`, DTO fields, GUI selection, CLI mode `quarantine`, the
+  restore flow and the quarantine counter in the journal.
+- GUI screens for the shredder and file operations (including permissions and rename screens), their
+  routes, command-palette entries, hotkeys, i18n keys and Tauri commands. Explorer integration
+  remains an optional Windows build feature; the shipped portable archive has no such command.
+- NSIS installer configuration, `installer/nsis/hooks.nsh` and installer artifacts. The distribution
+  contains only portable archives.
+- Code signing and notarisation; releases are unsigned and the SmartScreen warning is documented.
+
+### Fixed
+
+- Database migration to schema 2 keeps every old journal entry readable while dropping the
+  quarantine table and its indexes.
+- An older `settings.toml` containing `quarantine_retention_days` still loads; the key is ignored.
+- A `data/quarantine` folder from 1.x is neither used nor deleted automatically; the user guide
+  explains manual cleanup.
+- Unsupported platform features now fail with a stable `E_UNSUPPORTED` instead of an unclear error,
+  and `freespace delete --mode quarantine` fails with `E_INVALID_ARGUMENT` instead of falling back to
+  permanent deletion.
+- Rename conflict checks respect case-sensitive Linux file systems, and paths beyond `PATH_MAX` are
+  rejected before any data changes.
+
 ## [1.3.0] — 2026-11-19
 
 ### Added

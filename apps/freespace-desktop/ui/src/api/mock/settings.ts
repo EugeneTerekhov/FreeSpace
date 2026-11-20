@@ -7,13 +7,10 @@ import type {
   MonitorEventFilter,
   MonitorEventPage,
   MonitorStatus,
-  OperationPreview,
-  OperationProgress,
   PathValidation,
   SettingsPatch,
   SettingsSection,
   SettingsView,
-  ShredPattern,
   UiError,
   UiSettings,
   UiSettingsPatch,
@@ -103,7 +100,6 @@ function defaultView(): SettingsView {
     outdated_threshold_days: 180,
     monitor_threshold_bytes: GB,
     monitor_interval_secs: 60,
-    quarantine_retention_days: 30,
     context_menu_enabled: false,
     confirm_destructive_actions: true,
     ui: defaultUi(),
@@ -182,24 +178,12 @@ function matchesFilter(event: MonitorEvent, filter: MonitorEventFilter): boolean
   return true;
 }
 
-function splitTargets(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return asStringList(value).map((item) => item.trim()).filter(Boolean);
-  }
-
-  return asString(value)
-    .split(/\r?\n|;/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function isIntegerBetween(value: number, min: number, max: number): boolean {
   return Number.isInteger(value) && value >= min && value <= max;
 }
 
 /**
- * US6 in-memory handlers: shredder, write monitor, elevation, settings and
- * About.
+ * US6 in-memory handlers: write monitor, elevation, settings and About.
  *
  * All state is created per `MockTransport` instance, so tests and the browser
  * preview never share counters or previews. Event metadata is deterministic to
@@ -209,15 +193,8 @@ export function registerSettingsMocks(register: MockRegister): void {
   const view = defaultView();
   let elevated = false;
   let elevationReason: string | null = 'elevation.protected_hint';
-  let previewCounter = 0;
-  let operationCounter = 0;
   let monitorCounter = 0;
 
-  const previews = new Map<
-    string,
-    { targets: string[]; passes: number; pattern: ShredPattern; token: string }
-  >();
-  const operations = new Map<string, OperationProgress>();
   const monitors = new Map<string, { status: MonitorStatus; events: MonitorEvent[] }>();
 
   const applyPatch = (patch: SettingsPatch): SettingsView => {
@@ -245,12 +222,6 @@ export function registerSettingsMocks(register: MockRegister): void {
         throw failure('E_VALIDATION', 'outdated threshold is out of range');
       }
       view.outdated_threshold_days = patch.outdated_threshold_days;
-    }
-    if (patch.quarantine_retention_days !== undefined) {
-      if (!isIntegerBetween(patch.quarantine_retention_days, 0, 3650)) {
-        throw failure('E_VALIDATION', 'quarantine retention is out of range');
-      }
-      view.quarantine_retention_days = patch.quarantine_retention_days;
     }
     if (patch.monitor_threshold_bytes !== undefined) {
       if (!Number.isInteger(patch.monitor_threshold_bytes) || patch.monitor_threshold_bytes < 0) {
@@ -350,99 +321,6 @@ export function registerSettingsMocks(register: MockRegister): void {
     });
 
     return results;
-  });
-
-  register('shred_preview', (args) => {
-    const targets = splitTargets(args.targets);
-    const passes = Number(args.passes ?? 1);
-    const pattern: ShredPattern = args.pattern === 'random' ? 'random' : 'zeros';
-
-    if (targets.length === 0) {
-      throw failure('E_VALIDATION', 'shred.no_files');
-    }
-    if (!isIntegerBetween(passes, 1, 35)) {
-      throw failure('E_VALIDATION', 'shred passes must be between 1 and 35');
-    }
-
-    previewCounter += 1;
-    const token = `shred-token-${previewCounter}`;
-    const preview: OperationPreview = {
-      preview_id: `shred-preview-${previewCounter}`,
-      kind: 'shred',
-      targets: targets.map((path, index) => ({
-        path,
-        kind: 'file',
-        size: (index + 1) * 64 * MB,
-        accessible: true,
-        is_system: /^[a-zA-Z]:\\Windows(\\|$)/i.test(path),
-      })),
-      total_size: targets.reduce((sum, _path, index) => sum + (index + 1) * 64 * MB, 0),
-      delete_mode: 'permanent',
-      reversible: false,
-      requires_elevation: false,
-      warnings: ['shred.irreversible', 'shred.ssd_warning', 'confirm.warning.permanent'],
-      expires_at: EVENT_BASE_TIME + 600_000,
-      confirmation_token: token,
-    };
-
-    previews.set(preview.preview_id, { targets, passes, pattern, token });
-
-    return preview;
-  });
-
-  register('shred_start', (args) => {
-    const previewId = asString(args.preview_id);
-    const token = asString(args.confirmation_token);
-    const prepared = previews.get(previewId);
-
-    if (prepared === undefined) {
-      throw failure('E_PREVIEW_EXPIRED', 'unknown or expired shred preview');
-    }
-    if (token !== prepared.token) {
-      throw failure('E_PREVIEW_EXPIRED', 'unknown or expired shred preview');
-    }
-    if (args.extra_confirmation !== true) {
-      throw failure('E_VALIDATION', 'shredding requires the extra confirmation');
-    }
-
-    previews.delete(previewId);
-    operationCounter += 1;
-    const operationId = `shred-operation-${operationCounter}`;
-    operations.set(operationId, {
-      operation_id: operationId,
-      state: 'completed',
-      processed: prepared.targets.length,
-      total: prepared.targets.length,
-      current_target: null,
-      bytes_per_second: null,
-      errors: [],
-      undo_available: false,
-      journal_entry_id: `shred-journal-${operationCounter}`,
-    });
-
-    return { operation_id: operationId };
-  });
-
-  register('shred_status', (args) => {
-    const operation = operations.get(asString(args.operation_id));
-    if (operation === undefined) {
-      throw failure('E_NOT_FOUND', 'unknown shred operation');
-    }
-
-    return clone(operation);
-  });
-
-  register('shred_cancel', (args) => {
-    const operation = operations.get(asString(args.operation_id));
-    if (operation === undefined) {
-      throw failure('E_NOT_FOUND', 'unknown shred operation');
-    }
-    if (operation.state === 'completed') {
-      throw failure('E_UNSUPPORTED', 'the shredder has passed the point of no return');
-    }
-    operation.state = 'cancelled';
-
-    return {};
   });
 
   register('monitor_start', (args) => {

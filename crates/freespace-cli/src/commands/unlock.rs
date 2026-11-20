@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use freespace_core::Result;
+use freespace_core::{Error, Result};
 use freespace_ops::{
     Store,
     unlock::{self, UnlockMode, UnlockOutcome},
@@ -26,9 +26,20 @@ pub fn run(
     confirmed: bool,
     store: Option<&Store>,
 ) -> Result<Outcome> {
+    ensure_supported()?;
     match mode {
         None => list(path),
         Some(mode) => unlock::release(path, mode, confirmed).map(|outcome| report(outcome, store)),
+    }
+}
+
+fn ensure_supported() -> Result<()> {
+    if freespace_platform::platform().capabilities.unlock {
+        Ok(())
+    } else {
+        Err(Error::Unsupported(
+            "lock inspection and release are available on Windows only".to_owned(),
+        ))
     }
 }
 
@@ -41,6 +52,7 @@ pub fn run_delete_on_reboot(
     confirmed: bool,
     store: Option<&Store>,
 ) -> Result<Outcome> {
+    ensure_supported()?;
     unlock::delete_on_reboot(path, confirmed).map(|outcome| report(outcome, store))
 }
 
@@ -152,8 +164,10 @@ fn report(outcome: UnlockOutcome, store: Option<&Store>) -> Outcome {
 #[cfg(test)]
 mod tests {
     use super::run;
+    #[cfg(windows)]
     use freespace_ops::UnlockMode;
 
+    #[cfg(windows)]
     #[test]
     fn lists_locks_as_json() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -167,6 +181,7 @@ mod tests {
         assert!(outcome.human.contains("available"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn requires_confirmation_for_soft_release() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -178,6 +193,7 @@ mod tests {
         assert_eq!(error.exit_code(), 5);
     }
 
+    #[cfg(windows)]
     #[test]
     fn soft_release_reports_availability() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -188,5 +204,19 @@ mod tests {
 
         assert_eq!(outcome.data["available"].as_bool(), Some(true));
         assert_eq!(outcome.data["mode"].as_str(), Some("soft"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unlock_is_unsupported_on_unix() {
+        use freespace_core::ErrorCode;
+
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("file.txt");
+        std::fs::write(&path, b"payload").expect("file");
+
+        let error = run(&path, None, false, None).expect_err("unsupported");
+
+        assert_eq!(error.code(), ErrorCode::Unsupported);
     }
 }

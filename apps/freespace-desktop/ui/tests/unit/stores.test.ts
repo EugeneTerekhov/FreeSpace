@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiClient } from '../../src/api/client';
 import { MockTransport } from '../../src/api/mockTransport';
 import type { UiSettings } from '../../src/api/dto';
+import { LINUX_CAPABILITIES } from '../../src/lib/capabilities';
 import { useSettingsStore, applySettingsToDocument, resolvedTheme } from '../../src/stores/settingsStore';
 import { useShellStore } from '../../src/stores/shellStore';
 import { useSnapshotStore } from '../../src/stores/snapshotStore';
@@ -72,6 +73,22 @@ describe('shell and tasks stores', () => {
     expect(state.error).toBeNull();
     expect(state.screen).toBe('tree');
     expect(state.bootstrap?.capabilities.commands.length).toBeGreaterThan(20);
+    expect(state.bootstrap?.capabilities.platform_capabilities.platform).toBe('windows');
+  });
+
+  it('parses the platform capabilities of a Linux bootstrap', async () => {
+    const transport = new MockTransport();
+    transport.platformCapabilities = { ...LINUX_CAPABILITIES };
+    const client = new ApiClient(transport);
+
+    await useShellStore.getState().load(client);
+
+    const platform = useShellStore.getState().bootstrap?.capabilities.platform_capabilities;
+    expect(platform?.platform).toBe('linux');
+    expect(platform?.scan_methods.mft).toBe(false);
+    expect(platform?.context_menu).toBe(false);
+    expect(platform?.case_sensitive).toBe(true);
+    expect(platform?.max_path).toBe(4096);
   });
 
   it('tracks task progress and terminal states', () => {

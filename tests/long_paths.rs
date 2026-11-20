@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US11: rename, move, copy and delete for paths beyond `MAX_PATH`.
 
 mod common;

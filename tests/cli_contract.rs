@@ -201,6 +201,36 @@ fn invalid_arguments_use_documented_codes() {
     assert_eq!(value["errors"][0]["code"], "E_INVALID_ARGUMENT");
 }
 
+#[cfg(unix)]
+#[test]
+fn windows_only_commands_report_e_unsupported() {
+    let fixture = common::TestTree::new();
+    let file = fixture.write("secret.bin", b"payload");
+    let file = file.to_str().expect("path");
+
+    for args in [
+        vec!["freespace", "shred", file, "--yes", "--json"],
+        vec![
+            "freespace",
+            "attrs",
+            file,
+            "--set",
+            "hidden",
+            "--yes",
+            "--json",
+        ],
+        vec!["freespace", "acl", file, "--reset", "--yes", "--json"],
+        vec!["freespace", "unlock", file, "--json"],
+        vec!["freespace", "context-menu", "install", "--json"],
+    ] {
+        let (code, value) = json(&args);
+        assert_eq!(code, 8, "{}: {}", args[1], value["errors"]);
+        assert_eq!(value["status"], "error");
+        assert_eq!(value["errors"][0]["code"], "E_UNSUPPORTED");
+    }
+    assert!(Path::new(file).exists());
+}
+
 #[test]
 fn owners_and_filter_share_the_same_accounts() {
     let fixture = common::TestTree::new();

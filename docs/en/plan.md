@@ -2,6 +2,12 @@
 
 **Branch**: `001-freespace-disk-analyzer` | **Date**: 2026-11-15 | **Spec**: [spec.md](./spec.md)
 
+> **2.0 note (2026-11-20)**: this plan describes the original Windows/egui 1.x implementation. The
+> GUI later moved to Tauri 2 + React (002), while FreeSpace 2.0 added Linux, portable distribution
+> without an installer and removed the quarantine. The screen count dropped from 11 to 9, and the
+> shredder is now a Windows-only CLI command. The current plan is
+> [003/plan.md](../../specs/003-cross-platform-portable/plan.md); the history below is not rewritten.
+
 ## Summary
 
 FreeSpace is a native Windows application (Rust + egui/eframe) for analyzing and managing disk

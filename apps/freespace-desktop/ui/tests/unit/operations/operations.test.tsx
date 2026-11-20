@@ -16,8 +16,8 @@ import { t } from '../../../src/i18n';
 import { formatBytes } from '../../../src/i18n/format';
 import { Journal } from '../../../src/screens/Journal';
 import { Monitor } from '../../../src/screens/Monitor';
-import { Shred } from '../../../src/screens/Shred';
 import { needsElevation, elevationError } from '../../../src/operations/elevation';
+import { LINUX_CAPABILITIES } from '../../../src/lib/capabilities';
 import { sharedTransport } from '../../helpers/mockTransport';
 import { renderWithI18n } from '../../helpers/render';
 
@@ -82,6 +82,22 @@ describe('operation preview', () => {
     expect(confirm).toHaveBeenCalledWith('permanent', true);
   });
 
+  it('offers only the Recycle Bin and permanent deletion modes', () => {
+    renderWithI18n(
+      <OperationPreviewDialog
+        open
+        preview={preview()}
+        error={null}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    const modes = screen.getAllByRole('radio');
+    expect(modes).toHaveLength(2);
+    expect(modes.map((mode) => mode.textContent ?? '').join(' ')).not.toMatch(/карантин/i);
+  });
+
   it('shows targets and warnings from the preview', () => {
     renderWithI18n(
       <OperationPreviewDialog
@@ -106,6 +122,39 @@ describe('operation preview', () => {
     const elevated = preview({ requires_elevation: true });
     expect(needsElevation(elevated)).toBe(true);
     expect(elevationError(elevated)?.code).toBe('E_ELEVATION_REQUIRED');
+  });
+
+  it('hides the Recycle Bin option when the platform has no system trash', () => {
+    renderWithI18n(
+      <OperationPreviewDialog
+        open
+        preview={preview()}
+        platform={{ ...LINUX_CAPABILITIES, trash: false }}
+        error={null}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByText(t('delete.mode.permanent'))).toBeInTheDocument();
+    expect(screen.queryByText(t('delete.mode.recycle_bin'))).not.toBeInTheDocument();
+  });
+
+  it('disables confirmation when the platform cannot delete at all', () => {
+    renderWithI18n(
+      <OperationPreviewDialog
+        open
+        preview={preview()}
+        platform={{ ...LINUX_CAPABILITIES, trash: false, permanent: false }}
+        error={null}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: t('confirm.apply') })).toBeDisabled();
+    expect(screen.getByText(t('error.unsupported'))).toBeInTheDocument();
   });
 });
 
@@ -154,7 +203,6 @@ function journalEntry(overrides: Partial<JournalEntryView> = {}): JournalEntryVi
     total_size: 2048,
     result: 'success',
     reversible: true,
-    quarantine_ids: [],
     error: null,
     ...overrides,
   };
@@ -177,8 +225,8 @@ function serveJournal(rows: JournalEntryView[]) {
         total_estimate: rows.length,
       });
     }
-    if (command === 'journal_restore' || command === 'journal_undo') {
-      return Promise.resolve({ operation_id: 'operation-restored' });
+    if (command === 'journal_undo') {
+      return Promise.resolve({ operation_id: 'operation-undone' });
     }
 
     return original(command, args);
@@ -262,115 +310,32 @@ describe('journal filters', () => {
   });
 });
 
-describe('journal undo and restore', () => {
-  it('routes restore and undo through the confirmation dialog', async () => {
+describe('journal undo', () => {
+  it('routes undo through the confirmation dialog', async () => {
     const user = userEvent.setup();
-    const restoreEntry = journalEntry({
-      id: 'restore',
-      operation_id: 'operation-restore',
-      kind: 'move',
-      quarantine_ids: ['quarantine-1'],
-      user: 'restore-user',
-    });
     const undoEntry = journalEntry({
       id: 'undo',
       operation_id: 'operation-undo',
       kind: 'rename',
       user: 'undo-user',
     });
-    const invoke = serveJournal([restoreEntry, undoEntry]);
+    const invoke = serveJournal([undoEntry]);
 
     renderWithI18n(<Journal />);
-    expect(await screen.findByText('restore-user')).toBeInTheDocument();
+    expect(await screen.findByText('undo-user')).toBeInTheDocument();
 
-    await user.click(screen.getByText('restore-user'));
-    await user.click(screen.getByRole('button', { name: t('journal.restore') }));
-
-    let dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: t('journal.restore') }));
-
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('journal_restore', { entry_id: 'restore' });
-    });
-    expect(
-      await screen.findByText(t('journal.restored', { restored: 1, failed: 0 })),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: t('journal.restore') })).toBeNull();
 
     await user.click(screen.getByText('undo-user'));
     await user.click(screen.getByRole('button', { name: t('journal.undo') }));
 
-    dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: t('journal.undo') }));
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('journal_undo', { entry_id: 'undo' });
     });
     expect(await screen.findByText(t('operations.journal.undone'))).toBeInTheDocument();
-  });
-});
-
-describe('shredder', () => {
-  it('previews first and starts only after the explicit confirmation', async () => {
-    const user = userEvent.setup();
-    const transport = sharedTransport();
-    const original = transport.invoke.bind(transport);
-    const invoke = vi.spyOn(transport, 'invoke').mockImplementation(((
-      command: CommandName,
-      args?: Record<string, unknown>,
-    ) => original(command, args)));
-
-    renderWithI18n(<Shred />);
-
-    const prepare = screen.getByRole('button', { name: t('details.inspect') });
-    expect(prepare).toBeDisabled();
-    expect(screen.getByText(t('shred.irreversible'))).toBeInTheDocument();
-    expect(screen.getByText(t('shred.ssd_warning'))).toBeInTheDocument();
-
-    await user.type(
-      screen.getByLabelText(t('shred.files')),
-      'C:\\Temp\\a.bin\nD:\\Temp\\b.bin',
-    );
-    expect(prepare).toBeEnabled();
-    await user.click(prepare);
-
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Объектов: 2/)).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(
-        invoke.mock.calls.some(([command]) => command === 'shred_preview'),
-      ).toBe(true);
-    });
-    const previewArgs = invoke.mock.calls.find(([command]) => command === 'shred_preview')?.[1];
-    expect(previewArgs).toMatchObject({
-      targets: ['C:\\Temp\\a.bin', 'D:\\Temp\\b.bin'],
-      passes: 3,
-      pattern: 'zeros',
-    });
-
-    const destroy = within(dialog).getByRole('button', { name: t('shred.destroy') });
-    expect(destroy).toBeDisabled();
-    expect(destroy).toHaveAttribute('data-agent-confirm', 'true');
-
-    // Nothing has started while the acknowledgement is unchecked.
-    expect(invoke.mock.calls.some(([command]) => command === 'shred_start')).toBe(false);
-
-    await user.click(
-      within(dialog).getByRole('checkbox', { name: t('shred.confirm') }),
-    );
-    expect(destroy).toBeEnabled();
-    await user.click(destroy);
-
-    await waitFor(() => {
-      expect(
-        invoke.mock.calls.some(([command]) => command === 'shred_start'),
-      ).toBe(true);
-    });
-    const startArgs = invoke.mock.calls.find(([command]) => command === 'shred_start')?.[1];
-    expect(startArgs).toBeDefined();
-    expect(typeof startArgs?.preview_id).toBe('string');
-    expect(typeof startArgs?.confirmation_token).toBe('string');
-    expect(startArgs?.extra_confirmation).toBe(true);
   });
 });
 

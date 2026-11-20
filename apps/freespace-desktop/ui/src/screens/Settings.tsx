@@ -26,7 +26,9 @@ import { Banner, ErrorState, Loading } from '../components/Feedback';
 import { Field, Select } from '../components/Fields';
 import { setLanguage, t } from '../i18n';
 import { formatBytes } from '../i18n/format';
+import { canElevate, canUseContextMenu } from '../lib/capabilities';
 import { useSettingsStore } from '../stores/settingsStore';
+import { usePlatformCapabilities } from '../stores/shellStore';
 import { About } from './About';
 import { Elevation } from './Elevation';
 import { Panel } from './ScreenFrame';
@@ -89,12 +91,13 @@ function isIntegerInRange(value: string, min: number, max: number): boolean {
  * 001 fields keep the explicit *Save* action documented for the settings screen.
  */
 export function SettingsPanel() {
+  const capabilities = usePlatformCapabilities();
+  const showContextMenu = canUseContextMenu(capabilities);
   const [view, setView] = useState<SettingsView | null>(null);
   const [ui, setUi] = useState<UiSettings | null>(null);
   const [exclusions, setExclusions] = useState('');
   const [duplicateRule, setDuplicateRule] = useState<DuplicateKeepRule>('oldest');
   const [outdatedDays, setOutdatedDays] = useState('180');
-  const [quarantineDays, setQuarantineDays] = useState('30');
   const [thresholdBytes, setThresholdBytes] = useState(String(1024 * 1024 * 1024));
   const [intervalSecs, setIntervalSecs] = useState('60');
   const [confirmDestructive, setConfirmDestructive] = useState(true);
@@ -112,7 +115,6 @@ export function SettingsPanel() {
     setExclusions(next.exclusions.join('; '));
     setDuplicateRule(parseKeepRule(next.duplicate_keep_rule));
     setOutdatedDays(String(next.outdated_threshold_days));
-    setQuarantineDays(String(next.quarantine_retention_days));
     setThresholdBytes(String(next.monitor_threshold_bytes));
     setIntervalSecs(String(next.monitor_interval_secs));
     setConfirmDestructive(next.confirm_destructive_actions);
@@ -156,10 +158,9 @@ export function SettingsPanel() {
   };
 
   const daysValid = isIntegerInRange(outdatedDays, 0, MAX_DAYS);
-  const quarantineValid = isIntegerInRange(quarantineDays, 0, MAX_DAYS);
   const thresholdValid = isIntegerInRange(thresholdBytes, 0, Number.MAX_SAFE_INTEGER);
   const intervalValid = isIntegerInRange(intervalSecs, 1, MAX_INTERVAL);
-  const formValid = daysValid && quarantineValid && thresholdValid && intervalValid;
+  const formValid = daysValid && thresholdValid && intervalValid;
 
   const save = async () => {
     if (!formValid) {
@@ -176,7 +177,6 @@ export function SettingsPanel() {
           exclusions: splitList(exclusions),
           duplicate_keep_rule: duplicateRule,
           outdated_threshold_days: Number(outdatedDays),
-          quarantine_retention_days: Number(quarantineDays),
           monitor_threshold_bytes: Number(thresholdBytes),
           monitor_interval_secs: Number(intervalSecs),
           confirm_destructive_actions: confirmDestructive,
@@ -386,25 +386,6 @@ export function SettingsPanel() {
                 }}
               />
             </Field>
-
-            <Field
-              id="settings-quarantine-days"
-              label={t('settings.quarantine_days')}
-              {...(quarantineValid ? {} : { error: t('error.validation') })}
-            >
-              <input
-                id="settings-quarantine-days"
-                className={`${local.control} ${local.number}`}
-                type="number"
-                min={0}
-                max={MAX_DAYS}
-                step={1}
-                value={quarantineDays}
-                onChange={(event) => {
-                  setQuarantineDays(event.target.value);
-                }}
-              />
-            </Field>
           </div>
 
           <div className={local.toggleList}>
@@ -413,11 +394,13 @@ export function SettingsPanel() {
               onCheckedChange={setConfirmDestructive}
               label={t('settings.confirm')}
             />
-            <Toggle
-              checked={contextMenu}
-              onCheckedChange={setContextMenu}
-              label={t('settings.context_menu')}
-            />
+            {showContextMenu ? (
+              <Toggle
+                checked={contextMenu}
+                onCheckedChange={setContextMenu}
+                label={t('settings.context_menu')}
+              />
+            ) : null}
           </div>
         </div>
 
@@ -530,13 +513,20 @@ type SettingsTab = (typeof SETTINGS_TABS)[number]['id'];
 
 /** System: settings, elevation and about as three tabs (T080). */
 export function Settings() {
+  const capabilities = usePlatformCapabilities();
+  // A backend without elevation state hides the whole tab instead of showing
+  // a control that cannot work.
+  const tabs = SETTINGS_TABS.filter(
+    (item) => item.id !== 'elevation' || canElevate(capabilities),
+  );
   const [tab, setTab] = useState<SettingsTab>('general');
+  const active = tabs.some((item) => item.id === tab) ? tab : 'general';
 
   return (
     <ScreenFrameTabs
       idBase="settings"
-      tabs={SETTINGS_TABS.map((item) => ({ id: item.id, label: t(item.labelKey) }))}
-      active={tab}
+      tabs={tabs.map((item) => ({ id: item.id, label: t(item.labelKey) }))}
+      active={active}
       onChange={(id) => {
         setTab(id as SettingsTab);
       }}

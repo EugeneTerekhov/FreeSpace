@@ -19,7 +19,6 @@ use freespace_ops::{
     confirm::{PreviewItemKind, is_protected_path, preview_delete, preview_operation},
     delete::{DeleteOptions, delete_paths_cancellable},
     operation as ops,
-    quarantine::Quarantine,
     store::Store,
     undo::undo_operation,
 };
@@ -462,7 +461,6 @@ impl OperationService {
 pub fn execute_delete(
     service: &OperationService,
     store: &Store,
-    quarantine: &Quarantine,
     prepared: &PreparedOperation,
     volume_id: &str,
     available_bytes: Option<u64>,
@@ -474,11 +472,9 @@ pub fn execute_delete(
     let options = DeleteOptions {
         mode: match prepared.delete_mode {
             DeleteMode::RecycleBin => ops::DeleteMode::RecycleBin,
-            DeleteMode::Quarantine => ops::DeleteMode::Quarantine,
             DeleteMode::Permanent => ops::DeleteMode::Permanent,
         },
         reason: prepared.reason.clone(),
-        retention_days: 30,
         available_bytes,
         allow_protected: prepared.allow_protected,
     };
@@ -491,7 +487,6 @@ pub fn execute_delete(
     };
     let outcome = delete_paths_cancellable(
         store,
-        Some(quarantine),
         &prepared.targets,
         &options,
         true,
@@ -512,12 +507,6 @@ pub fn execute_delete(
                     })
                 })
                 .collect::<Vec<_>>();
-            let quarantine_ids = outcome
-                .items
-                .iter()
-                .filter_map(|item| item.quarantine_id)
-                .map(|id| id.to_string())
-                .collect();
             let state = operation_state(outcome.status);
             let journal_entry_id = outcome.journal_id.map(|id| id.to_string());
             service.finish(
@@ -536,7 +525,6 @@ pub fn execute_delete(
                 processed: u64::from(processed),
                 total: prepared.targets.len() as u64,
                 errors,
-                quarantine_ids,
             })
         }
         Err(error) => {
@@ -566,15 +554,15 @@ const fn operation_state(status: ops::OperationStatus) -> OperationState {
     }
 }
 
-/// Reverses a journalled operation through the quarantine.
+/// Reverses the renames recorded by a journalled operation.
 ///
 /// # Errors
 /// Returns the mapped undo error and `E_UNSUPPORTED` when the operation cannot
 /// be undone.
-pub fn undo(store: &Store, quarantine: &Quarantine, operation_id: &str) -> Result<u32, UiError> {
+pub fn undo(store: &Store, operation_id: &str) -> Result<u32, UiError> {
     let parsed = Uuid::parse_str(operation_id)
         .map_err(|error| UiError::validation(format!("malformed operation id: {error}")))?;
-    let outcome = undo_operation(store, quarantine, parsed)?;
+    let outcome = undo_operation(store, parsed)?;
 
     Ok(outcome.restored)
 }
@@ -628,12 +616,7 @@ fn journal_matches(entry: &JournalEntryView, filter: &crate::dto::JournalFilter)
         return true;
     }
 
-    entry.user.to_lowercase().contains(&text)
-        || entry.operation_id.to_lowercase().contains(&text)
-        || entry
-            .quarantine_ids
-            .iter()
-            .any(|id| id.to_lowercase().contains(&text))
+    entry.user.to_lowercase().contains(&text) || entry.operation_id.to_lowercase().contains(&text)
 }
 
 /// Returns one journal row by identifier.
@@ -668,15 +651,11 @@ fn journal_view(entry: &ops::JournalEntry) -> JournalEntryView {
             ops::JournalResult::Error => JournalResult::Failed,
         },
     };
-    let quarantine_ids = details
-        .get("quarantine_ids")
-        .and_then(|value| value.as_array())
-        .map(|ids| {
-            ids.iter()
-                .filter_map(|id| id.as_str().map(str::to_owned))
-                .collect()
-        })
-        .unwrap_or_default();
+    let reversible = entry.undo_available
+        && details
+            .get("renames")
+            .and_then(|value| value.as_array())
+            .is_some_and(|renames| !renames.is_empty());
     let error = (result == JournalResult::Failed).then(|| {
         UiError::new(UiErrorCode::Io)
             .with_details(entry.summary.clone())
@@ -692,8 +671,7 @@ fn journal_view(entry: &ops::JournalEntry) -> JournalEntryView {
         targets_count: entry.affected_count,
         total_size: entry.affected_bytes,
         result,
-        reversible: entry.undo_available,
-        quarantine_ids,
+        reversible,
         error,
     }
 }
@@ -728,17 +706,19 @@ mod tests {
 
     use super::{
         OperationService, PREVIEW_TTL_MS, delete_paths_cancellable, execute_delete, journal_page,
-        undo,
     };
-    use crate::dto::{DeleteMode, OperationKind, OperationPreviewRequest, OperationState};
+    use crate::dto::{
+        DeleteMode, JournalFilter, JournalResult, OperationKind, OperationPreviewRequest,
+        OperationState,
+    };
     use crate::error::UiErrorCode;
-    use freespace_ops::{DeleteOptions, Quarantine, Store};
+    use freespace_ops::{DeleteOptions, Store};
 
     fn request(path: &std::path::Path) -> OperationPreviewRequest {
         OperationPreviewRequest {
             kind: OperationKind::Delete,
             targets: vec![path.to_string_lossy().into_owned()],
-            delete_mode: Some(DeleteMode::Quarantine),
+            delete_mode: Some(DeleteMode::RecycleBin),
             reason: Some("test".to_owned()),
             passes: None,
             task_id: None,
@@ -757,7 +737,7 @@ mod tests {
 
         assert_eq!(preview.total_size, 7);
         assert!(preview.reversible);
-        assert_eq!(preview.delete_mode, Some(DeleteMode::Quarantine));
+        assert_eq!(preview.delete_mode, Some(DeleteMode::RecycleBin));
         assert_eq!(service.preview_count(), 1);
 
         service
@@ -790,11 +770,14 @@ mod tests {
         let file = directory.path().join("a.txt");
         fs::write(&file, b"payload").expect("file");
 
+        #[cfg(windows)]
         let protected = std::path::PathBuf::from(
             std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into()),
         )
         .join("System32")
         .join("kernel32.dll");
+        #[cfg(unix)]
+        let protected = std::path::PathBuf::from("/etc/passwd");
         let mut protected_request = request(&protected);
         protected_request.delete_mode = Some(DeleteMode::Permanent);
         let service = OperationService::with_ttl(PREVIEW_TTL_MS);
@@ -833,11 +816,9 @@ mod tests {
     }
 
     #[test]
-    fn executes_cancellable_quarantine_delete_and_undoes_it() {
+    fn executes_a_permanent_delete() {
         let workspace = tempfile::tempdir().expect("workspace");
-        let root = tempfile::tempdir().expect("quarantine");
         let store = Store::open_in_memory().expect("store");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
         let first = workspace.path().join("first.txt");
         let second = workspace.path().join("second.txt");
         fs::write(&first, b"one").expect("first");
@@ -845,14 +826,15 @@ mod tests {
 
         let service = OperationService::new();
         let mut request = request(&first);
+        request.delete_mode = Some(DeleteMode::Permanent);
         request.targets.push(second.to_string_lossy().into_owned());
         let preview = service.preview(&request, None, 0).expect("preview");
         let prepared = service
             .take(
                 &preview.preview_id,
                 &preview.confirmation_token,
-                Some(DeleteMode::Quarantine),
-                false,
+                Some(DeleteMode::Permanent),
+                true,
                 false,
                 1,
             )
@@ -862,7 +844,6 @@ mod tests {
         let outcome = execute_delete(
             &service,
             &store,
-            &quarantine,
             &prepared,
             "volume-1",
             None,
@@ -874,25 +855,18 @@ mod tests {
         assert_eq!(outcome.processed, 2);
         assert!(!first.exists());
         assert!(!second.exists());
-        assert!(outcome.undo_available);
+        assert!(!outcome.undo_available);
         assert_eq!(seen, [1, 2]);
         assert!(matches!(
             service.status(&outcome.operation_id).expect("status").state,
             OperationState::Completed
         ));
-
-        let restored = undo(&store, &quarantine, &outcome.operation_id).expect("undo");
-        assert_eq!(restored, 2);
-        assert!(first.exists());
-        assert!(second.exists());
     }
 
     #[test]
     fn cancellation_keeps_the_actual_partial_result() {
         let workspace = tempfile::tempdir().expect("workspace");
-        let root = tempfile::tempdir().expect("quarantine");
         let store = Store::open_in_memory().expect("store");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
         let first = workspace.path().join("first.txt");
         fs::write(&first, b"one").expect("first");
 
@@ -921,9 +895,8 @@ mod tests {
             .expect("flag");
         let outcome = delete_paths_cancellable(
             &store,
-            Some(&quarantine),
             &prepared.targets,
-            &DeleteOptions::new(freespace_ops::DeleteMode::Quarantine),
+            &DeleteOptions::new(freespace_ops::DeleteMode::Permanent),
             true,
             prepared.operation_id,
             Some(cancel.as_ref()),
@@ -945,9 +918,7 @@ mod tests {
     #[test]
     fn journals_are_paged_and_carry_the_operation_identifier() {
         let directory = tempfile::tempdir().expect("temp dir");
-        let root = tempfile::tempdir().expect("quarantine");
         let store = Store::open_in_memory().expect("store");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
         let file = directory.path().join("a.txt");
         fs::write(&file, b"payload").expect("file");
 
@@ -963,23 +934,79 @@ mod tests {
                 1,
             )
             .expect("take");
-        let outcome = execute_delete(
-            &service,
-            &store,
-            &quarantine,
-            &prepared,
-            "volume-3",
-            None,
-            &mut |_| {},
-        )
-        .expect("execute");
+        let outcome = execute_delete(&service, &store, &prepared, "volume-3", None, &mut |_| {})
+            .expect("execute");
 
-        let page =
-            journal_page(&store, &crate::dto::JournalFilter::default(), 10, None).expect("page");
+        let page = journal_page(&store, &JournalFilter::default(), 10, None).expect("page");
         assert_eq!(page.rows.len(), 1);
         assert_eq!(page.rows[0].operation_id, outcome.operation_id);
-        assert!(page.rows[0].reversible);
+        assert!(
+            !page.rows[0].reversible,
+            "Recycle Bin rows are not undone by FreeSpace"
+        );
         assert_eq!(page.rows[0].kind, OperationKind::Delete);
-        assert_eq!(page.rows[0].result, crate::dto::JournalResult::Success);
+        assert_eq!(page.rows[0].result, JournalResult::Success);
+    }
+
+    #[test]
+    fn reads_legacy_quarantine_and_restore_entries_as_audit() {
+        let store = Store::open_in_memory().expect("store");
+        for (kind, details) in [
+            (
+                "delete",
+                serde_json::json!({
+                    "kind": "delete",
+                    "delete_mode": "quarantine",
+                    "quarantine_ids": ["legacy-id"],
+                }),
+            ),
+            ("restore", serde_json::json!({ "kind": "restore" })),
+        ] {
+            let entry = freespace_ops::JournalEntry {
+                id: 0,
+                operation_id: freespace_core::Uuid::new_v4(),
+                timestamp: freespace_core::Timestamp::from_millis(1_700_000_000_000),
+                user: "legacy-tester".to_owned(),
+                summary: format!("{kind}: legacy entry"),
+                affected_count: 1,
+                affected_bytes: 0,
+                result: freespace_ops::JournalResult::Success,
+                undo_available: false,
+                details,
+            };
+            store.journal_append(&entry).expect("append");
+        }
+
+        let page = journal_page(&store, &JournalFilter::default(), 10, None).expect("page");
+        assert_eq!(page.rows.len(), 2);
+        assert_eq!(page.rows[0].kind, OperationKind::Restore);
+        assert_eq!(page.rows[1].kind, OperationKind::Delete);
+        assert!(page.rows.iter().all(|row| !row.reversible));
+    }
+
+    #[test]
+    fn only_entries_with_renames_are_reversible() {
+        let store = Store::open_in_memory().expect("store");
+        let entry = freespace_ops::JournalEntry {
+            id: 0,
+            operation_id: freespace_core::Uuid::new_v4(),
+            timestamp: freespace_core::Timestamp::from_millis(1_700_000_000_000),
+            user: "tester".to_owned(),
+            summary: "rename: 1 succeeded".to_owned(),
+            affected_count: 1,
+            affected_bytes: 0,
+            result: freespace_ops::JournalResult::Success,
+            undo_available: true,
+            details: serde_json::json!({
+                "kind": "rename",
+                "renames": [{"from": "a.txt", "to": "b.txt"}],
+            }),
+        };
+        store.journal_append(&entry).expect("append");
+
+        let page = journal_page(&store, &JournalFilter::default(), 10, None).expect("page");
+        assert_eq!(page.rows.len(), 1);
+        assert!(page.rows[0].reversible);
+        assert_eq!(page.rows[0].kind, OperationKind::Rename);
     }
 }

@@ -58,6 +58,69 @@ jobs:
       - name: Run tests
         run: cargo test --workspace
 
+  linux:
+    name: Linux fmt, clippy and tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            pkg-config
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.UI_DIR }}
+        run: npm ci
+
+      - name: Build the frontend for the Tauri context
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run build
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check the version files
+        run: node scripts/version.mjs check
+
+      - name: Test the version helper
+        run: node --test scripts/version.test.mjs
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace
+
+      - name: Check the portable feature set
+        run: cargo check --no-default-features
+
   frontend:
     name: typecheck, lint and unit tests
     runs-on: windows-latest

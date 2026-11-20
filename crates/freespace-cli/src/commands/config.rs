@@ -32,9 +32,11 @@ pub fn run(config_path: Option<&Path>, action: &ConfigAction) -> Result<Outcome>
             ))
         }
         ConfigAction::Set { key, value } => {
-            if key == "context_menu_enabled" && !cfg!(feature = "context-menu") {
+            if key == "context_menu_enabled"
+                && !freespace_platform::platform().capabilities.context_menu
+            {
                 return Err(Error::Unsupported(
-                    "the context menu is not available in this portable build".to_owned(),
+                    "the Explorer context menu is available on Windows only".to_owned(),
                 ));
             }
 
@@ -54,25 +56,22 @@ pub fn run(config_path: Option<&Path>, action: &ConfigAction) -> Result<Outcome>
 }
 
 fn apply_context_menu_setting(key: &str, settings: &Settings) -> Vec<String> {
-    #[cfg(feature = "context-menu")]
-    {
-        if key == "context_menu_enabled" {
-            if let Err(error) = freespace_platform::context_menu::ContextMenu::set_enabled(
-                settings.context_menu_enabled,
-            ) {
-                return vec![format!(
-                    "the setting was saved, but the context menu could not be updated: {error}"
-                )];
-            }
-        }
+    if key != "context_menu_enabled" {
+        return Vec::new();
     }
-
-    #[cfg(not(feature = "context-menu"))]
-    {
-        let _ = (key, settings);
+    let platform = freespace_platform::platform();
+    if !platform.capabilities.context_menu {
+        return Vec::new();
     }
-
-    Vec::new()
+    match platform
+        .context_menu
+        .set_enabled(settings.context_menu_enabled)
+    {
+        Ok(()) => Vec::new(),
+        Err(error) => vec![format!(
+            "the setting was saved, but the context menu could not be updated: {error}"
+        )],
+    }
 }
 
 fn resolve_path(config_path: Option<&Path>) -> Result<PathBuf> {
@@ -135,6 +134,25 @@ mod tests {
         .expect_err("unknown key");
 
         assert_eq!(error.code(), ErrorCode::InvalidArgument);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_the_context_menu_setting_on_unix() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("settings.toml");
+
+        let error = run(
+            Some(&path),
+            &ConfigAction::Set {
+                key: "context_menu_enabled".to_owned(),
+                value: "true".to_owned(),
+            },
+        )
+        .expect_err("unsupported");
+
+        assert_eq!(error.code(), ErrorCode::Unsupported);
+        assert!(!path.exists(), "nothing may be written");
     }
 
     #[test]

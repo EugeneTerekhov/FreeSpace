@@ -411,8 +411,8 @@ fn complete_digest(
     algorithm: HashAlgorithm,
     cache: Option<&HashCache>,
 ) -> Result<(Vec<u8>, bool)> {
-    let verbatim = paths::to_verbatim(&candidate.path)?;
-    let metadata = fs::metadata(verbatim).map_err(Error::Io)?;
+    let normalized = paths::normalize(&candidate.path)?;
+    let metadata = fs::metadata(normalized).map_err(Error::Io)?;
     let size = metadata.len();
     let modified = metadata
         .modified()

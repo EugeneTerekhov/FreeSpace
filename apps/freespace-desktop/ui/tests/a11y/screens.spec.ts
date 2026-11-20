@@ -5,7 +5,7 @@ import { SCREEN_IDS, screens } from '../e2e/pages/screens';
 import { setTheme } from '../e2e/theme';
 import { expectNoViolations } from './axe';
 
-/** All 11 screens take part in the final accessibility matrix. */
+/** All nine screens take part in the final accessibility matrix. */
 const SCREENS = SCREEN_IDS;
 
 type ScreenName = ScreenId;
@@ -13,7 +13,7 @@ type ScreenName = ScreenId;
 const THEMES = ['dark', 'light'] as const;
 
 /** Screens whose data requires a finished scan before they render. */
-const NEEDS_SCAN: ScreenId[] = ['inspect', 'fileops'];
+const NEEDS_SCAN: ScreenId[] = ['inspect'];
 
 /** Screens whose first tab needs a finished scan; the rest render empty states. */
 const ANALYSIS_SCREENS: ScreenId[] = ['tree', 'analysis', 'duplicates', 'cleanup'];
@@ -55,8 +55,8 @@ test.describe('screen accessibility', () => {
     });
   }
 
-  test('all 11 screens are part of the audit matrix', () => {
-    expect(SCREENS).toHaveLength(11);
-    expect(new Set(SCREENS).size).toBe(11);
+  test('all 9 screens are part of the audit matrix', () => {
+    expect(SCREENS).toHaveLength(9);
+    expect(new Set(SCREENS).size).toBe(9);
   });
 });

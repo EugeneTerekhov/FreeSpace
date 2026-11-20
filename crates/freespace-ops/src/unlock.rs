@@ -5,14 +5,23 @@
 //! termination). This module owns the safety rules: nothing happens without an
 //! explicit confirmation, critical processes are never terminated, and every
 //! attempt is journalled (FR-021…FR-024).
+//!
+//! Lock inspection and release are a Windows feature; on other platforms the
+//! operations report [`Error::Unsupported`] and the CLI hides them behind
+//! [`freespace_platform::Capabilities::unlock`].
 
 use std::path::{Path, PathBuf};
 
+#[cfg(not(windows))]
+use freespace_core::Error;
 use freespace_core::Result;
-use freespace_platform::locks::{self, FileLock};
+use freespace_platform::common::unlock::FileLock;
+#[cfg(windows)]
+use freespace_platform::locks;
 
+#[cfg(windows)]
+use crate::confirm::require_confirmation;
 use crate::{
-    confirm::require_confirmation,
     operation::{JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget},
     store::Store,
 };
@@ -93,116 +102,154 @@ pub struct UnlockOutcome {
     pub warnings: Vec<String>,
 }
 
+#[cfg(not(windows))]
+fn unsupported<T>(capability: &str) -> Result<T> {
+    Err(Error::Unsupported(format!(
+        "{capability} is available on Windows only"
+    )))
+}
+
 /// Inspects the locks held on `path`.
 ///
 /// # Errors
-/// Returns an error when the Restart Manager cannot be queried.
+/// Returns an error when the Restart Manager cannot be queried. On non-Windows
+/// platforms it returns [`Error::Unsupported`].
 pub fn plan(path: &Path) -> Result<UnlockPlan> {
-    let locks = locks::find_locks(path)?;
-    let available = locks::is_available(path)?;
-    let requires_reboot = locks.iter().any(|lock| lock.requires_reboot);
-    let critical: Vec<FileLock> = locks
-        .iter()
-        .filter(|lock| lock.is_critical())
-        .cloned()
-        .collect();
-    let can_force_close = locks
-        .iter()
-        .any(|lock| lock.application_type.is_terminable());
-    let can_soft_close = locks.iter().any(|lock| lock.can_soft_close);
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        unsupported("lock inspection")
+    }
 
-    Ok(UnlockPlan {
-        path: path.to_path_buf(),
-        locks,
-        available,
-        requires_reboot,
-        can_soft_close,
-        can_force_close,
-        critical,
-    })
+    #[cfg(windows)]
+    {
+        let locks = locks::find_locks(path)?;
+        let available = locks::is_available(path)?;
+        let requires_reboot = locks.iter().any(|lock| lock.requires_reboot);
+        let critical: Vec<FileLock> = locks
+            .iter()
+            .filter(|lock| lock.is_critical())
+            .cloned()
+            .collect();
+        let can_force_close = locks
+            .iter()
+            .any(|lock| lock.application_type.is_terminable());
+        let can_soft_close = locks.iter().any(|lock| lock.can_soft_close);
+
+        Ok(UnlockPlan {
+            path: path.to_path_buf(),
+            locks,
+            available,
+            requires_reboot,
+            can_soft_close,
+            can_force_close,
+            critical,
+        })
+    }
 }
 
 /// Releases the locks on `path`.
 ///
 /// # Errors
 /// Returns [`Error::ConfirmationRequired`] without `confirmed`, and
-/// [`Error::Locked`] when the object stays locked after the operation.
+/// [`Error::Locked`] when the object stays locked after the operation. On
+/// non-Windows platforms it returns [`Error::Unsupported`].
 pub fn release(path: &Path, mode: UnlockMode, confirmed: bool) -> Result<UnlockOutcome> {
-    require_confirmation(confirmed)?;
+    #[cfg(not(windows))]
+    {
+        let _ = (path, mode, confirmed);
+        unsupported("lock release")
+    }
 
-    let plan = plan(path)?;
-    let mut warnings = Vec::new();
-    let mut terminated = Vec::new();
-    let mut released = 0u32;
+    #[cfg(windows)]
+    {
+        require_confirmation(confirmed)?;
 
-    match mode {
-        UnlockMode::Soft => {
-            if plan.can_soft_close {
-                released = locks::release_soft(path)?;
-            } else if !plan.locks.is_empty() {
-                warnings.push(
-                    "the Restart Manager cannot close these applications gracefully".to_owned(),
-                );
-            }
-        }
-        UnlockMode::Force => {
-            for lock in &plan.locks {
-                if !lock.application_type.is_terminable() {
-                    warnings.push(format!(
-                        "refused to terminate `{}` ({}, pid {})",
-                        lock.process_name,
-                        lock.application_type.as_str(),
-                        lock.process_id
-                    ));
-                    continue;
+        let plan = plan(path)?;
+        let mut warnings = Vec::new();
+        let mut terminated = Vec::new();
+        let mut released = 0u32;
+
+        match mode {
+            UnlockMode::Soft => {
+                if plan.can_soft_close {
+                    released = locks::release_soft(path)?;
+                } else if !plan.locks.is_empty() {
+                    warnings.push(
+                        "the Restart Manager cannot close these applications gracefully".to_owned(),
+                    );
                 }
-                match locks::terminate_process(lock.process_id) {
-                    Ok(()) => terminated.push(lock.process_id),
-                    Err(error) => {
-                        warnings.push(format!("cannot terminate pid {}: {error}", lock.process_id))
+            }
+            UnlockMode::Force => {
+                for lock in &plan.locks {
+                    if !lock.application_type.is_terminable() {
+                        warnings.push(format!(
+                            "refused to terminate `{}` ({}, pid {})",
+                            lock.process_name,
+                            lock.application_type.as_str(),
+                            lock.process_id
+                        ));
+                        continue;
+                    }
+                    match locks::terminate_process(lock.process_id) {
+                        Ok(()) => terminated.push(lock.process_id),
+                        Err(error) => warnings
+                            .push(format!("cannot terminate pid {}: {error}", lock.process_id)),
                     }
                 }
+                released = u32::try_from(terminated.len()).unwrap_or(0);
             }
-            released = u32::try_from(terminated.len()).unwrap_or(0);
         }
-    }
 
-    let available = wait_available(path, std::time::Duration::from_secs(3));
-    if !available && plan.locks.is_empty() {
-        warnings.push("the object stays unavailable although no process is registered".to_owned());
-    }
+        let available = wait_available(path, std::time::Duration::from_secs(3));
+        if !available && plan.locks.is_empty() {
+            warnings
+                .push("the object stays unavailable although no process is registered".to_owned());
+        }
 
-    Ok(UnlockOutcome {
-        path: path.to_path_buf(),
-        mode,
-        released,
-        terminated,
-        available,
-        scheduled_for_reboot: false,
-        warnings,
-    })
+        Ok(UnlockOutcome {
+            path: path.to_path_buf(),
+            mode,
+            released,
+            terminated,
+            available,
+            scheduled_for_reboot: false,
+            warnings,
+        })
+    }
 }
 
 /// Registers `path` in the Windows reboot deletion queue.
 ///
 /// # Errors
 /// Returns [`Error::ConfirmationRequired`] without `confirmed` and an I/O error
-/// when the pending-rename key cannot be written.
+/// when the pending-rename key cannot be written. On non-Windows platforms it
+/// returns [`Error::Unsupported`].
 pub fn delete_on_reboot(path: &Path, confirmed: bool) -> Result<UnlockOutcome> {
-    require_confirmation(confirmed)?;
-    locks::schedule_delete_on_reboot(path)?;
+    #[cfg(not(windows))]
+    {
+        let _ = (path, confirmed);
+        unsupported("delete-on-reboot")
+    }
 
-    Ok(UnlockOutcome {
-        path: path.to_path_buf(),
-        mode: UnlockMode::Force,
-        released: 0,
-        terminated: Vec::new(),
-        available: false,
-        scheduled_for_reboot: true,
-        warnings: vec!["the object will be removed before the next graphical logon".to_owned()],
-    })
+    #[cfg(windows)]
+    {
+        require_confirmation(confirmed)?;
+        locks::schedule_delete_on_reboot(path)?;
+
+        Ok(UnlockOutcome {
+            path: path.to_path_buf(),
+            mode: UnlockMode::Force,
+            released: 0,
+            terminated: Vec::new(),
+            available: false,
+            scheduled_for_reboot: true,
+            warnings: vec!["the object will be removed before the next graphical logon".to_owned()],
+        })
+    }
 }
 
+#[cfg(windows)]
 fn wait_available(path: &Path, timeout: std::time::Duration) -> bool {
     let deadline = std::time::Instant::now() + timeout;
     loop {
@@ -266,7 +313,7 @@ pub fn record(store: &Store, outcome: &UnlockOutcome, user: &str) -> Result<u64>
     store.journal_append(&entry)
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
     use super::{UnlockMode, delete_on_reboot, plan, record, release};
     use crate::store::Store;
@@ -333,5 +380,29 @@ mod tests {
         assert!(entries[0].summary.starts_with("unlock"));
         assert_eq!(entries[0].details["mode"], "soft");
         assert_eq!(entries[0].details["available"], true);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod unix_tests {
+    use freespace_core::ErrorCode;
+
+    use super::{UnlockMode, delete_on_reboot, plan, release};
+
+    #[test]
+    fn unlock_operations_are_unsupported_on_unix() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("locked.txt");
+        std::fs::write(&path, b"payload").expect("write file");
+
+        let error = plan(&path).expect_err("unsupported");
+        assert_eq!(error.code(), ErrorCode::Unsupported);
+
+        let error = release(&path, UnlockMode::Soft, true).expect_err("unsupported");
+        assert_eq!(error.code(), ErrorCode::Unsupported);
+
+        let error = delete_on_reboot(&path, true).expect_err("unsupported");
+        assert_eq!(error.code(), ErrorCode::Unsupported);
+        assert!(path.exists());
     }
 }

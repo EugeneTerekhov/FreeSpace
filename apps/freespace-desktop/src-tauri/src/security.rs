@@ -14,7 +14,7 @@ use freespace_app::{
 use crate::events::EVENT_NAMES;
 
 /// Commands implemented today, in contract order.
-pub const COMMANDS: [&str; 87] = [
+pub const COMMANDS: [&str; 76] = [
     "about_info",
     "about_licenses",
     "app_about_info",
@@ -29,8 +29,6 @@ pub const COMMANDS: [&str; 87] = [
     "app_window_state_set",
     "archives_entries_page",
     "archives_export_list",
-    "attributes_apply",
-    "attributes_preview",
     "cleanup_candidates",
     "cleanup_empty_dirs_page",
     "duplicates_cancel",
@@ -44,7 +42,6 @@ pub const COMMANDS: [&str; 87] = [
     "export_status",
     "journal_entry",
     "journal_page",
-    "journal_restore",
     "journal_undo",
     "long_paths_page",
     "long_paths_validate",
@@ -57,14 +54,10 @@ pub const COMMANDS: [&str; 87] = [
     "operation_cancel",
     "operation_confirm",
     "operation_preview",
-    "operation_restore",
     "operation_status",
     "operation_undo",
     "owners_files_page",
     "owners_page",
-    "permissions_apply",
-    "permissions_get",
-    "permissions_preview",
     "rename_apply",
     "rename_preview",
     "reveal_in_explorer",
@@ -76,10 +69,6 @@ pub const COMMANDS: [&str; 87] = [
     "settings_reset",
     "settings_set",
     "settings_validate_paths",
-    "shred_cancel",
-    "shred_preview",
-    "shred_start",
-    "shred_status",
     "size_details",
     "snapshots_compare",
     "snapshots_create",
@@ -120,6 +109,7 @@ pub fn capabilities() -> AppCapabilities {
             .map(|event| (*event).to_owned())
             .collect(),
         csp_version: CSP_VERSION,
+        platform_capabilities: freespace_platform::Capabilities::current(),
     }
 }
 
@@ -245,6 +235,20 @@ mod tests {
         assert_eq!(capabilities.commands.len(), COMMANDS.len());
         assert!(capabilities.events.contains(&"scan-progress".to_owned()));
         assert_eq!(capabilities.csp_version, super::CSP_VERSION);
+    }
+
+    #[test]
+    fn capabilities_describe_the_running_platform() {
+        let capabilities = capabilities();
+        let expected = freespace_platform::Capabilities::current();
+
+        assert_eq!(capabilities.platform_capabilities, expected);
+        assert_eq!(
+            capabilities.platform_capabilities.platform,
+            expected.platform
+        );
+        // The GUI must not claim a capability the CLI would reject.
+        assert!(capabilities.platform_capabilities.permanent);
     }
 
     #[test]

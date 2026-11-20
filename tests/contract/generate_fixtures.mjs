@@ -107,10 +107,29 @@ const capabilities = {
   commands: readInterfaceList('COMMANDS'),
   events: readInterfaceList('EVENTS'),
   csp_version: 1,
+  // Mirrors `freespace_platform::Capabilities::windows()`; the running backend
+  // fills this field, the golden fixture documents the Windows contract.
+  platform_capabilities: {
+    platform: 'windows',
+    scan_methods: { mft: true, usn: true, walk: true },
+    trash: true,
+    permanent: true,
+    shred: true,
+    acl: true,
+    attrs: true,
+    ads: true,
+    unlock: true,
+    context_menu: true,
+    monitor: true,
+    elevation: true,
+    long_paths: true,
+    case_sensitive: false,
+    max_path: null,
+  },
 };
 
 const about = {
-  version: '1.1.0',
+  version: '2.0.0',
   build: 'golden',
   webview_version: '130.0.2849.68',
   licenses: [{ name: 'Tauri', license: 'MIT / Apache-2.0', url: null }],
@@ -174,7 +193,7 @@ const fixtures = {
     {},
     {
       ipc_version: 1,
-      app_version: '1.1.0',
+      app_version: '2.0.0',
       os: 'windows',
       webview_version: '130.0.2849.68',
       settings,

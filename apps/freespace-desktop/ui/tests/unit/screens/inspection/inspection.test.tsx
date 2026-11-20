@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UiError } from '../../../../src/api/dto';
 import type { ArchiveEntryPage, OwnerSummaryPage } from '../../../../src/api/dto-inspection';
 import type { CommandName } from '../../../../src/api/transport';
+import { ApiClient } from '../../../../src/api/client';
+import { MockTransport } from '../../../../src/api/mockTransport';
+import { LINUX_CAPABILITIES } from '../../../../src/lib/capabilities';
 import { Archives } from '../../../../src/screens/Archives';
 import { Inspect } from '../../../../src/screens/Inspect';
 import { Metadata } from '../../../../src/screens/Metadata';
@@ -90,6 +93,7 @@ beforeEach(() => {
 afterEach(() => {
   useSnapshotStore.getState().reset();
   useShellStore.getState().setScreen('overview');
+  useShellStore.setState({ bootstrap: null });
   vi.restoreAllMocks();
 });
 
@@ -498,5 +502,22 @@ describe('inspect screen', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  it('hides Restart Manager and long-path tabs on a backend without them', async () => {
+    const transport = new MockTransport();
+    transport.platformCapabilities = {
+      ...LINUX_CAPABILITIES,
+      unlock: false,
+      long_paths: false,
+    };
+    await useShellStore.getState().load(new ApiClient(transport));
+
+    renderWithI18n(<Inspect />);
+
+    const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    expect(tabs).toEqual(['Метаданные', 'Архивы']);
+    expect(screen.queryByRole('tab', { name: 'Разблокировка' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Длинные пути' })).not.toBeInTheDocument();
   });
 });

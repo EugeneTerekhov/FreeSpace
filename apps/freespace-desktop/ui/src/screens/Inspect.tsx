@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
 import { t } from '../i18n';
+import { canUnlock, canUseLongPaths } from '../lib/capabilities';
+import { usePlatformCapabilities } from '../stores/shellStore';
 import { Archives } from './Archives';
 import { LongPaths } from './LongPaths';
 import { Metadata } from './Metadata';
@@ -18,13 +20,23 @@ type InspectTab = (typeof TABS)[number]['id'];
 
 /** Inspection: metadata, archives, unlock and long paths (T070). */
 export function Inspect() {
+  const capabilities = usePlatformCapabilities();
+  // Restart Manager and verbatim long paths only exist on Windows; the tabs
+  // that need them disappear on a backend without the capability.
+  const tabs = TABS.filter((item) => {
+    if (item.id === 'unlock') return canUnlock(capabilities);
+    if (item.id === 'long_paths') return canUseLongPaths(capabilities);
+
+    return true;
+  });
   const [tab, setTab] = useState<InspectTab>('metadata');
+  const active = tabs.some((item) => item.id === tab) ? tab : 'metadata';
 
   return (
     <ScreenFrameTabs
       idBase="inspect"
-      tabs={TABS.map((item) => ({ id: item.id, label: t(item.labelKey) }))}
-      active={tab}
+      tabs={tabs.map((item) => ({ id: item.id, label: t(item.labelKey) }))}
+      active={active}
       onChange={(id) => {
         setTab(id as InspectTab);
       }}

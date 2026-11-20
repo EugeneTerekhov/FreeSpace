@@ -12,7 +12,7 @@ use freespace_core::{
     size::{SizeMethod, SizeMetrics},
     tree::{AdsStream, FsTree, NodeId, NodeKind},
 };
-use freespace_platform::ads;
+use freespace_platform::platform;
 
 /// Which size dimension a report should display.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -176,8 +176,9 @@ pub struct AdsReport {
 
 /// Enumerates alternate data streams for every regular file.
 ///
-/// Errors are counted and skipped: a single protected file must not fail the
-/// whole analysis.
+/// Platforms without ADS report an empty list, so the pass becomes a no-op
+/// there. Errors are counted and skipped: a single protected file must not fail
+/// the whole analysis.
 pub fn enrich_ads(tree: &mut FsTree) -> AdsReport {
     let mut report = AdsReport::default();
     for id in live_nodes(tree) {
@@ -186,7 +187,7 @@ pub fn enrich_ads(tree: &mut FsTree) -> AdsReport {
         }
         report.files = report.files.saturating_add(1);
         let path = tree.path(id);
-        match ads::list_streams(&path) {
+        match platform().metadata.streams(&path) {
             Ok(streams) => {
                 if streams.is_empty() {
                     continue;
@@ -218,7 +219,8 @@ pub fn enrich_ads(tree: &mut FsTree) -> AdsReport {
     report
 }
 
-/// Refreshes the allocated size of every file with `GetCompressedFileSizeW`.
+/// Refreshes the allocated size of every file through the platform metadata
+/// backend (`GetCompressedFileSizeW` on Windows, `st_blocks` on Linux).
 ///
 /// This is an expensive per-file call and is therefore opt-in.
 ///
@@ -231,7 +233,7 @@ pub fn refresh_allocated(tree: &mut FsTree) -> Result<usize> {
             continue;
         }
         let path = tree.path(id);
-        if let Ok(allocated) = freespace_platform::allocated::allocated_size(&path) {
+        if let Ok(allocated) = platform().metadata.allocated_size(&path) {
             let node = tree.node_mut(id);
             node.size.on_disk = allocated;
             updated += 1;

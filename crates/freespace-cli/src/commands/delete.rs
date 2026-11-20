@@ -1,4 +1,4 @@
-//! `freespace delete` — Recycle Bin, quarantine or permanent deletion.
+//! `freespace delete` — Recycle Bin or permanent deletion.
 
 use std::path::PathBuf;
 
@@ -6,9 +6,7 @@ use freespace_core::{
     Error, Result,
     size::{Units, format_bytes},
 };
-use freespace_ops::{
-    DeleteOptions, Store, delete::delete_paths, operation::DeleteMode, quarantine::Quarantine,
-};
+use freespace_ops::{DeleteOptions, Store, delete::delete_paths, operation::DeleteMode};
 use freespace_platform::{paths, volumes};
 use serde_json::{Value, json};
 
@@ -20,27 +18,19 @@ use super::Outcome;
 /// Returns [`Error::InvalidArgument`] for an unknown mode,
 /// [`Error::ConfirmationRequired`] without confirmation, and [`Error::Partial`]
 /// when only some objects were deleted.
-#[allow(clippy::too_many_arguments)]
 pub fn run(
     paths_to_delete: &[PathBuf],
     mode: &str,
     confirmed: bool,
     store: &Store,
-    retention_days: u32,
     units: Units,
 ) -> Result<Outcome> {
     let mode = DeleteMode::parse_value(mode).ok_or_else(|| {
         Error::InvalidArgument(format!(
-            "unknown deletion mode `{mode}`; expected `recycle`, `quarantine` or `permanent`"
+            "unknown deletion mode `{mode}`; expected `recycle` or `permanent`"
         ))
     })?;
 
-    let quarantine = if mode == DeleteMode::Quarantine {
-        let root = Quarantine::default_root()?;
-        Some(Quarantine::new(root)?)
-    } else {
-        None
-    };
     let available_bytes = paths_to_delete
         .first()
         .and_then(|path| volumes::describe_volume(path).ok())
@@ -48,18 +38,11 @@ pub fn run(
     let options = DeleteOptions {
         mode,
         reason: "cli delete".to_owned(),
-        retention_days,
         available_bytes,
         allow_protected: false,
     };
 
-    let outcome = delete_paths(
-        store,
-        quarantine.as_ref(),
-        paths_to_delete,
-        &options,
-        confirmed,
-    )?;
+    let outcome = delete_paths(store, paths_to_delete, &options, confirmed)?;
 
     let items: Vec<Value> = outcome
         .items
@@ -68,7 +51,6 @@ pub fn run(
             json!({
                 "path": paths::display(&item.path),
                 "size": item.size,
-                "quarantine_id": item.quarantine_id,
                 "error": item.error,
             })
         })
@@ -87,7 +69,7 @@ pub fn run(
         format_bytes(outcome.summary.bytes, units)
     );
     if outcome.undoable {
-        human.push_str("The objects can be restored from quarantine or the Recycle Bin.\n");
+        human.push_str("The objects can be restored from the Recycle Bin.\n");
     }
 
     if let Some(error) = outcome.first_error() {
@@ -132,7 +114,6 @@ mod tests {
             DeleteMode::Permanent.as_str(),
             false,
             &store,
-            30,
             Units::Binary,
         )
         .expect_err("must refuse");
@@ -153,7 +134,6 @@ mod tests {
             "permanent",
             true,
             &store,
-            30,
             Units::Binary,
         )
         .expect("delete");
@@ -165,18 +145,19 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_modes() {
+    fn rejects_the_removed_quarantine_mode_and_unknown_modes() {
         let store = Store::open_in_memory().expect("store");
-        let error = run(
-            &[PathBuf::from(r"C:\temp\file.txt")],
-            "magic",
-            true,
-            &store,
-            30,
-            Units::Binary,
-        )
-        .expect_err("mode");
+        for mode in ["magic", "quarantine"] {
+            let error = run(
+                &[PathBuf::from(r"C:\temp\file.txt")],
+                mode,
+                true,
+                &store,
+                Units::Binary,
+            )
+            .expect_err("mode");
 
-        assert_eq!(error.code().as_str(), "E_INVALID_ARGUMENT");
+            assert_eq!(error.code().as_str(), "E_INVALID_ARGUMENT");
+        }
     }
 }

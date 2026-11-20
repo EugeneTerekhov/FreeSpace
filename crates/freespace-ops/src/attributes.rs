@@ -3,17 +3,21 @@
 //! Attribute names are mapped to the Windows bit mask once, then applied to each
 //! object independently: one read-only file must not stop the rest of the batch.
 
-use std::{fs, path::PathBuf};
+#[cfg(windows)]
+use std::fs;
+use std::path::PathBuf;
 
 use freespace_core::{Error, Result};
-use freespace_platform::{paths, security};
+#[cfg(windows)]
+use freespace_platform::security;
 
-use crate::{
-    operation::{
-        JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget, TargetStatus,
-    },
-    store::Store,
+#[cfg(windows)]
+use crate::operation::{
+    JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget, TargetStatus,
 };
+#[cfg(windows)]
+use crate::path_compat;
+use crate::store::Store;
 
 /// `FILE_ATTRIBUTE_READONLY`.
 pub const READ_ONLY: u32 = 0x0000_0001;
@@ -164,34 +168,47 @@ pub fn apply_attributes(
         ));
     }
 
-    let mut items = Vec::with_capacity(targets.len());
-    for path in targets {
-        match security::set_attributes(path, change.set, change.clear) {
-            Ok(attributes) => items.push(AttributeItemResult {
-                path: path.clone(),
-                attributes: Some(attributes),
-                error: None,
-            }),
-            Err(error) => items.push(AttributeItemResult {
-                path: path.clone(),
-                attributes: security::get_attributes(path).ok(),
-                error: Some(error.to_string()),
-            }),
-        }
+    #[cfg(not(windows))]
+    {
+        let _ = (store, targets, change);
+        Err(Error::Unsupported(
+            "Windows file attributes are available on Windows only".to_owned(),
+        ))
     }
 
-    let journal_id = store.and_then(|store| record(store, &items, change).ok());
+    #[cfg(windows)]
+    {
+        let mut items = Vec::with_capacity(targets.len());
+        for path in targets {
+            match security::set_attributes(path, change.set, change.clear) {
+                Ok(attributes) => items.push(AttributeItemResult {
+                    path: path.clone(),
+                    attributes: Some(attributes),
+                    error: None,
+                }),
+                Err(error) => items.push(AttributeItemResult {
+                    path: path.clone(),
+                    attributes: security::get_attributes(path).ok(),
+                    error: Some(error.to_string()),
+                }),
+            }
+        }
 
-    Ok(AttributeReport { items, journal_id })
+        let journal_id = store.and_then(|store| record(store, &items, change).ok());
+
+        Ok(AttributeReport { items, journal_id })
+    }
 }
 
+#[cfg(windows)]
 fn record(store: &Store, items: &[AttributeItemResult], change: AttributeChange) -> Result<u64> {
     let targets: Vec<OperationTarget> = items
         .iter()
         .map(|item| {
-            let size =
-                fs::metadata(paths::to_verbatim(&item.path).unwrap_or_else(|_| item.path.clone()))
-                    .map_or(0, |metadata| metadata.len());
+            let size = fs::metadata(
+                path_compat::to_verbatim(&item.path).unwrap_or_else(|_| item.path.clone()),
+            )
+            .map_or(0, |metadata| metadata.len());
             OperationTarget::new(item.path.clone(), size)
         })
         .collect();
@@ -230,6 +247,7 @@ fn record(store: &Store, items: &[AttributeItemResult], change: AttributeChange)
     store.journal_append(&entry)
 }
 
+#[cfg(windows)]
 fn current_user() -> String {
     std::env::var("USERNAME").unwrap_or_else(|_| "unknown".to_owned())
 }
@@ -239,6 +257,7 @@ mod tests {
     use freespace_core::ErrorCode;
 
     use super::{ARCHIVE, AttributeChange, HIDDEN, READ_ONLY, apply_attributes, parse_mask};
+    #[cfg(windows)]
     use crate::store::Store;
 
     #[test]
@@ -260,6 +279,7 @@ mod tests {
         assert!(AttributeChange::parse(None, None).is_err());
     }
 
+    #[cfg(windows)]
     #[test]
     fn updates_fixture_attributes_and_journals() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -299,6 +319,7 @@ mod tests {
         .expect("clear");
     }
 
+    #[cfg(windows)]
     #[test]
     fn reports_missing_objects_separately() {
         let directory = tempfile::tempdir().expect("temp dir");
@@ -316,5 +337,25 @@ mod tests {
 
         assert_eq!(report.failed(), 1);
         assert!(report.items[0].error.as_deref().is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn attribute_changes_are_unsupported_on_unix() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("file.txt");
+        std::fs::write(&path, b"x").expect("write");
+
+        let error = apply_attributes(
+            None,
+            &[path],
+            AttributeChange {
+                set: HIDDEN,
+                clear: 0,
+            },
+        )
+        .expect_err("unsupported");
+
+        assert_eq!(error.code(), ErrorCode::Unsupported);
     }
 }

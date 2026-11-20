@@ -14,6 +14,7 @@ use crate::{
     operation::{
         JournalEntry, Operation, OperationKind, OperationStatus, OperationTarget, TargetStatus,
     },
+    path_compat,
     rename::{RenameRule, is_reserved},
     store::Store,
 };
@@ -114,7 +115,7 @@ pub fn build_plan(paths_to_rename: &[PathBuf], rule: &RenameRule) -> Result<Rena
         }
 
         let parent = match source.parent() {
-            Some(parent) => paths::strip_verbatim(parent),
+            Some(parent) => path_compat::strip_verbatim(parent),
             None => {
                 plan.conflicts.push(RenameConflict {
                     path: path.clone(),
@@ -147,7 +148,7 @@ pub fn build_plan(paths_to_rename: &[PathBuf], rule: &RenameRule) -> Result<Rena
             }
         };
         plan.items.push(RenameItem {
-            from: paths::strip_verbatim(&source),
+            from: path_compat::strip_verbatim(&source),
             to: target,
             old_name: old_name.to_owned(),
             new_name,
@@ -187,7 +188,7 @@ fn detect_conflicts(plan: &mut RenamePlan) {
         if same_path(&item.from, &item.to) {
             continue;
         }
-        if paths::to_verbatim(&item.to).is_ok_and(|path| path.exists()) {
+        if path_compat::to_verbatim(&item.to).is_ok_and(|path| path.exists()) {
             conflicts.push(RenameConflict {
                 path: item.from.clone(),
                 target: Some(item.to.clone()),
@@ -429,10 +430,7 @@ mod tests {
         let store = Store::open_in_memory().expect("store");
         let outcome = apply_plan(&plan, Some(&store)).expect("apply");
 
-        let quarantine_root = tempfile::tempdir().expect("quarantine");
-        let quarantine =
-            crate::quarantine::Quarantine::new(quarantine_root.path().join("store")).expect("q");
-        let undone = undo_operation(&store, &quarantine, outcome.operation_id).expect("undo");
+        let undone = undo_operation(&store, outcome.operation_id).expect("undo");
 
         assert_eq!(undone.restored, 2);
         assert!(directory.path().join("IMG_0001.jpg").exists());

@@ -83,15 +83,35 @@ mod tests {
 
     use super::{enforce, inspect};
 
+    /// Returns a protected system directory and a path inside it.
+    fn protected_probe() -> (PathBuf, PathBuf) {
+        #[cfg(windows)]
+        {
+            let root = PathBuf::from(
+                std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into()),
+            );
+            let path = root.join("System32").join("kernel32.dll");
+
+            (root, path)
+        }
+
+        #[cfg(unix)]
+        {
+            (PathBuf::from("/etc"), PathBuf::from("/etc/passwd"))
+        }
+    }
+
     #[test]
     fn classifies_outside_and_protected_targets() {
         let directory = tempfile::tempdir().expect("temp dir");
         let inside = directory.path().join("inside.txt");
         std::fs::write(&inside, b"x").expect("write");
-        let outside = directory.path().join("..").join("outside.txt");
-        let system_root =
-            PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into()));
-        let protected = system_root.join("System32").join("kernel32.dll");
+        let outside = directory
+            .path()
+            .parent()
+            .expect("temp parent")
+            .join("outside.txt");
+        let (_, protected) = protected_probe();
 
         let report = inspect(
             directory.path(),
@@ -113,13 +133,15 @@ mod tests {
         std::fs::write(&inside, b"x").expect("write");
 
         enforce(directory.path(), std::slice::from_ref(&inside), false).expect("clear");
-        let outside = directory.path().join("..").join("outside.txt");
+        let outside = directory
+            .path()
+            .parent()
+            .expect("temp parent")
+            .join("outside.txt");
         let error = enforce(directory.path(), &[outside], false).expect_err("outside");
         assert_eq!(error.code(), ErrorCode::Operation);
 
-        let system_root =
-            PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into()));
-        let protected = system_root.join("System32").join("kernel32.dll");
+        let (system_root, protected) = protected_probe();
         let error = enforce(&system_root, &[protected], false).expect_err("protected");
         assert_eq!(error.code(), ErrorCode::ProtectedPath);
     }

@@ -1,16 +1,7 @@
 import type {
-  AttributeChangeRow,
-  AttributeChangeSet,
   AttributeFlags,
-  FileAttributeName,
-  FileOperationApplied,
   FilterSet,
   NodeRow,
-  OperationPreview,
-  PermissionsAclAction,
-  PermissionsChanges,
-  PermissionsPreview,
-  PermissionsView,
   RenameApplied,
   RenameCase,
   RenameConflictView,
@@ -37,28 +28,6 @@ const MB = 1024 * KB;
 const GB = 1024 * MB;
 const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
-const ATTRIBUTE_NAMES: readonly FileAttributeName[] = [
-  'read-only',
-  'hidden',
-  'system',
-  'archive',
-  'temporary',
-  'sparse',
-  'compressed',
-  'not-content-indexed',
-];
-
-const ATTRIBUTE_BITS: Record<FileAttributeName, number> = {
-  'read-only': 0x1,
-  hidden: 0x2,
-  system: 0x4,
-  archive: 0x20,
-  temporary: 0x100,
-  sparse: 0x200,
-  compressed: 0x800,
-  'not-content-indexed': 0x2000,
-};
-
 const LONG_BASE =
   'C:\\Users\\Public\\Documents\\FreeSpace\\Archive\\2026\\Projects\\Quarterly\\';
 
@@ -72,10 +41,6 @@ interface NodeInfo {
 interface StoredPreview<T> {
   preview: T;
   used: boolean;
-}
-
-interface StoredPermissionsPreview extends StoredPreview<PermissionsPreview> {
-  path: string;
 }
 
 const KNOWN_NODES = new Map<number, NodeInfo>([
@@ -102,8 +67,6 @@ const KNOWN_NODES = new Map<number, NodeInfo>([
 export function registerFilesystemMocks(register: MockRegister): void {
   const longRows = createLongPathRows();
   const renamePreviews = new Map<string, StoredPreview<RenamePreview>>();
-  const permissionPreviews = new Map<string, StoredPermissionsPreview>();
-  const attributePreviews = new Map<string, StoredPreview<OperationPreview>>();
   let sequence = 0;
 
   const nextId = (prefix: string): string => {
@@ -156,95 +119,6 @@ export function registerFilesystemMocks(register: MockRegister): void {
       renamed: stored.preview.change_count,
       journal_entry_id: null,
       undo_available: stored.preview.change_count > 0,
-    };
-
-    return applied;
-  });
-
-  register('permissions_get', (args) => permissionsView(asString(args.path)));
-
-  register('permissions_preview', (args) => {
-    const path = asString(args.path);
-    const changes = readChanges(args.changes);
-    const preview = buildPermissionsPreview(nextId, path, changes);
-    permissionPreviews.set(preview.preview_id, {
-      preview,
-      used: false,
-      path,
-    });
-
-    return preview;
-  });
-
-  register('permissions_apply', (args) => {
-    const previewId = asString(args.preview_id);
-    const stored = permissionPreviews.get(previewId);
-    assertUsablePreview(
-      stored,
-      asString(args.confirmation_token),
-      stored?.preview.expires_at ?? 0,
-    );
-    if (stored === undefined) {
-      throw failure(createError('E_PREVIEW_EXPIRED', 'unknown permissions preview'));
-    }
-    if (/\bsystem32\b/i.test(stored.path)) {
-      throw failure(createError('E_ELEVATION_REQUIRED', stored.path));
-    }
-    stored.used = true;
-    const applied: FileOperationApplied = {
-      operation_id: nextId('permissions-operation'),
-      journal_entry_ids: [],
-      changed: 1,
-      failed: 0,
-      errors: [],
-    };
-
-    return applied;
-  });
-
-  register('attributes_preview', (args) => {
-    const targets = asStringArray(args.targets);
-    if (targets.length === 0) {
-      throw failure(createError('E_VALIDATION', 'attributes_preview needs targets'));
-    }
-    const preview: OperationPreview = {
-      preview_id: nextId('attributes-preview'),
-      kind: 'permissions',
-      targets: targets.map((path) => ({
-        path,
-        kind: 'file',
-        size: 0,
-        accessible: true,
-        is_system: false,
-      })),
-      total_size: 0,
-      delete_mode: null,
-      reversible: true,
-      requires_elevation: false,
-      warnings: [],
-      expires_at: Date.now() + PREVIEW_TTL_MS,
-      confirmation_token: nextId('attributes-token'),
-    };
-    attributePreviews.set(preview.preview_id, { preview, used: false });
-
-    return preview;
-  });
-
-  register('attributes_apply', (args) => {
-    const previewId = asString(args.preview_id);
-    const stored = attributePreviews.get(previewId);
-    assertUsablePreview(
-      stored,
-      asString(args.confirmation_token),
-      stored?.preview.expires_at ?? 0,
-    );
-    if (stored !== undefined) stored.used = true;
-    const applied: FileOperationApplied = {
-      operation_id: nextId('attributes-operation'),
-      journal_entry_ids: [],
-      changed: stored === undefined ? 0 : stored.preview.targets.length,
-      failed: 0,
-      errors: [],
     };
 
     return applied;
@@ -563,148 +437,6 @@ function joinPath(directory: string, name: string): string {
 function lastSegment(path: string): string {
   const parts = path.split('\\');
   return parts.at(-1) ?? path;
-}
-
-function permissionsView(path: string): PermissionsView {
-  const trimmed = path.trim();
-  if (trimmed === '') {
-    throw failure(createError('E_VALIDATION', 'permissions_get needs a path'));
-  }
-  const lower = trimmed.toLowerCase();
-  const protectedPath = /\\windows|\\program files|\\system32/i.test(trimmed);
-  const isDirectory = !lastSegment(trimmed).includes('.');
-  const mask = initialAttributeMask(lower, isDirectory);
-
-  return {
-    path: trimmed,
-    owner: 'DOMAIN\\alex',
-    owner_sid: 'S-1-5-21-1004336348-1177238915-682003330-1001',
-    attribute_mask: mask,
-    attributes: attributesFromMask(mask),
-    is_directory: isDirectory,
-    is_reparse_point: lower.includes('\\link'),
-    is_protected: protectedPath,
-    requires_elevation: protectedPath,
-  };
-}
-
-function initialAttributeMask(lowerPath: string, isDirectory: boolean): number {
-  let mask = isDirectory ? 0 : ATTRIBUTE_BITS.archive;
-  if (lowerPath.includes('\\windows')) mask |= ATTRIBUTE_BITS.system;
-  if (lowerPath.includes('archive')) mask |= ATTRIBUTE_BITS.compressed;
-  if (lowerPath.includes('sparse')) mask |= ATTRIBUTE_BITS.sparse;
-
-  return mask;
-}
-
-function attributesFromMask(mask: number): AttributeFlags {
-  return makeAttributes({
-    read_only: (mask & ATTRIBUTE_BITS['read-only']) !== 0,
-    hidden: (mask & ATTRIBUTE_BITS.hidden) !== 0,
-    system: (mask & ATTRIBUTE_BITS.system) !== 0,
-    compressed: (mask & ATTRIBUTE_BITS.compressed) !== 0,
-    sparse: (mask & ATTRIBUTE_BITS.sparse) !== 0,
-    reparse: (mask & 0x400) !== 0,
-  });
-}
-
-function buildPermissionsPreview(
-  nextId: (prefix: string) => string,
-  path: string,
-  changes: PermissionsChanges,
-): PermissionsPreview {
-  const current = permissionsView(path);
-  const trimmed = current.path;
-  const owner =
-    changes.owner !== undefined && changes.owner.trim() !== ''
-      ? changes.owner.trim()
-      : null;
-  const copyFrom =
-    changes.copy_from !== undefined && changes.copy_from.trim() !== ''
-      ? changes.copy_from.trim()
-      : null;
-  const reset = changes.reset === true;
-  const aclActions = [owner !== null, reset, copyFrom !== null].filter(Boolean).length;
-  if (aclActions > 1) {
-    throw failure(
-      createError('E_VALIDATION', 'choose one ACL action: owner, reset or copy_from'),
-    );
-  }
-
-  const attributeRows: AttributeChangeRow[] = [];
-  if (changes.attributes !== undefined) {
-    for (const name of changes.attributes.set) {
-      attributeRows.push({
-        attribute: name,
-        before: (current.attribute_mask & ATTRIBUTE_BITS[name]) !== 0,
-        after: true,
-      });
-    }
-    for (const name of changes.attributes.clear) {
-      attributeRows.push({
-        attribute: name,
-        before: (current.attribute_mask & ATTRIBUTE_BITS[name]) !== 0,
-        after: false,
-      });
-    }
-  }
-  const attributeChanges = attributeRows.filter((row) => row.before !== row.after);
-  const aclAction: PermissionsAclAction | null =
-    owner !== null ? 'owner' : reset ? 'reset' : copyFrom !== null ? 'copy' : null;
-
-  if (aclAction === null && attributeChanges.length === 0) {
-    throw failure(createError('E_VALIDATION', 'permissions_preview needs changes'));
-  }
-
-  const requiresElevation = current.requires_elevation || owner !== null;
-
-  return {
-    preview_id: nextId('permissions-preview'),
-    confirmation_token: nextId('permissions-token'),
-    expires_at: Date.now() + PREVIEW_TTL_MS,
-    path: trimmed,
-    current,
-    owner,
-    acl_action: aclAction,
-    copy_from: copyFrom,
-    attribute_changes: attributeChanges,
-    requires_elevation: requiresElevation,
-    warnings: requiresElevation ? ['confirm.warning.elevation'] : [],
-  };
-}
-
-function readChanges(value: unknown): PermissionsChanges {
-  const record = isRecord(value) ? value : {};
-  const attributesRecord = isRecord(record.attributes) ? record.attributes : null;
-  const attributes: AttributeChangeSet | undefined =
-    attributesRecord === null
-      ? undefined
-      : {
-          set: readAttributeList(attributesRecord.set),
-          clear: readAttributeList(attributesRecord.clear),
-        };
-  const owner =
-    typeof record.owner === 'string' && record.owner.trim() !== ''
-      ? record.owner
-      : null;
-  const copyFrom =
-    typeof record.copy_from === 'string' && record.copy_from.trim() !== ''
-      ? record.copy_from
-      : null;
-
-  return {
-    ...(owner === null ? {} : { owner }),
-    ...(record.reset === true ? { reset: true } : {}),
-    ...(copyFrom === null ? {} : { copy_from: copyFrom }),
-    ...(attributes === undefined ? {} : { attributes }),
-  };
-}
-
-function readAttributeList(value: unknown): FileAttributeName[] {
-  const known: readonly string[] = ATTRIBUTE_NAMES;
-  return asStringArray(value).filter((item): item is FileAttributeName =>
-    known.includes(item),
-  );
 }
 
 function assertUsablePreview<T>(

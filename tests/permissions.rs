@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US13: batch attributes, ownership and NTFS permissions.
 //!
 //! Permission and ownership changes are administrative tests: they only run when

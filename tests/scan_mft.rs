@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US1 MFT tests.
 //!
 //! These scenarios need administrator rights and a real NTFS volume, so they

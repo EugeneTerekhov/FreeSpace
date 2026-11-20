@@ -124,7 +124,8 @@ pub fn app_navigation_request(request: NavigationRequest) -> Result<(), UiError>
 #[tauri::command(rename_all = "snake_case")]
 #[must_use]
 pub fn app_elevation_status() -> ElevationStatus {
-    let elevated = freespace_platform::elevation::is_elevated();
+    let elevation = freespace_platform::platform().elevation;
+    let elevated = elevation.is_elevated();
 
     ElevationStatus {
         elevated,
@@ -136,28 +137,40 @@ pub fn app_elevation_status() -> ElevationStatus {
 /// Asks the shell to relaunch FreeSpace with administrative rights.
 ///
 /// The user sees the native UAC prompt. A declined or impossible request is
-/// reported as `E_ELEVATION_DENIED`; no data is modified in either case.
+/// reported as `E_ELEVATION_DENIED`; no data is modified in either case. A
+/// platform without an elevation prompt reports `E_UNSUPPORTED`.
 #[tauri::command(rename_all = "snake_case")]
 pub fn app_elevation_request(reason_key: String) -> Result<ElevationResponse, UiError> {
     if reason_key.trim().is_empty() {
         return Err(UiError::validation("an elevation reason is required"));
     }
-    if freespace_platform::elevation::is_elevated() {
+    let elevation = freespace_platform::platform().elevation;
+    if elevation.is_elevated() {
         return Ok(ElevationResponse { elevated: true });
     }
 
-    let executable = freespace_platform::elevation::current_executable()
+    let executable = elevation
+        .current_executable()
         .ok_or_else(|| denied("the FreeSpace executable cannot be resolved"))?;
-    let arguments = freespace_platform::elevation::relaunch_arguments();
+    let arguments = elevation.relaunch_arguments();
 
-    match freespace_platform::elevation::relaunch(&executable, &arguments) {
-        Ok(freespace_platform::elevation::ElevationResult::Launched) => {
+    match elevation.relaunch(&executable, &arguments) {
+        Ok(freespace_platform::ElevationOutcome::Launched) => {
             Ok(ElevationResponse { elevated: true })
         }
-        Ok(freespace_platform::elevation::ElevationResult::Declined) => {
+        Ok(freespace_platform::ElevationOutcome::Declined) => {
             Err(denied("the user declined the elevation prompt"))
         }
-        Err(error) => Err(denied(&error.to_string())),
+        Err(error) => {
+            let mapped = UiError::from(error);
+            if mapped.code == UiErrorCode::Unsupported {
+                Err(mapped)
+            } else {
+                Err(denied(
+                    mapped.details.as_deref().unwrap_or("elevation failed"),
+                ))
+            }
+        }
     }
 }
 

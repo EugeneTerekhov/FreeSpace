@@ -1,19 +1,15 @@
-//! Undo and restore for journalled operations (FR-044, FR-046).
+//! Undo for journalled operations (FR-044, FR-046).
 //!
-//! Undo is deliberately conservative: it only restores objects that are still in
-//! quarantine and refuses to overwrite an object that exists again. Renames are
-//! reversed only when the destination still exists and the original path is
-//! free.
+//! Undo is deliberately conservative: only renames are reversed, and only when
+//! the destination still exists and the original path is free. Deleting to the
+//! Recycle Bin is restored through the shell, not here.
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::Path};
 
 use freespace_core::{Error, Result, Uuid};
 use freespace_platform::paths;
 
-use crate::{quarantine::Quarantine, store::Store};
+use crate::{path_compat, store::Store};
 
 /// Result of an undo attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,17 +30,13 @@ impl UndoOutcome {
     }
 }
 
-/// Restores everything that the journal entry recorded as undoable.
+/// Reverses the renames that the journal entry recorded as undoable.
 ///
 /// # Errors
-/// Returns [`Error::NotFound`] when the journal entry or a quarantined object is
-/// gone, [`Error::Conflict`] when undo is unavailable, and the first error when
+/// Returns [`Error::NotFound`] when the journal entry is gone,
+/// [`Error::Conflict`] when undo is unavailable, and the first error when
 /// nothing could be restored.
-pub fn undo_operation(
-    store: &Store,
-    quarantine: &Quarantine,
-    operation_id: Uuid,
-) -> Result<UndoOutcome> {
+pub fn undo_operation(store: &Store, operation_id: Uuid) -> Result<UndoOutcome> {
     let entry = store
         .journal_by_operation(operation_id)?
         .ok_or_else(|| Error::NotFound(format!("journal entry for `{operation_id}`")))?;
@@ -59,38 +51,6 @@ pub fn undo_operation(
         failed: 0,
         errors: Vec::new(),
     };
-
-    if let Some(ids) = entry
-        .details
-        .get("quarantine_ids")
-        .and_then(|ids| ids.as_array())
-    {
-        for id in ids {
-            let Some(id) = id.as_str().and_then(|value| Uuid::parse_str(value).ok()) else {
-                outcome.failed = outcome.failed.saturating_add(1);
-                outcome
-                    .errors
-                    .push("malformed quarantine identifier".to_owned());
-                continue;
-            };
-            let Some(item) = store.quarantine_get(id)? else {
-                outcome.failed = outcome.failed.saturating_add(1);
-                outcome
-                    .errors
-                    .push(format!("quarantine item `{id}` was not found"));
-                continue;
-            };
-            match quarantine.restore(store, &item) {
-                Ok(()) => outcome.restored = outcome.restored.saturating_add(1),
-                Err(error) => {
-                    outcome.failed = outcome.failed.saturating_add(1);
-                    outcome
-                        .errors
-                        .push(format!("{}: {error}", paths::display(&item.original_path)));
-                }
-            }
-        }
-    }
 
     if let Some(renames) = entry
         .details
@@ -135,8 +95,8 @@ pub fn undo_operation(
 }
 
 fn reverse_rename(from: &Path, to: &Path) -> Result<()> {
-    let from_verbatim = paths::to_verbatim(from)?;
-    let to_verbatim = paths::to_verbatim(to)?;
+    let from_verbatim = path_compat::to_verbatim(from)?;
+    let to_verbatim = path_compat::to_verbatim(to)?;
 
     if !from_verbatim.exists() {
         return Err(Error::NotFound(format!(
@@ -169,89 +129,67 @@ pub fn undoable_entries(store: &Store, limit: u32) -> Result<Vec<crate::JournalE
     Ok(entries)
 }
 
-/// Returns the original paths of the quarantine objects referenced by an entry.
-///
-/// # Errors
-/// Returns an error when the quarantine index cannot be read.
-pub fn affected_paths(store: &Store, entry: &crate::JournalEntry) -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    if let Some(ids) = entry
-        .details
-        .get("quarantine_ids")
-        .and_then(|ids| ids.as_array())
-    {
-        for id in ids {
-            if let Some(item) = id
-                .as_str()
-                .and_then(|value| Uuid::parse_str(value).ok())
-                .map(|id| store.quarantine_get(id))
-                .transpose()?
-                .flatten()
-            {
-                paths.push(item.original_path);
-            }
-        }
-    }
-
-    Ok(paths)
-}
-
 #[cfg(test)]
 mod tests {
-    use freespace_core::ErrorCode;
+    use freespace_core::{ErrorCode, Timestamp, Uuid};
 
     use super::undo_operation;
     use crate::{
-        delete::{DeleteOptions, delete_paths},
-        operation::DeleteMode,
-        quarantine::Quarantine,
+        operation::{JournalEntry, JournalResult},
         store::Store,
     };
 
+    fn renamed_entry(from: &std::path::Path, to: &std::path::Path) -> JournalEntry {
+        JournalEntry {
+            id: 0,
+            operation_id: Uuid::new_v4(),
+            timestamp: Timestamp::from_millis(1_700_000_000_000),
+            user: "tester".to_owned(),
+            summary: "rename: 1 succeeded".to_owned(),
+            affected_count: 1,
+            affected_bytes: 0,
+            result: JournalResult::Success,
+            undo_available: true,
+            details: serde_json::json!({
+                "renames": [{
+                    "from": from.to_string_lossy(),
+                    "to": to.to_string_lossy(),
+                }],
+            }),
+        }
+    }
+
     #[test]
-    fn restores_quarantined_objects_and_clears_undo() {
+    fn reverses_recorded_renames_and_clears_undo() {
         let workspace = tempfile::tempdir().expect("workspace");
-        let root = tempfile::tempdir().expect("quarantine");
         let store = Store::open_in_memory().expect("store");
-        let path = workspace.path().join("restore.txt");
-        std::fs::write(&path, b"payload").expect("write");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
+        let original = workspace.path().join("old.txt");
+        let renamed = workspace.path().join("new.txt");
+        std::fs::write(&original, b"payload").expect("write");
+        std::fs::rename(&original, &renamed).expect("rename");
 
-        let outcome = delete_paths(
-            &store,
-            Some(&quarantine),
-            std::slice::from_ref(&path),
-            &DeleteOptions::new(DeleteMode::Quarantine),
-            true,
-        )
-        .expect("delete");
-        let operation_id = store
-            .journal_list(1)
-            .expect("journal")
-            .first()
-            .expect("entry")
-            .operation_id;
+        let entry = renamed_entry(&original, &renamed);
+        store.journal_append(&entry).expect("append");
+        let operation_id = entry.operation_id;
 
-        let undone = undo_operation(&store, &quarantine, operation_id).expect("undo");
+        let undone = undo_operation(&store, operation_id).expect("undo");
 
         assert_eq!(undone.restored, 1);
         assert!(undone.is_complete());
-        assert_eq!(std::fs::read(&path).expect("read"), b"payload");
+        assert!(original.exists());
+        assert!(!renamed.exists());
+        assert_eq!(std::fs::read(&original).expect("read"), b"payload");
         assert!(!store.journal_list(1).expect("journal")[0].undo_available);
-        assert!(outcome.undoable);
 
-        let error = undo_operation(&store, &quarantine, operation_id).expect_err("second undo");
+        let error = undo_operation(&store, operation_id).expect_err("second undo");
         assert_eq!(error.code(), ErrorCode::Conflict);
     }
 
     #[test]
     fn refuses_unknown_operations() {
-        let root = tempfile::tempdir().expect("quarantine");
         let store = Store::open_in_memory().expect("store");
-        let quarantine = Quarantine::new(root.path().join("store")).expect("quarantine");
 
-        let error = undo_operation(&store, &quarantine, freespace_core::Uuid::new_v4())
-            .expect_err("unknown");
+        let error = undo_operation(&store, Uuid::new_v4()).expect_err("unknown");
 
         assert_eq!(error.code(), ErrorCode::NotFound);
     }

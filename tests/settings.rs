@@ -55,9 +55,6 @@ fn round_trips_every_supported_key() {
         .set_value("outdated_threshold_days", "42")
         .expect("days");
     settings
-        .set_value("quarantine_retention_days", "7")
-        .expect("retention");
-    settings
         .set_value("context_menu_enabled", "false")
         .expect("context menu");
     settings

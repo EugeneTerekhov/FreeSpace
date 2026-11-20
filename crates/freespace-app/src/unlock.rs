@@ -1,4 +1,8 @@
-//! File locks and soft/force/reboot unlocking (US5, T115).
+//! File locks and soft/force/reboot unlocking (US5, T115) — Windows only.
+//!
+//! This module is compiled on Windows only; `unlock_unix.rs` provides the same
+//! public API and returns `E_UNSUPPORTED` because the `unlock` capability is
+//! `false` elsewhere.
 //!
 //! Lock discovery uses the Windows Restart Manager through
 //! `freespace-platform::locks`. The safety rules stay in `freespace-ops`: soft

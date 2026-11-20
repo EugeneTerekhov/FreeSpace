@@ -1,6 +1,6 @@
 /**
- * Operation and settings payloads (US6): shredder, write monitor, elevation,
- * settings and About.
+ * Operation and settings payloads (US6): write monitor, elevation, settings and
+ * About.
  *
  * The shapes mirror `crates/freespace-app/src/dto/settings_ops.rs` and
  * `specs/002-native-ui-redesign/contracts/ipc.md` sections 9 and 10. They live
@@ -22,21 +22,6 @@ import type {
   UiSettingsPatch,
   UnitSystem,
 } from './dto';
-
-/** Overwrite pattern of the shredder. */
-export type ShredPattern = 'zeros' | 'random';
-
-/** `shred_preview` input. `passes` is validated as 1..=35 by the native layer. */
-export interface ShredPreviewRequest {
-  targets: string[];
-  passes: number;
-  pattern: ShredPattern;
-}
-
-/** `shred_start` mirrors `operation_confirm`: a preview token is mandatory. */
-export interface ShredStarted {
-  operation_id: string;
-}
 
 /** Active source reported by the monitor worker. */
 export type MonitorSource = 'etw' | 'counters';
@@ -126,7 +111,6 @@ export interface SettingsView {
   outdated_threshold_days: number;
   monitor_threshold_bytes: number;
   monitor_interval_secs: number;
-  quarantine_retention_days: number;
   context_menu_enabled: boolean;
   confirm_destructive_actions: boolean;
   ui: UiSettings;
@@ -143,7 +127,6 @@ export interface SettingsPatch {
   outdated_threshold_days?: number;
   monitor_threshold_bytes?: number;
   monitor_interval_secs?: number;
-  quarantine_retention_days?: number;
   context_menu_enabled?: boolean;
   confirm_destructive_actions?: boolean;
 }

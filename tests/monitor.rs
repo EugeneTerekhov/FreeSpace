@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 //! US20: ETW event interpretation and the counter/USN fallback.
 
 mod common;

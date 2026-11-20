@@ -12,11 +12,8 @@ import type {
   VolumeSummary,
 } from '../../../../src/api/dto';
 import type { CommandName } from '../../../../src/api/transport';
-import { FileOps } from '../../../../src/screens/FileOps';
 import { Journal } from '../../../../src/screens/Journal';
 import { LongPaths } from '../../../../src/screens/LongPaths';
-import { Permissions } from '../../../../src/screens/Permissions';
-import { Rename } from '../../../../src/screens/Rename';
 import { useSnapshotStore } from '../../../../src/stores/snapshotStore';
 import { renderWithI18n } from '../../../helpers/render';
 import { sharedTransport } from '../../../helpers/mockTransport';
@@ -71,15 +68,6 @@ const IO_ERROR: UiError = {
   journal_entry_id: null,
 };
 
-const PREVIEW_EXPIRED: UiError = {
-  code: 'E_PREVIEW_EXPIRED',
-  category: 'validation',
-  message_key: 'error.preview_expired',
-  details: 'token',
-  retryable: true,
-  task_id: null,
-  journal_entry_id: null,
-};
 
 type Transport = ReturnType<typeof sharedTransport>;
 
@@ -234,212 +222,6 @@ describe('LongPaths screen', () => {
   });
 });
 
-describe('Rename screen', () => {
-  it('previews old and new names and applies exactly once', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Rename />);
-
-    await user.type(
-      screen.getByLabelText('Объекты (по одному в строке)'),
-      'C:\\Users\\Downloads\\archive.zip\nC:\\Users\\Downloads\\backup-1.bin',
-    );
-    await user.type(screen.getByLabelText('Шаблон'), 'archive|backup');
-    await user.type(screen.getByLabelText('Замена'), 'media');
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-
-    expect(await screen.findByText('C:\\Users\\Downloads\\media.zip')).toBeInTheDocument();
-    expect(screen.getByText('C:\\Users\\Downloads\\media-1.bin')).toBeInTheDocument();
-    expect(screen.getByText(/Планируется переименований: 2, конфликтов: 0/)).toBeInTheDocument();
-
-    // The plan shows the old and the new name of every object side by side.
-    expect(screen.getByText('archive.zip')).toBeInTheDocument();
-    expect(screen.getByText('media.zip')).toBeInTheDocument();
-    expect(screen.getByText('backup-1.bin')).toBeInTheDocument();
-    expect(screen.getByText('media-1.bin')).toBeInTheDocument();
-
-    const apply = screen.getByRole('button', { name: 'Переименовать' });
-    expect(apply).toBeDisabled();
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: 'Я просмотрел предпросмотр и подтверждаю переименование',
-      }),
-    );
-    expect(apply).toBeEnabled();
-    await user.click(apply);
-
-    expect(await screen.findByText('Переименовано объектов: 2')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Переименовать' })).not.toBeInTheDocument();
-  });
-
-  it('blocks apply while conflicts remain', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Rename />);
-
-    await user.type(
-      screen.getByLabelText('Объекты (по одному в строке)'),
-      'C:\\a.txt\nC:\\b.txt',
-    );
-    await user.type(screen.getByLabelText('Шаблон'), '.*');
-    await user.type(screen.getByLabelText('Замена'), 'same');
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-
-    expect(await screen.findByText(/Планируется переименований: 0, конфликтов: 2/)).toBeInTheDocument();
-    const table = screen.getByRole('table', { name: 'Предпросмотр' });
-    const conflictRows = within(table)
-      .getAllByRole('row')
-      .filter((row) => row.getAttribute('aria-invalid') === 'true');
-    expect(conflictRows).toHaveLength(2);
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: 'Я просмотрел предпросмотр и подтверждаю переименование',
-      }),
-    );
-    expect(screen.getByRole('button', { name: 'Переименовать' })).toBeDisabled();
-    expect(screen.getAllByText('Проверьте введённые значения.').length).toBeGreaterThan(0);
-  });
-
-  it('recovers from an expired preview token', async () => {
-    const user = userEvent.setup();
-    const transport = sharedTransport();
-    renderWithI18n(<Rename />);
-
-    await user.type(
-      screen.getByLabelText('Объекты (по одному в строке)'),
-      'C:\\a.txt',
-    );
-    await user.type(screen.getByLabelText('Шаблон'), 'a');
-    await user.type(screen.getByLabelText('Замена'), 'b');
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-    await screen.findByText(/Планируется переименований: 1/);
-
-    transport.failCommand('rename_apply', PREVIEW_EXPIRED);
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: 'Я просмотрел предпросмотр и подтверждаю переименование',
-      }),
-    );
-    await user.click(screen.getByRole('button', { name: 'Переименовать' }));
-
-    expect(
-      await screen.findByText('Предпросмотр истёк; повторите подтверждение.'),
-    ).toBeInTheDocument();
-    await user.click(screen.getAllByRole('button', { name: 'Предпросмотр' })[0]!);
-
-    expect(await screen.findByText(/Планируется переименований: 1/)).toBeInTheDocument();
-    expect(
-      screen.queryByText('Предпросмотр истёк; повторите подтверждение.'),
-    ).not.toBeInTheDocument();
-  });
-});
-
-describe('Permissions screen', () => {
-  it('shows the ACL, previews an attribute change and applies it after confirmation', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Permissions />);
-
-    expect(screen.getByText('Ничего не выбрано')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Объект'), 'C:\\Users\\Documents');
-    await user.click(screen.getByRole('button', { name: 'Проверить' }));
-
-    expect(await screen.findByText('DOMAIN\\alex')).toBeInTheDocument();
-    expect(
-      screen.getByText('S-1-5-21-1004336348-1177238915-682003330-1001'),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole('switch', { name: 'Скрытый' }));
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-    expect(await screen.findByText(/Снять.*Установить/)).toBeInTheDocument();
-
-    const save = screen.getByRole('button', { name: 'Сохранить' });
-    expect(save).toBeDisabled();
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: 'Я понимаю, что изменения затрагивают доступ и могут требовать прав администратора',
-      }),
-    );
-    expect(save).toBeEnabled();
-    await user.click(save);
-
-    expect(await screen.findByText('Обновлено: 1, ошибок: 0')).toBeInTheDocument();
-  });
-
-  it('explains elevation when the protected path cannot be changed', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<Permissions />);
-
-    await user.type(screen.getByLabelText('Объект'), 'C:\\Windows\\System32');
-    await user.click(screen.getByRole('button', { name: 'Проверить' }));
-    expect(
-      await screen.findByText('Для этой операции нужны права администратора.'),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole('switch', { name: 'Скрытый' }));
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: 'Я понимаю, что изменения затрагивают доступ и могут требовать прав администратора',
-      }),
-    );
-    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
-
-    expect(await screen.findByText(/Нужны права администратора/)).toBeInTheDocument();
-  });
-
-  it('reads the ACL without writing and applies only after the preview is confirmed', async () => {
-    const user = userEvent.setup();
-    const calls = recordInvoke(sharedTransport());
-    renderWithI18n(<Permissions />);
-
-    await user.type(screen.getByLabelText('Объект'), 'C:\\Users\\Documents');
-    await user.click(screen.getByRole('button', { name: 'Проверить' }));
-    await screen.findByText('DOMAIN\\alex');
-
-    // Reading the security descriptor is the only command so far.
-    expect([...new Set(calls.map((call) => call.command))]).toEqual(['permissions_get']);
-
-    await user.click(screen.getByRole('switch', { name: 'Скрытый' }));
-    await user.click(screen.getByRole('button', { name: 'Предпросмотр' }));
-    await screen.findByText(/Снять.*Установить/);
-
-    expect(calls.some((call) => call.command === 'permissions_preview')).toBe(true);
-    expect(calls.some((call) => call.command === 'permissions_apply')).toBe(false);
-
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: 'Я понимаю, что изменения затрагивают доступ и могут требовать прав администратора',
-      }),
-    );
-    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
-
-    expect(await screen.findByText('Обновлено: 1, ошибок: 0')).toBeInTheDocument();
-    expect(calls.some((call) => call.command === 'permissions_apply')).toBe(true);
-  });
-});
-
-describe('File operations screen', () => {
-  it('keeps rename and permissions as two stateful tabs', async () => {
-    const user = userEvent.setup();
-    renderWithI18n(<FileOps />);
-
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
-
-    await user.type(
-      screen.getByLabelText('Объекты (по одному в строке)'),
-      'C:\\a.txt',
-    );
-    await user.click(screen.getByRole('tab', { name: 'Права доступа' }));
-    expect(screen.getByLabelText('Объект')).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Переименование' }));
-
-    // Each tab owns its state; switching back keeps the rename draft.
-    expect(screen.getByLabelText('Объекты (по одному в строке)')).toHaveValue('C:\\a.txt');
-    expect(screen.getByRole('tab', { name: 'Переименование' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-  });
-});
-
 describe('Journal screen', () => {
   const entries: JournalEntryView[] = [
     {
@@ -452,7 +234,6 @@ describe('Journal screen', () => {
       total_size: 2048,
       result: 'success',
       reversible: true,
-      quarantine_ids: ['quarantine-1'],
       error: null,
     },
     {
@@ -465,17 +246,16 @@ describe('Journal screen', () => {
       total_size: 1024,
       result: 'failed',
       reversible: false,
-      quarantine_ids: [],
       error: null,
     },
   ];
 
-  it('passes the JournalFilter to the backend, resets the cursor and can restore', async () => {
+  it('passes the JournalFilter to the backend, resets the cursor and undoes a rename', async () => {
     const user = userEvent.setup();
     const transport = sharedTransport();
     const calls: JournalFilter[] = [];
     const cursors: (string | null)[] = [];
-    let restoreEntry: string | null = null;
+    let undoneEntry: string | null = null;
 
     transport.setHandler('journal_page', (args) => {
       const filter = args.filter as JournalFilter;
@@ -504,9 +284,9 @@ describe('Journal screen', () => {
 
       return page;
     });
-    transport.setHandler('journal_restore', (args) => {
-      restoreEntry = String(args.entry_id);
-      return { operation_id: 'restore-1' };
+    transport.setHandler('journal_undo', (args) => {
+      undoneEntry = String(args.entry_id);
+      return { operation_id: 'undo-1' };
     });
 
     renderWithI18n(<Journal />);
@@ -544,11 +324,11 @@ describe('Journal screen', () => {
     });
     expect(await screen.findByText('mock-user')).toBeInTheDocument();
     await user.click(screen.getByText('mock-user'));
-    await user.click(screen.getByRole('button', { name: 'Восстановить' }));
-    const confirmRestore = await screen.findByRole('dialog');
-    await user.click(within(confirmRestore).getByRole('button', { name: 'Восстановить' }));
-    expect(await screen.findByText('Восстановлено: 1, ошибок: 0')).toBeInTheDocument();
-    expect(restoreEntry).toBe('1');
+    await user.click(screen.getByRole('button', { name: 'Отменить' }));
+    const confirmUndo = await screen.findByRole('dialog');
+    await user.click(within(confirmUndo).getByRole('button', { name: 'Отменить' }));
+    expect(await screen.findByText('Операция отменена.')).toBeInTheDocument();
+    expect(undoneEntry).toBe('1');
   });
 
   it('filters by text on the backend after the debounce', async () => {
@@ -594,7 +374,6 @@ describe('Journal screen', () => {
       total_size: 1024,
       result: 'failed',
       reversible: false,
-      quarantine_ids: [],
       error: IO_ERROR,
     };
     transport.setHandler('journal_page', () => ({

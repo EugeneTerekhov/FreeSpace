@@ -2,8 +2,9 @@
 //!
 //! The screen answers "why does this object occupy the space it does": logical
 //! length, allocation, the hard-link contribution, alternate data streams and
-//! the savings of compression and sparse regions. Every number is measured here
-//! with `freespace-platform`; the interface only formats what it receives.
+//! the savings of compression and sparse regions. Every number is measured
+//! through [`freespace_platform::platform`]; Windows adds attribute and reparse
+//! details, other platforms derive them from the portable metadata subset.
 //!
 //! Sizes of a scanned node come from the immutable snapshot. When the object
 //! still exists, the live values replace them so the screen can be trusted right
@@ -16,7 +17,7 @@ use freespace_core::{
     size::SizeMetrics,
     tree::{FileAttributes, NodeId},
 };
-use freespace_platform::{ads, allocated, paths, reparse};
+use freespace_platform::{paths, platform};
 
 use crate::{
     dto::{AttributeFlags, NodeKind, SizeDetails},
@@ -75,12 +76,7 @@ pub fn size_details(snapshot: &TreeSnapshot, node_id: NodeId) -> Result<SizeDeta
 
     if let Some(facts) = measure(Path::new(&row.path)) {
         let directory = matches!(row.kind, NodeKind::Directory);
-        let reparse_target = reparse::inspect(Path::new(&row.path))
-            .ok()
-            .flatten()
-            .and_then(|info| info.target)
-            .map(|target| paths::display(&target))
-            .or(row.link_target);
+        let reparse_target = link_target(Path::new(&row.path)).or(row.link_target);
 
         // Directory aggregates already include every child, so the live
         // metadata of the directory entry itself must not replace them.
@@ -127,25 +123,21 @@ pub fn size_details(snapshot: &TreeSnapshot, node_id: NodeId) -> Result<SizeDeta
 /// Returns `E_VALIDATION` for a malformed path and `E_NOT_FOUND` when the object
 /// is missing or its metadata cannot be read.
 pub fn inspect_path(path: &Path) -> Result<SizeDetails, UiError> {
-    let verbatim = paths::to_verbatim(path)
+    let normalized = paths::normalize(path)
         .map_err(|error| UiError::validation(format!("`{}`: {error}", paths::display(path))))?;
-    let facts = measure(&verbatim)
+    let facts = measure(&normalized)
         .ok_or_else(|| UiError::new(UiErrorCode::NotFound).with_details(paths::display(path)))?;
     let attributes = flags(facts.attribute_mask);
-    let link_target = reparse::inspect(&verbatim)
-        .ok()
-        .flatten()
-        .and_then(|info| info.target)
-        .map(|target| paths::display(&target));
+    let link_target = link_target(&normalized);
     let name = path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| paths::display(&verbatim));
+        .unwrap_or_else(|| paths::display(&normalized));
     let physical = facts.logical;
     let hardlink_contribution = facts.logical.saturating_sub(physical);
 
     Ok(SizeDetails {
-        path: paths::display(&verbatim),
+        path: paths::display(&normalized),
         name,
         logical_size: facts.logical,
         on_disk_size: facts.allocated,
@@ -216,32 +208,52 @@ pub fn metric_label(hardlink_contribution: u64) -> &'static str {
 
 /// Measures one path; returns `None` when it no longer exists or cannot be read.
 fn measure(path: &Path) -> Option<LiveFacts> {
-    let verbatim = paths::to_verbatim(path).ok()?;
-    let metadata = fs::symlink_metadata(&verbatim).ok()?;
+    let normalized = paths::normalize(path).ok()?;
+    let metadata = fs::symlink_metadata(&normalized).ok()?;
     let logical = metadata.len();
-    let allocated = allocated::allocated_size(&verbatim).unwrap_or(logical);
+    let allocated = platform()
+        .metadata
+        .allocated_size(&normalized)
+        .unwrap_or(logical);
     let ads = if metadata.is_dir() {
         0
     } else {
-        ads::streams_size(&verbatim).unwrap_or(0)
+        platform()
+            .metadata
+            .streams(&normalized)
+            .map(|streams| streams.iter().map(|stream| stream.size).sum())
+            .unwrap_or(0)
     };
+    let attribute_mask = platform()
+        .metadata
+        .attributes(&normalized)
+        .unwrap_or_default();
 
     Some(LiveFacts {
         logical,
         allocated,
         ads,
-        attribute_mask: {
-            #[cfg(windows)]
-            {
-                use std::os::windows::fs::MetadataExt as _;
-                metadata.file_attributes()
-            }
-            #[cfg(not(windows))]
-            {
-                0
-            }
-        },
+        attribute_mask,
     })
+}
+
+/// Returns the target of a symbolic link or junction as a display string.
+fn link_target(path: &Path) -> Option<String> {
+    #[cfg(windows)]
+    {
+        freespace_platform::reparse::inspect(path)
+            .ok()
+            .flatten()
+            .and_then(|info| info.target)
+            .map(|target| paths::display(&target))
+    }
+    #[cfg(not(windows))]
+    {
+        platform().metadata.link_kind(path).ok().flatten()?;
+        fs::read_link(path)
+            .ok()
+            .map(|target| paths::display(&target))
+    }
 }
 
 /// Returns the size metrics of a node as the scanner recorded them.

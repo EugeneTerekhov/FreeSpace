@@ -39,19 +39,20 @@ export const GROUPS: readonly NavGroup[] = [
   { id: 'overview', titleKey: 'nav.group.overview', screens: ['overview'] },
   { id: 'analysis', titleKey: 'nav.group.analysis', screens: ['tree', 'analysis', 'duplicates'] },
   { id: 'cleanup', titleKey: 'nav.group.cleanup', screens: ['cleanup'] },
-  { id: 'operations', titleKey: 'nav.group.operations', screens: ['journal', 'shred', 'monitor'] },
-  { id: 'tools', titleKey: 'nav.group.tools', screens: ['inspect', 'fileops'] },
+  { id: 'operations', titleKey: 'nav.group.operations', screens: ['journal', 'monitor'] },
+  { id: 'tools', titleKey: 'nav.group.tools', screens: ['inspect'] },
   { id: 'system', titleKey: 'nav.group.system', screens: ['settings'] },
 ];
 
 /**
- * The 11 screens in navigation order.
+ * The nine screens in navigation order.
  *
  * Screens absorbed by the recomposition stay visible as tabs or sections:
  * disks and scan → overview; size details → tree; top files, types and owners →
  * analysis; snapshots → cleanup; metadata, archives, unlock and long paths →
- * inspect; rename and permissions → fileops; elevation and about → settings.
- * Report export is a global action, not a screen.
+ * inspect; elevation and about → settings. Report export is a global action,
+ * not a screen. Rename and permissions are gone: renaming stays contextual in
+ * the tree, and the shredder is a Windows-only CLI command.
  */
 export const SCREENS: readonly ScreenMeta[] = [
   {
@@ -109,15 +110,6 @@ export const SCREENS: readonly ScreenMeta[] = [
     cliAnalog: 'journal',
   },
   {
-    id: 'shred',
-    group: 'operations',
-    titleKey: 'nav.shredder',
-    requiresVolume: false,
-    requiresScan: false,
-    capabilities: ['delete'],
-    cliAnalog: 'shred',
-  },
-  {
     id: 'monitor',
     group: 'operations',
     titleKey: 'nav.monitor',
@@ -134,15 +126,6 @@ export const SCREENS: readonly ScreenMeta[] = [
     requiresScan: true,
     capabilities: ['filter', 'delete', 'export'],
     cliAnalog: 'filter, archives, unlock',
-  },
-  {
-    id: 'fileops',
-    group: 'tools',
-    titleKey: 'nav.fileops',
-    requiresVolume: true,
-    requiresScan: true,
-    capabilities: ['filter', 'delete'],
-    cliAnalog: 'rename, acl, attrs',
   },
   {
     id: 'settings',
@@ -179,8 +162,10 @@ export const LEGACY_SCREEN_ALIASES: Readonly<Record<string, ScreenId>> = {
   metadata: 'inspect',
   archives: 'inspect',
   unlock: 'inspect',
-  rename: 'fileops',
-  permissions: 'fileops',
+  shred: 'journal',
+  fileops: 'tree',
+  rename: 'tree',
+  permissions: 'tree',
   elevation: 'settings',
   about: 'settings',
   export: 'analysis',

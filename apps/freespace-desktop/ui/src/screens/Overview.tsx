@@ -17,8 +17,9 @@ import { Field, Select } from '../components/Fields';
 import { SearchField } from '../components/Fields';
 import { t } from '../i18n';
 import { formatBytes, formatNumber, formatPercent } from '../i18n/format';
+import { scanMethods } from '../lib/capabilities';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useShellStore } from '../stores/shellStore';
+import { usePlatformCapabilities, useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
 import { useTasksStore } from '../stores/tasksStore';
 import { Panel, Screen, Stat, StatRow } from './ScreenFrame';
@@ -354,6 +355,8 @@ export function Overview() {
 
 /** Collapsed advanced form: path, method and exclusions for a scan. */
 function ScanOptions() {
+  const capabilities = usePlatformCapabilities();
+  const methods = scanMethods(capabilities);
   const [path, setPath] = useState('C:\\');
   const [method, setMethod] = useState<ScanMethodChoice>('auto');
   const [exclusions, setExclusions] = useState('');
@@ -414,11 +417,16 @@ function ScanOptions() {
             onChange={(event) => {
               setMethod(event.target.value as ScanMethodChoice);
             }}
-            options={[
-              { value: 'auto', label: t('scan.method_auto') },
-              { value: 'mft', label: t('scan.method_mft') },
-              { value: 'walk', label: t('scan.method_walk') },
-            ]}
+            options={methods.map((value) => ({
+              value,
+              label: t(
+                value === 'auto'
+                  ? 'scan.method_auto'
+                  : value === 'mft'
+                    ? 'scan.method_mft'
+                    : 'scan.method_walk',
+              ),
+            }))}
           />
         </Field>
         <Field id="overview-exclusions" label={t('scan.exclusions')}>
