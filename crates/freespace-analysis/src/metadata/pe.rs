@@ -131,6 +131,20 @@ mod tests {
     }
 
     #[test]
+    fn accepts_a_pe_without_a_version_resource() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("resource-less.exe");
+        std::fs::write(&path, minimal_pe64()).expect("write");
+
+        let tags = read(&path).expect("PE image");
+
+        // The image is readable but carries no `VS_VERSIONINFO`, so the tag map
+        // is empty rather than being reported as an error.
+        assert!(tags.is_empty(), "unexpected tags: {tags:?}");
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn reads_the_current_test_executable() {
         let executable = std::env::current_exe().expect("current executable");
         let tags = read(&executable).expect("PE image");
@@ -141,5 +155,37 @@ mod tests {
             tags.is_empty() || tags.contains_key("FileVersion"),
             "unexpected tags: {tags:?}"
         );
+    }
+
+    /// Builds the smallest well-formed PE32+ image: a DOS header pointing at the
+    /// NT headers and an empty section table. The test binaries of the other CI
+    /// targets are not PE images, so the parser needs a portable fixture.
+    fn minimal_pe64() -> Vec<u8> {
+        const PE_OFFSET: usize = 0x40;
+        const OPTIONAL_HEADER_SIZE: usize = 0xF0;
+        const HEADERS_SIZE: usize = PE_OFFSET + 4 + 20 + OPTIONAL_HEADER_SIZE;
+
+        let mut image = vec![0u8; HEADERS_SIZE];
+
+        // IMAGE_DOS_HEADER: the magic plus the offset of the NT headers.
+        image[0..2].copy_from_slice(b"MZ");
+        image[0x3c..0x40].copy_from_slice(&(PE_OFFSET as u32).to_le_bytes());
+
+        let nt = PE_OFFSET;
+        image[nt..nt + 4].copy_from_slice(b"PE\0\0");
+
+        let file_header = nt + 4;
+        image[file_header..file_header + 2].copy_from_slice(&0x8664_u16.to_le_bytes());
+        image[file_header + 2..file_header + 4].copy_from_slice(&0_u16.to_le_bytes());
+        image[file_header + 16..file_header + 18]
+            .copy_from_slice(&(OPTIONAL_HEADER_SIZE as u16).to_le_bytes());
+
+        let optional = file_header + 20;
+        image[optional..optional + 2].copy_from_slice(&0x20b_u16.to_le_bytes());
+        image[optional + 56..optional + 60].copy_from_slice(&(HEADERS_SIZE as u32).to_le_bytes());
+        image[optional + 60..optional + 64].copy_from_slice(&(HEADERS_SIZE as u32).to_le_bytes());
+        image[optional + 108..optional + 112].copy_from_slice(&16_u32.to_le_bytes());
+
+        image
     }
 }
