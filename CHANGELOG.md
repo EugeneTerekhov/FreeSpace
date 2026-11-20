@@ -6,15 +6,49 @@ All notable changes to FreeSpace are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-11-21
+
+### Added
+
+- Multi-volume snapshots: one scan now accepts one to 32 roots and creates a single snapshot whose
+  tree lists every volume as a top-level row. The Overview screen supports multi-select, the tree
+  totals and analysis screens cover all roots, and the CLI accepts several paths for `scan` and
+  `tree` (`freespace scan C:\ D:\ --json`). A failing root no longer discards the other roots.
+- `snapshot_volumes` IPC command returning every volume of a snapshot generation.
+
+### Changed
+
+- Cleanup recommendations are now filtered by reason in the shared filter row instead of being bulk-selected by category. The "Select all", "Clear selection" and category panel are gone; rows for deletion are picked manually with checkboxes (the selection column header checks or clears every filtered row). Multiple selected categories act as AND conditions (a reason and a file type can be combined); the backend applies the same filter to `cleanup_candidates`.
+- All checkboxes now use the same outlined box as the Monitor threshold filter, whether they come from the shared kit component or a bare table input.
+- The GUI no longer offers saving and reusing named filters. Saved filters could not be deleted
+  through the UI and provided little value; the filter bar still supports text, extension, size and
+  category conditions with active-condition chips.
+- `ScanRequest` now carries `paths` instead of `path`; the IPC version is raised to 2.
+- Tasks expose `volume_ids`, and scan summaries expose `methods` and `volumes`.
+- The operation journal records the volume that owns the target path instead of the first snapshot
+  volume.
+- Report export and `.fssnap` files keep recording the primary volume and list every root.
+- Type report: directories now form their own `folder` category ("Folders" in the GUI) in both the
+  GUI and `freespace types`; volume roots are never counted as folders. Selecting the no-extension
+  group now shows only extension-less files instead of every node in the tree.
+- The Overview selects volumes by clicking their cards; the scan options block only sets the method
+  and exclusions, and the current analysis is shown below the volume grid.
+- The GUI now always opens the Overview screen on launch; the stored `last_screen` is neither restored
+  nor overwritten. Deep links to other screens still work.
+
 ### Fixed
 
 - The portable archives now embed the frontend instead of pointing at the development server. A plain
   `cargo build --release` without the `custom-protocol` feature produced a GUI that showed
   `ERR_CONNECTION_REFUSED` for `http://localhost:1420`; `installer/portable.ps1` and
   `installer/portable.sh` enable the feature and a regression test guards it.
+- Analysis → File types now selects an extension when any part of its row is clicked (previously only
+  the small label button worked), so the file list on the right follows the selected extension.
+- The write monitor keeps its running session, counters, event history, form values and filters when
+  switching screens. Leaving the Monitor tab no longer resets it to "Ready"; returning reattaches to
+  the native task instead of asking to start a second session.
 
-
-## [2.0.0] тАФ 2026-11-20
+## [2.0.0] — 2026-11-20
 
 ### Added
 
@@ -71,7 +105,7 @@ All notable changes to FreeSpace are documented in this file. The format follows
 - Rename conflict checks respect case-sensitive Linux file systems, and paths beyond `PATH_MAX` are
   rejected before any data changes.
 
-## [1.3.0] тАФ 2026-11-19
+## [1.3.0] — 2026-11-19
 
 ### Added
 
@@ -108,12 +142,12 @@ All notable changes to FreeSpace are documented in this file. The format follows
   Recycle Bin call follows the file-system state, so a shell error after a
   successful move no longer leaves the row in the tree.
 
-## [1.2.0] тАФ 2026-11-16
+## [1.2.0] — 2026-11-16
 
 ### Added
 
 - Native Tauri 2 + React interface with 24 screens, dark/light/system themes,
-  100тАУ200% DPI support, reduced-motion and high-contrast handling, full keyboard
+  100–200% DPI support, reduced-motion and high-contrast handling, full keyboard
   navigation, Narrator announcements and a command palette.
 - Virtualized tree and data tables, a Canvas treemap with spatial keyboard
   navigation, synchronized selection and a details panel.
@@ -123,7 +157,7 @@ All notable changes to FreeSpace are documented in this file. The format follows
   golden contract fixtures for every command.
 - Russian and English localization generated from `locales/*.toml`, `Intl`
   formatting and a missing-key/cyrillic regression test.
-- Visual regression matrix (24 screens ├Ч 2 themes ├Ч 4 DPI ├Ч 2 languages), a
+- Visual regression matrix (24 screens × 2 themes × 4 DPI × 2 languages), a
   pull-request subset, axe accessibility matrix and storage/offline checks.
 - NSIS installer hooks that keep Explorer entries disabled, create `data` and
   delete it on uninstall, plus an optional fixed WebView2 runtime for portable
@@ -143,7 +177,7 @@ All notable changes to FreeSpace are documented in this file. The format follows
 
 - The egui/eframe client, its side-by-side UI and the Inno Setup script.
 
-## [1.1.0] тАФ 2026-11-16
+## [1.1.0] — 2026-11-16
 
 ### Added
 
@@ -168,7 +202,7 @@ All notable changes to FreeSpace are documented in this file. The format follows
 - `portable_mode` setting and `portable.flag` marker; storage is always
   application-local.
 
-## [1.0.0] тАФ 2026-11-16
+## [1.0.0] — 2026-11-16
 
 ### Added
 
