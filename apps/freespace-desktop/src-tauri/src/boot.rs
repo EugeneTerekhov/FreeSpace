@@ -143,10 +143,18 @@ mod tests {
 
     #[test]
     fn resolves_the_profile_inside_data() {
-        let data = std::path::Path::new(r"C:\Tools\FreeSpace\data");
+        let data = std::path::Path::new("FreeSpace/data");
+        let profile = webview2_data_dir(data);
+
         assert_eq!(
-            webview2_data_dir(data),
-            std::path::PathBuf::from(r"C:\Tools\FreeSpace\data\webview2")
+            profile.file_name(),
+            Some(std::ffi::OsStr::new("webview2")),
+            "the profile directory keeps its name"
+        );
+        assert_eq!(
+            profile.parent(),
+            Some(data),
+            "the profile directory stays inside the data directory"
         );
     }
 

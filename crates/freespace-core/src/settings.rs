@@ -604,10 +604,12 @@ dashboard = []
     #[test]
     fn keeps_settings_beside_the_executable() {
         let data_root = Path::new(r"C:\Tools\FreeSpace\data");
+        let path = settings_path(data_root);
 
+        assert_eq!(path.parent(), Some(data_root));
         assert_eq!(
-            settings_path(data_root),
-            Path::new(r"C:\Tools\FreeSpace\data\settings.toml")
+            path.file_name(),
+            Some(std::ffi::OsStr::new("settings.toml"))
         );
     }
 
