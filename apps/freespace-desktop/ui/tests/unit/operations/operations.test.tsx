@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   JournalEntryView,
@@ -18,6 +18,7 @@ import { Journal } from '../../../src/screens/Journal';
 import { Monitor } from '../../../src/screens/Monitor';
 import { needsElevation, elevationError } from '../../../src/operations/elevation';
 import { LINUX_CAPABILITIES } from '../../../src/lib/capabilities';
+import { useMonitorStore } from '../../../src/stores/monitorStore';
 import { sharedTransport } from '../../helpers/mockTransport';
 import { renderWithI18n } from '../../helpers/render';
 
@@ -340,6 +341,10 @@ describe('journal undo', () => {
 });
 
 describe('write monitor', () => {
+  beforeEach(() => {
+    useMonitorStore.getState().reset();
+  });
+
   it('starts, renders owner, path and size, and stops with a visible state', async () => {
     const user = userEvent.setup();
     const transport = sharedTransport();
@@ -388,6 +393,39 @@ describe('write monitor', () => {
     expect(screen.getAllByText(t('status.finished')).length).toBeGreaterThan(0);
   });
 
+  it('keeps the running session, history and filters when the screen is remounted', async () => {
+    const user = userEvent.setup();
+    const transport = sharedTransport();
+    const original = transport.invoke.bind(transport);
+    const invoke = vi.spyOn(transport, 'invoke').mockImplementation(((
+      command: CommandName,
+      args?: Record<string, unknown>,
+    ) => original(command, args)));
+
+    const mounted = renderWithI18n(<Monitor />);
+    await user.click(screen.getByRole('button', { name: t('monitor.start') }));
+    expect(await screen.findByText('explorer.exe')).toBeInTheDocument();
+
+    const taskId = screen.getByTestId('monitor-status').getAttribute('data-task-id') ?? '';
+    expect(taskId).not.toBe('');
+
+    await user.type(screen.getByRole('searchbox', { name: t('monitor.paths') }), 'report');
+
+    // The router unmounts the screen when another tab is opened.
+    mounted.unmount();
+
+    renderWithI18n(<Monitor />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(t('monitor.running')).length).toBeGreaterThan(0);
+      expect(screen.getByTestId('monitor-status')).toHaveAttribute('data-task-id', taskId);
+      expect(screen.getByText('C:\\Users\\Public\\Documents\\report.tmp')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('searchbox', { name: t('monitor.paths') })).toHaveValue('report');
+    // Returning to the tab must reattach, not launch a second session.
+    expect(invoke.mock.calls.filter(([command]) => command === 'monitor_start')).toHaveLength(1);
+  });
+
   it('appends live tick events to the table', async () => {
     const user = userEvent.setup();
     renderWithI18n(<Monitor />);
@@ -430,5 +468,133 @@ describe('write monitor', () => {
     await user.click(screen.getByRole('button', { name: t('monitor.start') }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(t('error.validation'));
+  });
+
+  it('sorts events by date in both directions', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Monitor />);
+    await user.click(screen.getByRole('button', { name: t('monitor.start') }));
+    expect(await screen.findByText('explorer.exe')).toBeInTheDocument();
+
+    const header = screen.getByRole('button', { name: t('monitor.date') });
+    expect(header.closest('[role="columnheader"]')).toHaveAttribute('aria-sort', 'descending');
+
+    const eventRows = () => screen.getAllByRole('row').slice(1);
+    expect(eventRows()[0]).toHaveTextContent('backup-agent.exe');
+
+    await user.click(header);
+    expect(header.closest('[role="columnheader"]')).toHaveAttribute('aria-sort', 'ascending');
+    expect(eventRows()[0]).toHaveTextContent('explorer.exe');
+  });
+
+  it('opens the file and executable folders from the row actions', async () => {
+    const user = userEvent.setup();
+    const transport = sharedTransport();
+    const original = transport.invoke.bind(transport);
+    const invoke = vi.spyOn(transport, 'invoke').mockImplementation(((
+      command: CommandName,
+      args?: Record<string, unknown>,
+    ) => original(command, args)));
+
+    renderWithI18n(<Monitor />);
+    await user.click(screen.getByRole('button', { name: t('monitor.start') }));
+    expect(await screen.findByText('explorer.exe')).toBeInTheDocument();
+
+    const row = await screen.findByRole('row', { name: /explorer\.exe/ });
+    await user.click(within(row).getByRole('button', { name: t('monitor.open_file_folder') }));
+    await user.click(
+      within(row).getByRole('button', { name: t('monitor.open_executable_folder') }),
+    );
+
+    expect(invoke).toHaveBeenCalledWith('monitor_reveal_file', {
+      path: 'C:\\Users\\Public\\Documents\\report.tmp',
+    });
+    expect(invoke).toHaveBeenCalledWith('monitor_reveal_executable', { process_id: 1420 });
+  });
+
+  it('shows detailed event information on hover', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Monitor />);
+    await user.click(screen.getByRole('button', { name: t('monitor.start') }));
+
+    const row = await screen.findByRole('row', { name: /explorer\.exe/ });
+    await user.hover(row);
+
+    const card = await screen.findByRole('tooltip', {
+      name: t('operations.monitor.events'),
+    });
+    expect(within(card).getByText('C:\\Users\\Public\\Documents\\report.tmp')).toBeInTheDocument();
+    expect(within(card).getByText(t('monitor.sequence'))).toBeInTheDocument();
+    expect(within(card).getByText(t('monitor.threshold_hit'))).toBeInTheDocument();
+  });
+
+  it('shows PID in its own column instead of the threshold column', async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<Monitor />);
+    await user.click(screen.getByRole('button', { name: t('monitor.start') }));
+
+    expect(
+      screen.getByRole('columnheader', { name: t('monitor.pid') }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: t('monitor.threshold_hit') }),
+    ).not.toBeInTheDocument();
+
+    const row = await screen.findByRole('row', { name: /explorer\.exe/ });
+    expect(row).toHaveTextContent(/1\s*420/);
+  });
+
+  it('hides the path and its file action in counter mode and explains it on hover', async () => {
+    const user = userEvent.setup();
+    const transport = sharedTransport();
+    const original = transport.invoke.bind(transport);
+    vi.spyOn(transport, 'invoke').mockImplementation(((
+      command: CommandName,
+      args?: Record<string, unknown>,
+    ) => {
+      if (command === 'monitor_status') {
+        return Promise.resolve({
+          task_id: 'monitor-counters',
+          running: true,
+          state: 'running',
+          source: 'counters',
+          source_key: 'monitor.source.counters',
+          threshold_bytes: 0,
+          interval_secs: 2,
+          exclusions: [],
+          events_count: 1,
+          bytes_total: 2048,
+          started_at: 0,
+          finished_at: null,
+          last_event_at: 0,
+          warnings: [],
+          error: null,
+        });
+      }
+
+      return original(command, args);
+    }));
+
+    renderWithI18n(<Monitor />);
+    await user.click(screen.getByRole('button', { name: t('monitor.start') }));
+    expect(await screen.findByText('explorer.exe')).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole('columnheader', { name: t('monitor.path') }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: t('monitor.open_file_folder') }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: t('monitor.open_executable_folder') }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(5);
+
+    const row = await screen.findByRole('row', { name: /explorer\.exe/ });
+    await user.hover(row);
+    const card = await screen.findByRole('tooltip', {
+      name: t('operations.monitor.events'),
+    });
+    expect(within(card).getByText(t('monitor.path_unavailable'))).toBeInTheDocument();
   });
 });

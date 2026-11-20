@@ -174,6 +174,8 @@ export class MockTransport implements Transport {
   volumes: VolumeSummary[] = [];
   tasks: Task[] = [];
   generation = 1;
+  /** Volumes of the latest mock scan, used by `snapshot_volumes`. */
+  snapshotVolumeIds: string[] = [];
   /**
    * Capabilities the mock backend advertises. Tests and the browser preview can
    * switch this to `LINUX_CAPABILITIES` to exercise capability-driven hiding.
@@ -195,6 +197,9 @@ export class MockTransport implements Transport {
 
   constructor() {
     this.seedVolumes();
+    // The preview starts with a one-volume snapshot; scanning another volume
+    // adds its root to the same tree.
+    this.snapshotVolumeIds = this.volumes[0] === undefined ? [] : [this.volumes[0].volume_id];
     this.seedTree();
     this.seedHandlers();
   }
@@ -257,6 +262,19 @@ export class MockTransport implements Transport {
       clearTimeout(timer);
     }
     this.timers.clear();
+  }
+
+  /** Rows that belong to volumes of the current mock snapshot. */
+  private get snapshotRows(): NodeRow[] {
+    if (this.snapshotVolumeIds.length === 0) return this.rows;
+
+    return this.rows.filter((row) => {
+      const volume = this.volumes.find((item) =>
+        row.path.toLowerCase().startsWith(item.mount_point.toLowerCase()),
+      );
+
+      return volume === undefined || this.snapshotVolumeIds.includes(volume.volume_id);
+    });
   }
 
   private addRow(
@@ -409,6 +427,22 @@ export class MockTransport implements Transport {
     this.addRow(45, 11, 'ManifestCache', 'directory', 30 * GB);
     this.addRow(46, 11, 'TempCache', 'directory', 25 * GB);
     this.addRow(47, 11, 'Backup', 'directory', 25 * GB);
+
+    // The second seeded volume makes the multi-volume preview and tests
+    // representative: both roots exist in the mock tree from the start.
+    this.addRow(100, null, 'D:\\', 'directory', 900 * GB, {
+      child_count: 3,
+      file_count: 120_000,
+    });
+    this.addRow(101, 100, 'Media', 'directory', 500 * GB, {
+      child_count: 1,
+      file_count: 80_000,
+    });
+    this.addRow(102, 101, 'Movies', 'directory', 500 * GB, { child_count: 1 });
+    this.addRow(103, 102, 'film.mkv', 'file', 500 * GB);
+    this.addRow(104, 100, 'Projects', 'directory', 300 * GB, { child_count: 1 });
+    this.addRow(105, 104, 'project.zip', 'file', 300 * GB);
+    this.addRow(106, 100, 'backup.bin', 'file', 100 * GB);
   }
 
   private seedHandlers(): void {
@@ -444,19 +478,41 @@ export class MockTransport implements Transport {
     this.handlers.set('volumes_list', () => this.volumes);
     this.handlers.set('volumes_refresh', () => this.volumes);
     this.handlers.set('volumes_current', () => this.volumes[0]);
+    this.handlers.set('snapshot_volumes', () => {
+      if (this.snapshotVolumeIds.length === 0) return this.volumes;
+      return this.volumes.filter((volume) =>
+        this.snapshotVolumeIds.includes(volume.volume_id),
+      );
+    });
     this.handlers.set('volumes_summary', (args) => this.volumeDetail(asString(args.volume_id)));
     this.handlers.set('scan_start', (args) => this.startScan(args));
     this.handlers.set('scan_status', (args) => this.task(asString(args.task_id)));
     this.handlers.set('scan_cancel', (args) => this.cancel(asString(args.task_id)));
     this.handlers.set('scan_sessions', () => []);
-    this.handlers.set('tree_root', (args) => this.page([0], args));
+    this.handlers.set('tree_root', (args) => {
+      const selected = this.snapshotVolumeIds;
+      const ids = this.rows
+        .filter((row) => row.parent_id === null)
+        .filter(
+          (row) =>
+            selected.length === 0 ||
+            this.volumes.some(
+              (volume) =>
+                selected.includes(volume.volume_id) &&
+                row.path.toLowerCase() === volume.mount_point.toLowerCase(),
+            ),
+        )
+        .map((row) => row.id);
+
+      return this.page(ids, args);
+    });
     this.handlers.set('tree_children', (args) => {
       const parent = Number(args.parent_id);
       return this.page(this.children.get(parent) ?? [], args);
     });
     this.handlers.set('tree_search', (args) => {
       const query = asString(args.query).toLowerCase();
-      const ids = this.rows
+      const ids = this.snapshotRows
         .filter((row) => row.name.toLowerCase().includes(query))
         .map((row) => row.id);
       return this.page(ids, args);
@@ -498,6 +554,7 @@ export class MockTransport implements Transport {
       kind: 'snapshot_compare',
       state: 'completed',
       volume_id: null,
+      volume_ids: [],
       progress: null,
       started_at: Date.now(),
       finished_at: Date.now(),
@@ -536,7 +593,7 @@ export class MockTransport implements Transport {
 
   private topFiles(args: Record<string, unknown>): unknown {
     const limit = Number(args.limit ?? 100);
-    const fileIds = this.rows
+    const fileIds = this.snapshotRows
       .filter((row) => row.kind === 'file')
       .sort((left, right) => right.logical_size - left.logical_size)
       .slice(0, limit)
@@ -550,7 +607,7 @@ export class MockTransport implements Transport {
     if (args.group_by === 'category') {
       const groups = new Map<string, { count: number; logical: number; onDisk: number; physical: number }>();
       let total = 0;
-      for (const row of this.rows) {
+      for (const row of this.snapshotRows) {
         if (row.kind !== 'file') continue;
         if (filter.text !== '' && !row.name.toLowerCase().includes(filter.text.toLowerCase())) continue;
         const category = categoryKey(row.name);
@@ -561,6 +618,15 @@ export class MockTransport implements Transport {
         entry.physical += row.physical_size;
         groups.set(category, entry);
         total += row.logical_size;
+      }
+      // Directories form their own category, but volume roots do not belong
+      // to it. Directory sizes are aggregates of their children, so counting
+      // them here would double count file bytes.
+      const folders = this.snapshotRows.filter(
+        (row) => row.kind === 'directory' && row.parent_id !== null,
+      ).length;
+      if (folders > 0) {
+        groups.set('folder', { count: folders, logical: 0, onDisk: 0, physical: 0 });
       }
       return [...groups.entries()]
         .map(([category, entry]) => ({
@@ -577,7 +643,7 @@ export class MockTransport implements Transport {
 
     const groups = new Map<string, { count: number; logical: number; onDisk: number; physical: number }>();
     let total = 0;
-    for (const row of this.rows) {
+    for (const row of this.snapshotRows) {
       if (row.kind !== 'file') continue;
       if (filter.text !== '' && !row.name.toLowerCase().includes(filter.text.toLowerCase())) continue;
       const extension = row.name.includes('.')
@@ -609,10 +675,13 @@ export class MockTransport implements Transport {
     const type = asString(args.file_type);
     const category = type.startsWith('category:') ? type.slice('category:'.length) : null;
     const extension = category === null ? type.replace('.', '').toLowerCase() : null;
-    const ids = this.rows
+    const ids = this.snapshotRows
       .filter((row) => {
+        if (category === 'folder') {
+          return row.kind === 'directory' && row.parent_id !== null;
+        }
+        if (category !== null) return row.kind === 'file' && categoryKey(row.name) === category;
         if (row.kind !== 'file') return false;
-        if (category !== null) return categoryKey(row.name) === category;
         const found = row.name.includes('.')
           ? (row.name.split('.').pop() ?? '').toLowerCase()
           : '';
@@ -632,7 +701,7 @@ export class MockTransport implements Transport {
       exclusions: [],
     };
     const bySize = new Map<number, NodeRow[]>();
-    for (const row of this.rows) {
+    for (const row of this.snapshotRows) {
       if (row.kind !== 'file' || row.logical_size < request.min_size) continue;
       const bucket = bySize.get(row.logical_size) ?? [];
       bucket.push(row);
@@ -726,7 +795,7 @@ export class MockTransport implements Transport {
   private cleanupCandidates(args: Record<string, unknown>): CleanupCandidateView[] {
     const olderThan = Number(args.older_than_days ?? 180);
     const candidates: CleanupCandidateView[] = [];
-    for (const row of this.rows) {
+    for (const row of this.snapshotRows) {
       if (row.kind !== 'file' && row.kind !== 'directory') continue;
       const name = row.name.toLowerCase();
       const category = name.includes('cache')
@@ -759,7 +828,7 @@ export class MockTransport implements Transport {
   }
 
   private emptyDirs(args: Record<string, unknown>): unknown {
-    const ids = this.rows
+    const ids = this.snapshotRows
       .filter((row) => row.kind === 'directory' && row.child_count === 0)
       .map((row) => row.id);
 
@@ -775,8 +844,8 @@ export class MockTransport implements Transport {
       volume_id: this.volumes[0]?.volume_id ?? 'volume',
       mount_point: this.volumes[0]?.mount_point ?? 'C:\\',
       created_at: new Date().toISOString(),
-      node_count: this.rows.length,
-      file_size: this.rows.length * 128,
+      node_count: this.snapshotRows.length,
+      file_size: this.snapshotRows.length * 128,
     };
     this.snapshots = [snapshot, ...this.snapshots];
 
@@ -1031,7 +1100,7 @@ export class MockTransport implements Transport {
   private page(ids: number[], args: Record<string, unknown>): unknown {
     const metric = (args.metric as 'logical' | 'on_disk' | 'physical' | undefined) ?? 'on_disk';
     const sort =
-      (args.sort as { key: 'name' | 'size' | 'modified' | 'items'; descending: boolean } | undefined) ??
+      (args.sort as { key: 'name' | 'path' | 'size' | 'modified' | 'items'; descending: boolean } | undefined) ??
       { key: 'size', descending: true };
     const filter = (args.filter as FilterSet | undefined) ?? emptyFilter();
     const pageSize = Number(args.page_size ?? 500);
@@ -1066,11 +1135,13 @@ export class MockTransport implements Transport {
       const comparison =
         sort.key === 'name'
           ? left.name.localeCompare(right.name)
-          : sort.key === 'modified'
-            ? (left.modified_at ?? 0) - (right.modified_at ?? 0)
-            : sort.key === 'items'
-              ? left.child_count - right.child_count
-              : sizeOf(left) - sizeOf(right);
+          : sort.key === 'path'
+            ? left.path.localeCompare(right.path)
+            : sort.key === 'modified'
+              ? (left.modified_at ?? 0) - (right.modified_at ?? 0)
+              : sort.key === 'items'
+                ? left.child_count - right.child_count
+                : sizeOf(left) - sizeOf(right);
 
       return sort.descending ? -comparison : comparison;
     });
@@ -1094,15 +1165,44 @@ export class MockTransport implements Transport {
   private startScan(args: Record<string, unknown>): unknown {
     const taskId = `mock-scan-${this.tasks.length + 1}`;
     const targetGeneration = this.generation + 1;
+    const request = (args.request ?? args) as {
+      paths?: unknown;
+      path?: unknown;
+      merge?: unknown;
+    };
+    const paths = Array.isArray(request.paths)
+      ? request.paths.filter((path): path is string => typeof path === 'string')
+      : [asString(request.path, 'C:\\')];
+    const scanned = paths.length === 0 ? ['C:\\'] : paths;
+    const scannedVolumeIds: string[] = [];
+    for (const path of scanned) {
+      const volume = this.volumes.find((item) =>
+        path.toLowerCase().startsWith(item.mount_point.toLowerCase()),
+      );
+      if (volume !== undefined && !scannedVolumeIds.includes(volume.volume_id)) {
+        scannedVolumeIds.push(volume.volume_id);
+      }
+    }
+    if (scannedVolumeIds.length === 0 && this.volumes[0] !== undefined) {
+      scannedVolumeIds.push(this.volumes[0].volume_id);
+    }
+    const snapshotVolumeIds =
+      request.merge === true ? [...this.snapshotVolumeIds] : [];
+    for (const volumeId of scannedVolumeIds) {
+      if (!snapshotVolumeIds.includes(volumeId)) snapshotVolumeIds.push(volumeId);
+    }
+    this.snapshotVolumeIds = snapshotVolumeIds;
+
     const task: Task = {
       task_id: taskId,
       kind: 'scan',
       state: 'running',
-      volume_id: this.volumes[0]?.volume_id ?? null,
+      volume_id: scannedVolumeIds[0] ?? null,
+      volume_ids: scannedVolumeIds,
       progress: {
         processed: 0,
         total: 180_000,
-        current_path: asString(args.path, 'C:\\'),
+        current_path: scanned[0] ?? 'C:\\',
         bytes_per_second: null,
         items_per_second: null,
         phase_key: 'scan.phase.preparing',
@@ -1133,7 +1233,7 @@ export class MockTransport implements Transport {
               : step > 0.6
                 ? 'scan.phase.aggregating'
                 : 'scan.phase.enumerating',
-          current_path: asString(args.path, 'C:\\'),
+          current_path: scanned[0] ?? 'C:\\',
           bytes: Math.round(760 * GB * step),
           bytes_per_second: 420 * MB,
         };
@@ -1162,7 +1262,11 @@ export class MockTransport implements Transport {
               summary: {
                 nodes_count: 180_000,
                 method: 'mft',
-                roots: [asString(args.path, 'C:\\')],
+                methods: scanned.map(() => 'mft'),
+                roots: scanned,
+                volumes: this.volumes
+                  .filter((volume) => scannedVolumeIds.includes(volume.volume_id))
+                  .map((volume) => volume.mount_point),
                 warnings: [],
                 issues_count: 0,
                 elapsed_ms: 2_400,

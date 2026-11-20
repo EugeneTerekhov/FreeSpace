@@ -36,15 +36,17 @@ fn scanned() -> (tempfile::TempDir, TreeSnapshot) {
     fs::write(directory.path().join("notes.txt"), b"notes").expect("file");
 
     let request = freespace_app::dto::ScanRequest {
-        path: directory.path().to_string_lossy().into_owned(),
+        paths: vec![directory.path().to_string_lossy().into_owned()],
         method: freespace_app::dto::ScanMethodChoice::Walk,
         incremental: false,
         exclusions: Vec::new(),
         include_ads: false,
         metric: Metric::OnDisk,
+        merge: false,
     };
     let outcome = run_scan(&request, &mut NoopObserver).expect("scan");
-    let snapshot = TreeSnapshot::new(outcome.tree, 1, outcome.volume, Some(outcome.session));
+    let (tree, volumes, sessions) = outcome.into_snapshot_parts();
+    let snapshot = TreeSnapshot::new_multi(tree, 1, volumes, sessions);
 
     (directory, snapshot)
 }

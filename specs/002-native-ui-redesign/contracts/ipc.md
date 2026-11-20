@@ -105,9 +105,12 @@
 
 ## 6. Анализ и очистка
 
+`sort` принимает ключи `name`, `path`, `size`, `modified`, `items`. Ключ `path` сортирует по полному
+пути и поэтому группирует объекты по томам в мультитомном снимке.
+
 | Команда | Вход | Выход | Ошибки |
 |---------|------|-------|--------|
-| `top_files_page` | `{ generation, limit, filter, cursor?, page_size }` | `TreePage` | `E_STALE_CURSOR` |
+| `top_files_page` | `{ generation, limit, metric?, sort?, filter, cursor?, page_size }` | `TreePage` | `E_STALE_CURSOR` |
 | `types_summary` | `{ generation, filter }` | `TypeSummary[]` | `E_STALE_CURSOR` |
 | `types_files_page` | `{ generation, type, filter, cursor?, page_size }` | `TreePage` | `E_STALE_CURSOR` |
 | `duplicates_start` | `{ path, min_size, algorithm, keep_rule, exclusions }` | `{ task_id }` | `E_VALIDATION`, `E_BUSY` |
@@ -201,7 +204,13 @@ CLI-аналога: это навигационное действие обол�
 | `monitor_stop` | `{ task_id }` | `{}` | `E_NOT_FOUND` |
 | `monitor_status` | `{ task_id }` | `MonitorStatus` | `E_NOT_FOUND` |
 | `monitor_events_page` | `{ task_id, filter, cursor?, page_size }` | `MonitorEventPage` | `E_STALE_CURSOR` |
+| `monitor_reveal_file` | `{ path }` | `{}` | `E_VALIDATION`, `E_NOT_FOUND`, `E_ACCESS_DENIED` |
+| `monitor_reveal_executable` | `{ process_id }` | `{}` | `E_VALIDATION`, `E_NOT_FOUND`, `E_ACCESS_DENIED` |
 | `monitor_set_exclusions` | `{ exclusions }` | `{}` | `E_VALIDATION` |
+
+`monitor_reveal_file` и `monitor_reveal_executable` открывают в Проводнике папку файла или
+исполняемого файла процесса из события мониторинга; они не ограничены областью снимка и ничего не
+меняют.
 
 Правила: `operation_confirm` без действующего `preview_id` + `confirmation_token` запрещён;
 `shred` всегда безвозвратен и требует отдельного подтверждения; `operation_cancel` может

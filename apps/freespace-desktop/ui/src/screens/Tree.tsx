@@ -13,7 +13,6 @@ import type {
   UiError,
 } from '../api/dto';
 import { fetchSizeDetails } from '../api/filesystem';
-import { Breadcrumbs } from '../app/AppShell';
 import { normalizeError } from '../app/errors';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Choice';
@@ -25,10 +24,8 @@ import {
   type RowAnchor,
   type SortState,
 } from '../components/DataTable';
-import { ExportAction } from '../components/ExportAction';
 import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
 import { FilterBar } from '../components/FilterBar';
-import { SearchField } from '../components/Fields';
 import {
   HoverCard,
   HoverCardHead,
@@ -55,8 +52,6 @@ import { usePlatformCapabilities, useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
 import { Panel, Screen } from './ScreenFrame';
 import styles from './tree.module.css';
-
-type Mode = 'browse' | 'search';
 
 /** Shown wherever the core has no value for a field; never a made-up number. */
 const MISSING = '—';
@@ -107,6 +102,7 @@ function toSortSpec(sort: SortState): SortSpec {
 export function Tree() {
   const generation = useSnapshotStore((state) => state.generation);
   const volume = useSnapshotStore((state) => state.volume);
+  const volumes = useSnapshotStore((state) => state.volumes);
   const hiddenPaths = useSnapshotStore((state) => state.hiddenPaths);
   const hidePath = useSnapshotStore((state) => state.hidePath);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
@@ -123,9 +119,6 @@ export function Tree() {
   const [parentId, setParentId] = useState<number | null>(null);
   const [sort, setSort] = useState<SortState>({ key: 'size', descending: true });
   const [filter, setFilter] = useState<FilterSet>(emptyFilter);
-  const [mode, setMode] = useState<Mode>('browse');
-  const [query, setQuery] = useState('');
-  const [activeQuery, setActiveQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<UiError | null>(null);
   const [selected, setSelected] = useState<NodeRow | null>(null);
@@ -162,21 +155,14 @@ export function Tree() {
       try {
         const sortSpec = toSortSpec(sort);
         const result =
-          mode === 'search'
-            ? await api.treeSearch(generation, activeQuery, {
+          parent === null
+            ? await api.treeRoot(generation, { sort: sortSpec, pageSize: 500, cursor })
+            : await api.treeChildren(generation, parent, {
                 sort: sortSpec,
                 filter,
                 pageSize: 500,
                 cursor,
-              })
-            : parent === null
-              ? await api.treeRoot(generation, { sort: sortSpec, pageSize: 500, cursor })
-              : await api.treeChildren(generation, parent, {
-                  sort: sortSpec,
-                  filter,
-                  pageSize: 500,
-                  cursor,
-                });
+              });
 
         setRows((current) =>
           cursor === undefined || cursor === null ? result.rows : [...current, ...result.rows],
@@ -188,13 +174,13 @@ export function Tree() {
         setLoading(false);
       }
     },
-    [activeQuery, filter, generation, mode, sort],
+    [filter, generation, sort],
   );
 
   useEffect(() => {
     if (generation === null) return;
-    void load(mode === 'search' ? null : parentId);
-  }, [generation, load, mode, parentId]);
+    void load(parentId);
+  }, [generation, load, parentId]);
 
   const closeHover = useCallback(() => {
     if (hoverTimer.current !== null) {
@@ -207,14 +193,14 @@ export function Tree() {
     setDetailsLoading(false);
   }, []);
 
-  // Expanded branches belong to one listing; a new directory, sort, query or
-  // filter starts collapsed again and drops the size card of the old rows.
+  // Expanded branches belong to one listing; a new directory, sort or filter
+  // starts collapsed again and drops the size card of the old rows.
   useEffect(() => {
     setExpanded(new Set());
     setChildrenByParent({});
     setNotice(null);
     closeHover();
-  }, [closeHover, generation, parentId, mode, activeQuery, sort.key, sort.descending, filter]);
+  }, [closeHover, generation, parentId, sort.key, sort.descending, filter]);
 
   const expand = useCallback(
     async (row: NodeRow) => {
@@ -350,13 +336,19 @@ export function Tree() {
     return map;
   }, [childrenByParent, rows, trail]);
 
-  /** The whole scope: the volume row when known, otherwise the volume itself. */
+  /** The whole scope: the sum of every root row, otherwise the volumes. */
   const totalSize = useMemo(() => {
-    const root = rows.find((row) => row.parent_id === null) ?? trail[0];
-    if (root !== undefined) return Math.max(0, root.on_disk_size);
+    const roots = rows.filter((row) => row.parent_id === null);
+    if (roots.length > 0) {
+      return roots.reduce((sum, row) => sum + Math.max(0, row.on_disk_size), 0);
+    }
+    if (trail[0] !== undefined) return Math.max(0, trail[0].on_disk_size);
+    if (volumes.length > 0) {
+      return volumes.reduce((sum, item) => sum + Math.max(0, item.used_bytes), 0);
+    }
 
     return Math.max(0, volume?.used_bytes ?? 0);
-  }, [rows, trail, volume]);
+  }, [rows, trail, volume, volumes]);
 
   const parentSizeOf = useCallback(
     (row: NodeRow): number => {
@@ -378,9 +370,6 @@ export function Tree() {
       .then(([node, ancestors]) => {
         if (!active) return;
         selectedId.current = node.id;
-        setMode('browse');
-        setActiveQuery('');
-        setQuery('');
         setTrail(ancestors);
         setParentId(node.parent_id);
         setSelected(node);
@@ -592,25 +581,10 @@ export function Tree() {
       selectedId.current = row.id;
       setTrail([...ancestors, row]);
       setParentId(row.id);
-      setMode('browse');
-      setActiveQuery('');
-      setQuery('');
       setSelected(row);
     } catch (cause) {
       setError(normalizeError(cause));
     }
-  };
-
-  const goToTrail = (index: number) => {
-    const nextTrail = trail.slice(0, index + 1);
-    const target = nextTrail[index] ?? null;
-    selectedId.current = target?.id ?? null;
-    setTrail(nextTrail);
-    setParentId(target === null ? null : target.id);
-    setMode('browse');
-    setActiveQuery('');
-    setQuery('');
-    setSelected(target);
   };
 
   const up = () => {
@@ -620,44 +594,8 @@ export function Tree() {
     selectedId.current = target?.id ?? null;
     setTrail(nextTrail);
     setParentId(target === null ? null : target.id);
-    setMode('browse');
-    setActiveQuery('');
-    setQuery('');
     setSelected(target);
   };
-
-  const goRoot = () => {
-    selectedId.current = null;
-    setTrail([]);
-    setParentId(null);
-    setMode('browse');
-    setActiveQuery('');
-    setQuery('');
-    setSelected(null);
-  };
-
-  const runSearch = () => {
-    const needle = query.trim();
-    if (needle === '') return;
-    selectedId.current = null;
-    setMode('search');
-    setActiveQuery(needle);
-    setTrail([]);
-    setParentId(null);
-    setSelected(null);
-  };
-
-  const breadcrumbs = [
-    {
-      label: t('nav.tree'),
-      onClick: goRoot,
-    },
-    ...trail.map((node, index) => ({
-      label: node.name,
-      onClick: index === trail.length - 1 ? undefined : () => goToTrail(index),
-    })),
-    ...(mode === 'search' ? [{ label: t('tree.search_results') }] : []),
-  ];
 
   const columns: Column<NodeRow>[] = [
     {
@@ -682,7 +620,7 @@ export function Tree() {
     {
       id: 'size',
       header: t('tree.sort.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       sortable: true,
       render: (row) => formatBytes(row.on_disk_size, units),
@@ -698,7 +636,7 @@ export function Tree() {
     {
       id: 'modified',
       header: t('details.modified'),
-      width: '180px',
+      width: '112px',
       sortable: true,
       render: (row) => formatDateCompact(row.modified_at),
     },
@@ -737,14 +675,10 @@ export function Tree() {
     );
   }
 
-  const scope =
-    mode === 'search'
-      ? t('tree.search_results')
-      : trail.at(-1)?.path ?? volume?.mount_point ?? t('nav.tree');
   const nextCursor = page?.next_cursor ?? null;
 
   const hasInaccessible = visible.rows.some((row) => !row.accessible);
-  const emptyLabel = mode === 'search' ? t('tree.no_matches') : t('tree.empty');
+  const emptyLabel = t('tree.empty');
 
   // A volume root is the device itself: neither its name nor its contents can
   // be renamed or recycled from here.
@@ -794,39 +728,7 @@ export function Tree() {
         ];
 
   return (
-    <Screen
-      context={scope}
-      actions={
-        <>
-          <form
-            className={styles.searchForm}
-            onSubmit={(event) => {
-              event.preventDefault();
-              runSearch();
-            }}
-            onKeyDown={(event) => {
-              // The first Escape clears the written text (SearchField); a second
-              // one on an empty field leaves the search results.
-              if (event.key !== 'Escape' || mode !== 'search' || query !== '') return;
-              goRoot();
-            }}
-          >
-            <SearchField
-              className={styles.search}
-              label={t('tree.search')}
-              placeholder={t('tree.search_placeholder')}
-              value={query}
-              loading={loading}
-              onValueChange={setQuery}
-            />
-            <Button type="submit" variant="secondary">
-              {t('tree.search')}
-            </Button>
-          </form>
-          <ExportAction sections={['tree']} />
-        </>
-      }
-    >
+    <Screen>
       {error !== null ? (
         <Banner
           tone="error"
@@ -862,12 +764,7 @@ export function Tree() {
       ) : null}
 
       <Panel hint={t('tree2.hover_hint')}>
-        <div className={styles.toolbar}>
-          <Breadcrumbs items={breadcrumbs} />
-        </div>
-
         <FilterBar
-          screen="tree"
           filter={filter}
           disabled={loading}
           onChange={setFilter}
@@ -1106,7 +1003,7 @@ function SizeDetailsContent({
         <HoverCardMetric label={t('tree2.savings')} value={savings} />
         <HoverCardMetric
           label={t('details.modified')}
-          value={formatDateTimeCompact(node.modified_at, language)}
+          value={formatDateTimeCompact(node.modified_at)}
         />
       </HoverCardMetrics>
       {node.link_target === null ? null : (

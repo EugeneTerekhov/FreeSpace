@@ -55,7 +55,7 @@ export interface UiError {
 }
 
 export type Metric = 'logical' | 'on_disk' | 'physical';
-export type SortKey = 'name' | 'size' | 'modified' | 'items';
+export type SortKey = 'name' | 'path' | 'size' | 'modified' | 'items';
 
 export interface SortSpec {
   key: SortKey;
@@ -139,12 +139,14 @@ export interface VolumeDetail extends VolumeSummary {
 export type ScanMethodChoice = 'auto' | 'mft' | 'walk';
 
 export interface ScanRequest {
-  path: string;
+  paths: string[];
   method: ScanMethodChoice;
   incremental: boolean;
   exclusions: string[];
   include_ads: boolean;
   metric: Metric;
+  /** Add the roots to the current snapshot instead of replacing it. */
+  merge?: boolean;
 }
 
 export interface ScanStarted {
@@ -176,6 +178,7 @@ export interface Task {
   kind: 'scan' | 'duplicates' | 'snapshot_compare' | 'archive_scan' | 'monitor';
   state: TaskState;
   volume_id: string | null;
+  volume_ids: string[];
   progress: TaskProgress | null;
   started_at: number;
   finished_at: number | null;
@@ -322,7 +325,9 @@ export interface ScanProgressEvent {
 export interface ScanSummary {
   nodes_count: number;
   method: string;
+  methods: string[];
   roots: string[];
+  volumes: string[];
   warnings: string[];
   issues_count: number;
   elapsed_ms: number;

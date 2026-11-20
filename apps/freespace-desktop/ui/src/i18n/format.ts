@@ -46,17 +46,9 @@ export function formatPercent(
   }).format(Math.max(0, Math.min(1, ratio)));
 }
 
-/** Formats a Unix-millisecond timestamp in local time. */
-export function formatDate(
-  timestamp: number | null,
-  language: Language = 'ru',
-): string {
-  if (timestamp === null) return '—';
-
-  return new Intl.DateTimeFormat(language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(timestamp));
+/** Fixed numeric date and time in local time: `DD.MM.YYYY HH:MM`. */
+export function formatDate(timestamp: number | null): string {
+  return formatDateTimeShort(timestamp);
 }
 
 /** Compact numeric date for dense table columns. */
@@ -72,7 +64,23 @@ export function formatDateCompact(timestamp: number | null): string {
 }
 
 /**
- * Fixed numeric date and time for dense table columns: `DD/MM/YYYY HH:MM`.
+ * Numeric date for the largest-files table: `DD.MM.YYYY`.
+ *
+ * Deliberately locale-neutral and fixed-width so the column stays compact.
+ */
+export function formatDateDmy(timestamp: number | null): string {
+  if (timestamp === null) return '—';
+
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}.${month}.${year}`;
+}
+
+/**
+ * Fixed numeric date and time for dense table columns: `DD.MM.YYYY HH:MM`.
  *
  * Deliberately locale-neutral so the whole value always fits a fixed column.
  */
@@ -86,22 +94,10 @@ export function formatDateTimeShort(timestamp: number | null): string {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
 
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  return `${day}.${month}.${year} ${hours}:${minutes}`;
 }
 
-/** Compact numeric date and time for dense surfaces such as hover cards. */
-export function formatDateTimeCompact(
-  timestamp: number | null,
-  language: Language = 'ru',
-): string {
-  if (timestamp === null) return '—';
-
-  return new Intl.DateTimeFormat(language, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(new Date(timestamp));
+/** Fixed numeric date and time for dense surfaces such as hover cards. */
+export function formatDateTimeCompact(timestamp: number | null): string {
+  return formatDateTimeShort(timestamp);
 }

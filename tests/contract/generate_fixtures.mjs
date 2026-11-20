@@ -153,6 +153,7 @@ const task = {
   kind: 'scan',
   state: 'running',
   volume_id: volume.volume_id,
+  volume_ids: [volume.volume_id],
   progress: {
     processed: 1000,
     total: 180000,
@@ -192,7 +193,7 @@ const fixtures = {
     'app_bootstrap',
     {},
     {
-      ipc_version: 1,
+      ipc_version: 2,
       app_version: '2.0.0',
       os: 'windows',
       webview_version: '130.0.2849.68',
@@ -253,6 +254,9 @@ const fixtures = {
     { ...page, parent_id: null },
   ),
   'volumes_current.success.json': envelope('volumes_current', {}, volume),
+  'snapshot_volumes.success.json': envelope('snapshot_volumes', { generation }, [
+    volume,
+  ]),
   'volumes_refresh.success.json': envelope('volumes_refresh', {}, [volume]),
   'volumes_summary.success.json': envelope(
     'volumes_summary',
@@ -275,7 +279,7 @@ const fixtures = {
   },
   'scan_start.busy.json': {
     command: 'scan_start',
-    input: { request: { path: 'C:\\' } },
+    input: { request: { paths: ['C:\\'] } },
     result: null,
     error: {
       code: 'E_BUSY',

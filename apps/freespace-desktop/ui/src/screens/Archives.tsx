@@ -161,14 +161,14 @@ export function Archives() {
     {
       id: 'size',
       header: t('top.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       render: (entry) => formatBytes(entry.size, units),
     },
     {
       id: 'packed',
       header: t('inspect.archives.packed'),
-      width: '130px',
+      width: '112px',
       align: 'end',
       render: (entry) =>
         entry.compressed_size === null
@@ -178,7 +178,7 @@ export function Archives() {
     {
       id: 'ratio',
       header: t('inspect.archives.ratio'),
-      width: '110px',
+      width: '92px',
       align: 'end',
       render: (entry) => {
         const compressed = entry.compressed_size ?? entry.size;
@@ -190,7 +190,7 @@ export function Archives() {
     {
       id: 'share',
       header: t('owners.share'),
-      width: '100px',
+      width: '92px',
       align: 'end',
       render: (entry) => formatPercent(entry.share, language, 1),
     },

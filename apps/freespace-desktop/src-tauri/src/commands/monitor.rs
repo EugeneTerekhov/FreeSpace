@@ -8,6 +8,8 @@
 //! `monitor-tick` at 2 Hz.
 
 #[cfg(windows)]
+use std::path::Path;
+#[cfg(windows)]
 use std::sync::mpsc;
 use std::{
     collections::HashMap,
@@ -137,6 +139,52 @@ pub fn monitor_set_exclusions(
     exclusions: Vec<String>,
 ) -> Result<(), UiError> {
     state.monitors().set_exclusions(exclusions)
+}
+
+/// Opens the folder of a file recorded in a monitor event in Explorer.
+///
+/// A monitor event is not limited to the current snapshot, so the path may
+/// point anywhere on the machine. The command only reveals the file and never
+/// changes it.
+#[tauri::command(rename_all = "snake_case")]
+pub fn monitor_reveal_file(path: String) -> Result<(), UiError> {
+    if path.trim().is_empty() {
+        return Err(UiError::validation("the file path must not be empty"));
+    }
+
+    #[cfg(windows)]
+    {
+        let normalized = freespace_platform::paths::normalize(Path::new(&path))?;
+        freespace_platform::reveal::reveal(&normalized).map_err(UiError::from)
+    }
+    #[cfg(not(windows))]
+    {
+        Err(UiError::new(UiErrorCode::Unsupported))
+    }
+}
+
+/// Opens the folder of the executable of a process recorded in a monitor event.
+///
+/// The executable is resolved by pid and, like the event path, is not limited
+/// to the current snapshot. The command only reveals the executable and never
+/// changes it.
+#[tauri::command(rename_all = "snake_case")]
+pub fn monitor_reveal_executable(process_id: u32) -> Result<(), UiError> {
+    if process_id == 0 {
+        return Err(UiError::validation("the process id must not be zero"));
+    }
+
+    #[cfg(windows)]
+    {
+        let image = process_io::counters_for(process_id)?
+            .image
+            .ok_or_else(|| UiError::new(UiErrorCode::NotFound))?;
+        freespace_platform::reveal::reveal(&image).map_err(UiError::from)
+    }
+    #[cfg(not(windows))]
+    {
+        Err(UiError::new(UiErrorCode::Unsupported))
+    }
 }
 
 #[cfg(windows)]

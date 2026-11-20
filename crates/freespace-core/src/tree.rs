@@ -564,6 +564,79 @@ impl FsTree {
         Ok(())
     }
 
+    /// Drops every node appended after `len`.
+    ///
+    /// Scanners append one root at a time. When a scanner fails halfway through
+    /// a shared arena, the caller rolls the arena back to the length it had
+    /// before that root, without disturbing earlier roots or their identifiers.
+    /// Only the tail is removed, so links between surviving nodes stay valid.
+    pub fn truncate(&mut self, len: usize) {
+        if len >= self.nodes.len() {
+            return;
+        }
+
+        self.nodes.truncate(len);
+        self.roots.retain(|root| (*root as usize) < len);
+    }
+
+    /// Appends every node of `other` to this tree.
+    ///
+    /// The roots of `other` become additional roots of `self`; every identifier
+    /// inside `other` is shifted so existing identifiers of `self` stay valid.
+    /// Sizes are not recalculated: the caller runs [`Self::recompute_totals`]
+    /// after the append.
+    ///
+    /// # Errors
+    /// Returns an error when the combined node or name arena would overflow the
+    /// 32-bit identifier space. Nothing is changed in that case.
+    pub fn append(&mut self, other: Self) -> Result<()> {
+        if other.nodes.is_empty() {
+            return Ok(());
+        }
+        if !self.can_append(&other) {
+            return Err(Error::Other(
+                "the combined tree exceeds the 32-bit node or name limit".to_owned(),
+            ));
+        }
+
+        let offset = u32::try_from(self.nodes.len())
+            .map_err(|_| Error::Other("file-system tree exceeds the node limit".to_owned()))?;
+        let name_base = u32::try_from(self.names.len())
+            .map_err(|_| Error::Other("name arena exceeds the node limit".to_owned()))?;
+        let Self {
+            nodes,
+            names,
+            roots,
+        } = other;
+
+        for mut node in nodes {
+            node.name.start = node.name.start.saturating_add(name_base);
+            if let Some(target) = &mut node.link_target {
+                target.start = target.start.saturating_add(name_base);
+            }
+            node.parent = node.parent.map(|id| id + offset);
+            node.first_child = node.first_child.map(|id| id + offset);
+            node.last_child = node.last_child.map(|id| id + offset);
+            node.prev_sibling = node.prev_sibling.map(|id| id + offset);
+            node.next_sibling = node.next_sibling.map(|id| id + offset);
+            self.nodes.push(node);
+        }
+        self.names.push_str(&names);
+        self.roots.extend(roots.into_iter().map(|id| id + offset));
+
+        Ok(())
+    }
+
+    /// Returns `true` when [`Self::append`] can consume `other` without
+    /// overflowing the identifier space.
+    #[must_use]
+    pub fn can_append(&self, other: &Self) -> bool {
+        let nodes = self.nodes.len().saturating_add(other.nodes.len());
+        let names = self.names.len().saturating_add(other.names.len());
+
+        nodes <= u32::MAX as usize && names <= u32::MAX as usize
+    }
+
     /// Marks a node and its whole subtree as removed.
     ///
     /// Returns the number of nodes that were still live. Tombstones keep the
@@ -1012,6 +1085,66 @@ mod tests {
         tree.recompute_totals();
         assert_eq!(tree.node(root).size.logical, 0);
         tree.validate().expect("tree stays consistent");
+    }
+
+    #[test]
+    fn truncates_appended_roots_without_touching_earlier_ones() {
+        let mut tree = FsTree::new();
+        let first = tree.add_node(None, directory("first")).expect("first");
+        tree.add_node(Some(first), file("keep.txt", 5))
+            .expect("keep");
+
+        let mark = tree.len();
+        let second = tree.add_node(None, directory("second")).expect("second");
+        tree.add_node(Some(second), file("drop.txt", 7))
+            .expect("drop");
+        assert_eq!(tree.root_count(), 2);
+
+        tree.truncate(mark);
+
+        assert_eq!(tree.len(), mark);
+        assert_eq!(tree.roots().collect::<Vec<_>>(), vec![first]);
+        assert_eq!(tree.children(first).count(), 1);
+        tree.recompute_totals();
+        tree.validate().expect("truncation keeps the tree valid");
+    }
+
+    #[test]
+    fn appends_a_second_tree_and_remaps_its_identifiers() {
+        let mut first = FsTree::new();
+        let first_root = first.add_node(None, directory("C:\\")).expect("first root");
+        first
+            .add_node(Some(first_root), file("keep.txt", 10))
+            .expect("keep");
+
+        let mut second = FsTree::new();
+        let second_root = second
+            .add_node(None, directory("D:\\"))
+            .expect("second root");
+        let media = second
+            .add_node(Some(second_root), directory("Media"))
+            .expect("media");
+        second
+            .add_node(Some(media), file("film.mkv", 20))
+            .expect("film");
+
+        let old_ids: Vec<_> = first.roots().collect();
+        let second_len = second.len();
+        first.append(second).expect("append");
+        first.recompute_totals();
+
+        assert_eq!(first.roots().collect::<Vec<_>>().len(), 2);
+        assert_eq!(first.roots().next(), Some(old_ids[0]));
+        assert_eq!(first.len(), 2 + second_len);
+        let appended_root = first.roots().nth(1).expect("second root");
+        assert_eq!(first.name(appended_root), "D:\\");
+        let appended_media = first.children(appended_root).next().expect("media");
+        assert_eq!(
+            first.path(appended_media),
+            PathBuf::from("D:\\").join("Media")
+        );
+        assert_eq!(first.node(appended_root).size.logical, 20);
+        first.validate().expect("append keeps the tree valid");
     }
 
     #[test]

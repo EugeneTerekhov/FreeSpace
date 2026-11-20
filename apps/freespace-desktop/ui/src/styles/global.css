@@ -40,8 +40,8 @@ textarea {
 
 /*
  * Text controls share one base shape even when a screen uses a bare input
- * instead of the kit component. Checkboxes, radios and ranges keep the native
- * control so their semantics and keyboard behaviour stay intact.
+ * instead of the kit component. Radios and ranges keep their native look;
+ * checkboxes share the Monitor switch-like box below, wherever they are used.
  */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 select,
@@ -73,6 +73,47 @@ select:focus-visible,
 textarea:focus-visible {
   border-color: var(--fs-accent-ring);
   box-shadow: 0 0 0 2px var(--fs-accent-ring);
+}
+
+/*
+ * One checkbox appearance for the whole app: an outlined token-driven box when
+ * empty and the native accent check when set. Bare inputs and the kit Checkbox
+ * must look identical, so the rules live here instead of in a component module.
+ */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--fs-accent);
+}
+
+input[type="checkbox"]:not(:checked),
+input[type="checkbox"]:indeterminate {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--fs-line);
+  border-radius: 4px;
+  background-color: var(--fs-surface);
+  box-shadow: var(--fs-ring-faint);
+}
+
+input[type="checkbox"]:indeterminate {
+  border-color: var(--fs-accent);
+  background-color: var(--fs-accent);
+}
+
+input[type="checkbox"]:not(:checked):hover:not(:disabled) {
+  border-color: var(--fs-line);
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--fs-accent-ring);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 button {

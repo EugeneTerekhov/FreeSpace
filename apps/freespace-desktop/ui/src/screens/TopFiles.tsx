@@ -1,19 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Folder } from 'lucide-react';
 
 import { api } from '../api/runtime';
 import type { FilterSet, NodeRow, SortKey, SortSpec, TreePage, UiError } from '../api/dto';
 import { normalizeError } from '../app/errors';
 import { openInTree } from '../app/navigation';
-import { Button } from '../components/Button';
-import { DataTable, type Column, type SortState } from '../components/DataTable';
+import { Button, IconButton } from '../components/Button';
+import { DataTable, type Column, type RowAnchor, type SortState } from '../components/DataTable';
 import { Banner, EmptyState, ErrorState, Progress } from '../components/Feedback';
 import { FilterBar } from '../components/FilterBar';
 import { Select } from '../components/Fields';
+import {
+  HoverCard,
+  HoverCardHead,
+  HoverCardMetric,
+  HoverCardMetrics,
+  HoverCardNote,
+  HoverCardPath,
+} from '../components/HoverCard';
 import { emptyFilter } from '../lib/filters';
 import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
 import { t } from '../i18n';
-import { formatBytes, formatDate, formatNumber } from '../i18n/format';
+import { formatBytes, formatDateDmy, formatNumber } from '../i18n/format';
 import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
@@ -23,6 +32,7 @@ import styles from './analysis-screen.module.css';
 
 const LIMITS = [100, 1000, 5000];
 const DEFAULT_FILTER = emptyFilter();
+const HOVER_DELAY = 450;
 
 /** Largest files tab: N, filters, a stat row and the shared delete preview. */
 export function TopFiles() {
@@ -38,6 +48,8 @@ export function TopFiles() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<UiError | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  const [hoverRow, setHoverRow] = useState<{ node: NodeRow; anchor: RowAnchor } | null>(null);
+  const hoverTimer = useRef<number | null>(null);
   const operation = useOperation();
 
   const load = useCallback(
@@ -81,6 +93,48 @@ export function TopFiles() {
     setSelected(new Set());
   }, [generation]);
 
+  // The card opens on data the page already has: no extra IPC per row.
+  const closeHover = useCallback(() => {
+    if (hoverTimer.current !== null) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setHoverRow(null);
+  }, []);
+
+  const openHover = useCallback((node: NodeRow, anchor: RowAnchor) => {
+    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => {
+      hoverTimer.current = null;
+      setHoverRow({ node, anchor });
+    }, HOVER_DELAY);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    },
+    [],
+  );
+
+  // A card that stays put while the row scrolls away would point at nothing.
+  useEffect(() => {
+    if (hoverRow === null) return undefined;
+    const hide = () => closeHover();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') hide();
+    };
+    document.addEventListener('scroll', hide, true);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', hide);
+
+    return () => {
+      document.removeEventListener('scroll', hide, true);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', hide);
+    };
+  }, [closeHover, hoverRow]);
+
   const selectedRows = useMemo(
     () => rows.filter((row) => selected.has(row.id)),
     [rows, selected],
@@ -122,25 +176,20 @@ export function TopFiles() {
       width: 'minmax(220px, 1.6fr)',
       sortable: true,
       render: (row) => (
-        <span className={`${styles.pathCell} ${styles.fileName}`} title={row.path}>
-          {row.name}
-        </span>
+        <span className={`${styles.pathCell} ${styles.fileName}`}>{row.name}</span>
       ),
     },
     {
       id: 'path',
       header: t('details.path'),
       width: 'minmax(200px, 1.4fr)',
-      render: (row) => (
-        <span className={styles.pathCell} title={row.path}>
-          {row.path}
-        </span>
-      ),
+      sortable: true,
+      render: (row) => <span className={styles.pathCell}>{row.path}</span>,
     },
     {
       id: 'size',
       header: t('top.size'),
-      width: '120px',
+      width: '100px',
       align: 'end',
       sortable: true,
       render: (row) => formatBytes(row.logical_size, units),
@@ -148,23 +197,23 @@ export function TopFiles() {
     {
       id: 'modified',
       header: t('top.modified'),
-      width: '180px',
+      width: '112px',
       sortable: true,
-      render: (row) => formatDate(row.modified_at, language),
+      render: (row) => formatDateDmy(row.modified_at),
     },
     {
       id: 'open',
       header: '',
-      width: '140px',
+      width: '54px',
       render: (row) => (
-        <Button
-          variant="ghost"
+        <IconButton
+          label={t('treemap.open_tree')}
           onClick={() => {
             openInTree(row.id);
           }}
         >
-          {t('treemap.open_tree')}
-        </Button>
+          <Folder size={15} strokeWidth={1.7} aria-hidden="true" />
+        </IconButton>
       ),
     },
   ];
@@ -245,7 +294,7 @@ export function TopFiles() {
         </Button>
       </div>
 
-      <FilterBar screen="top_files" filter={filter} onChange={setFilter} />
+      <FilterBar filter={filter} onChange={setFilter} />
 
       {error !== null ? (
         <ErrorState
@@ -293,6 +342,8 @@ export function TopFiles() {
             rowKey={(row) => row.id}
             sort={sort}
             onSortChange={setSort}
+            onRowHoverStart={openHover}
+            onRowHoverEnd={closeHover}
             loading={loading}
             height={520}
             empty={t('top.empty')}
@@ -313,6 +364,24 @@ export function TopFiles() {
           </div>
         ) : null}
       </Panel>
+
+      {hoverRow === null ? null : (
+        <HoverCard anchor={hoverRow.anchor} label={t('tree2.title_details')}>
+          <HoverCardHead
+            title={hoverRow.node.name}
+            meta={t(`kind.${hoverRow.node.kind}`)}
+          />
+          <HoverCardPath title={hoverRow.node.path}>{hoverRow.node.path}</HoverCardPath>
+          <HoverCardMetrics>
+            <HoverCardMetric label={t('details.logical')} value={formatBytes(hoverRow.node.logical_size, units)} />
+            <HoverCardMetric label={t('details.allocated')} value={formatBytes(hoverRow.node.on_disk_size, units)} />
+            <HoverCardMetric label={t('details.modified')} value={formatDateDmy(hoverRow.node.modified_at)} />
+          </HoverCardMetrics>
+          {hoverRow.node.accessible ? null : (
+            <HoverCardNote>{t('error.access_denied')}</HoverCardNote>
+          )}
+        </HoverCard>
+      )}
 
       {operation.progress !== null ? (
         <OperationProgressView

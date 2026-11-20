@@ -78,10 +78,11 @@ pub enum Command {
         action: ConfigAction,
     },
 
-    /// Scan a volume or directory and build a size tree.
+    /// Scan one or more volumes or directories and build a size tree.
     Scan {
-        /// Volume or directory to analyze.
-        path: PathBuf,
+        /// Volumes or directories to analyze.
+        #[arg(required = true)]
+        paths: Vec<PathBuf>,
         /// Scan method: `auto`, `mft` or `walk`.
         #[arg(long, default_value = "auto")]
         method: String,
@@ -102,10 +103,11 @@ pub enum Command {
         size_mode: String,
     },
 
-    /// Print the size tree for a path.
+    /// Print the size tree for one or more paths.
     Tree {
-        /// Volume or directory.
-        path: PathBuf,
+        /// Volumes or directories.
+        #[arg(required = true)]
+        paths: Vec<PathBuf>,
         /// Maximum depth to print.
         #[arg(long)]
         depth: Option<u32>,

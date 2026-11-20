@@ -38,9 +38,13 @@ offline.
 
 1. Open **Overview** — every volume, used and free space, the file system and the trend reconstructed
    from stored snapshots.
-2. Press **Analyze this volume** to start a scan. Progress, the current path, speed, object count and
-   cancellation are shown directly on the Overview and repeated in the status bar. Linux always uses
-   the directory walk; on Windows the method is chosen automatically (`auto`, `mft`, `walk`).
+2. Click the volume blocks to select them and press **Analyze** (the button at the right edge of
+   the selected-volumes block) to run one scan.
+   Progress, the current volume and path, speed, object count and cancellation are shown directly on
+   the Overview and repeated in the status bar; the **Current analysis** block sits below the volume
+   grid. One snapshot contains every selected root, so all volumes appear in the tree at once. Linux
+   always uses the directory walk; on Windows the method is chosen automatically (`auto`, `mft`,
+   `walk`) or manually with the selector to the left of the analyze button.
 3. Switch to **Tree**: sizes, inline share bars, type icons and a size-details card on row hover.
 
 ## Main screens
@@ -50,7 +54,11 @@ There are 9 screens, grouped into six sidebar sections.
 **Overview**
 
 - **Overview** — volumes, used and free space, embedded scan progress and scan options (`auto`,
-  `mft`, `walk`, exclusions).
+  `mft`, `walk`). Click a volume card to select it; several volumes are analyzed in one scan. The
+  scan-type selector sits in the selected-volumes block to the left of the analyze button, and the
+  **Current analysis** block is shown below the volume grid.
+  A new analysis adds the selected volumes to the snapshot; volumes that are not selected are not
+  rescanned and remain in the tree.
 
 **Analysis**
 
@@ -68,6 +76,9 @@ There are 9 screens, grouped into six sidebar sections.
 
 - **Cleanup** — tabs for recommendations (temporary data, caches, logs, backups, stale files and
   empty folders, with the risk level as a word and an icon) and snapshots (create and compare).
+  Reasons (Old, Cache, Log, Temp, Backup) are filters in the shared filter row, and selected
+  categories are combined with AND. Objects for deletion are picked manually with row checkboxes;
+  the checkbox in the selection column header checks or clears every filtered row.
 
 **Operations**
 
@@ -106,8 +117,8 @@ GUI hides or disables unavailable actions, and the CLI returns `E_UNSUPPORTED` w
 ## Interface and accessibility
 
 - All 9 screens in 6 groups are reachable from the sidebar, the command palette (`Ctrl+K`) and deep
-  links; the last screen is restored after a restart, and values stored by older versions (`shred`,
-  `fileops`, `rename`, `permissions`) open the nearest new screen.
+  links; every launch opens the Overview screen, and older values (`shred`, `fileops`, `rename`,
+  `permissions`) still map to the nearest new screen when used in a deep link.
 - Dark, light and system themes switch without a restart, and system theme changes are followed
   live. DPI 100/125/150/200% and reduced motion are supported.
 - Everything is keyboard-operable: skip link, arrow keys in the tree, `←/→` in tabs, `Enter` to open,
@@ -163,8 +174,10 @@ fields and exit codes.
 freespace capabilities --json
 freespace drives --json
 freespace scan C:\ --json
+freespace scan C:\ D:\ --json
 freespace scan /home --method walk --json
 freespace tree C:\ --depth 2 --json
+freespace tree C:\ D:\ --depth 2 --json
 freespace duplicates D:\Downloads --json
 freespace delete D:\Downloads\old.bin --mode recycle --yes --json
 freespace monitor --threshold 1073741824 --json

@@ -80,121 +80,33 @@
   color: var(--fs-text-subtle);
 }
 
-/* Category chips: one press selects or clears every candidate of a category. */
-.categories {
-  display: flex;
-  align-items: center;
-  gap: var(--fs-space-2);
-  flex-wrap: wrap;
-}
+/* ---------- Table cells ---------- */
 
-/* ---------- Tables ---------- */
-
-/* A wide table scrolls inside its own panel: it must never widen the screen
- * and push the sidebar or the first columns out of view. */
-.tableWrap {
-  min-width: 0;
-  overflow-x: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-text-snug);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Cleanup tables size their columns explicitly so a long path truncates
- * instead of shoving risk, size and actions out of the panel. */
-.tableFixed {
-  table-layout: fixed;
-  min-width: 48rem;
-}
-
-.table th {
-  padding: 0 var(--fs-space-2) var(--fs-space-2);
-  border-bottom: 1px solid var(--fs-line-faint);
-  color: var(--fs-text-subtle);
-  font-size: var(--fs-text-2xs);
-  font-weight: var(--fs-weight-medium);
-  letter-spacing: var(--fs-tracking-caps);
-  text-align: start;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* Headers wrap inside their column rather than stretching it. */
-.tableFixed th {
-  vertical-align: bottom;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
-.table td {
-  height: var(--fs-row-height);
-  padding: var(--fs-space-1) var(--fs-space-2);
-  border-bottom: 1px solid var(--fs-line-faint);
-  vertical-align: middle;
-}
-
-.table tr:last-child td {
-  border-bottom: 0;
-}
-
-.table tbody tr:hover {
-  background: var(--fs-surface-overlay);
-}
-
-.numeric {
-  text-align: end;
-  white-space: nowrap;
-}
-
-/* The header is styled by `.table th`, so alignment needs to outrank it. */
-.table th.numeric {
-  text-align: end;
-}
-
+/* The shared DataTable handles the grid, virtualization and headers; these
+ * classes only style values inside its cells. */
 .path {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--fs-text-muted);
 }
 
-.colSelect {
-  width: 2.5rem;
+/* Risk is a word first: colour only reinforces the text (contract §5.2). */
+.riskLow {
+  color: var(--fs-success);
 }
 
-.colRisk {
-  width: 7.5rem;
+.riskMedium {
+  color: var(--fs-warning);
 }
 
-.colReason {
-  width: 12rem;
+.riskHigh {
+  color: var(--fs-danger);
 }
 
-.colSize {
-  width: 6.5rem;
-}
-
-.colAction {
-  width: 12.5rem;
-}
-
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.risk {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--fs-space-1);
+.riskUnknown {
+  color: var(--fs-text-subtle);
 }
 
 .panelFoot {

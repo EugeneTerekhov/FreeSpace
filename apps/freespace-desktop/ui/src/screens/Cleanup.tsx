@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShieldAlert, ShieldCheck, ShieldX, type LucideIcon } from 'lucide-react';
+import { Folder } from 'lucide-react';
 
 import { api } from '../api/runtime';
-import type { CleanupCandidateView, FilterSet, NodeRow, TreePage, UiError } from '../api/dto';
+import type {
+  CleanupCandidateView,
+  FilterSet,
+  NodeRow,
+  TreePage,
+  UiError,
+} from '../api/dto';
 import { normalizeError } from '../app/errors';
 import { openInTree } from '../app/navigation';
-import { Button } from '../components/Button';
-import { Badge, Chip, type BadgeTone } from '../components/Choice';
+import { Button, IconButton } from '../components/Button';
+import { DataTable, type Column } from '../components/DataTable';
 import { Banner, EmptyState, ErrorState, Loading } from '../components/Feedback';
 import { Field } from '../components/Fields';
 import { FilterBar } from '../components/FilterBar';
@@ -14,8 +20,8 @@ import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
 import { t } from '../i18n';
 import { formatBytes, formatNumber } from '../i18n/format';
-import { emptyFilter } from '../lib/filters';
 import { useOperation } from '../operations/useOperation';
+import { useCleanupStore } from '../stores/cleanupStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
 import { useSnapshotStore } from '../stores/snapshotStore';
@@ -24,64 +30,82 @@ import { ScreenFrameTabs } from './ScreenTabs';
 import { Snapshots } from './Snapshots';
 import styles from './cleanup.module.css';
 
-/**
- * Risk is a word and an icon first: the tone only reinforces it (contract §1.1
- * and §5.2 forbid colour as the only carrier of status).
- */
-const RISK: Record<string, { tone: BadgeTone; icon: LucideIcon }> = {
-  low: { tone: 'success', icon: ShieldCheck },
-  medium: { tone: 'warning', icon: ShieldAlert },
-  high: { tone: 'danger', icon: ShieldX },
+/** The word carries the status; colour only reinforces it (contract §5.2). */
+const RISK_CLASS: Record<string, string | undefined> = {
+  low: styles.riskLow,
+  medium: styles.riskMedium,
+  high: styles.riskHigh,
 };
 
-const RISK_FALLBACK: { tone: BadgeTone; icon: LucideIcon } = {
-  tone: 'neutral',
-  icon: ShieldAlert,
-};
-
-interface CategorySummary {
-  category: string;
-  count: number;
-  bytes: number;
-  ids: number[];
-}
+/** Cleanup reasons join the shared filter row; they never select candidates. */
+const CLEANUP_REASON_FILTERS = [
+  { id: 'outdated', labelKey: 'cleanup.reason.outdated' },
+  { id: 'cache', labelKey: 'cleanup.reason.cache' },
+  { id: 'log', labelKey: 'cleanup.reason.log' },
+  { id: 'temp', labelKey: 'cleanup.reason.temp' },
+  { id: 'backup', labelKey: 'cleanup.reason.backup' },
+] as const;
 
 /** Cleanup recommendations and empty directories, all behind the shared preview. */
 export function CleanupCandidates() {
   const generation = useSnapshotStore((state) => state.generation);
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
   const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
-  const [olderThan, setOlderThan] = useState(180);
-  const [filter, setFilter] = useState<FilterSet>(emptyFilter());
-  const [candidates, setCandidates] = useState<CleanupCandidateView[]>([]);
-  const [selectedCandidates, setSelectedCandidates] = useState<ReadonlySet<number>>(new Set());
+
+  // The recommendation result, its query, selection and scroll anchor live in
+  // a store so returning to this screen reuses them instead of refetching.
+  const olderThan = useCleanupStore((state) => state.olderThan);
+  const filter = useCleanupStore((state) => state.filter);
+  const [appliedFilter] = useDebounced(filter);
+  const candidates = useCleanupStore((state) => state.candidates);
+  const selectedCandidates = useCleanupStore((state) => state.selected);
+  const candidatesLoading = useCleanupStore((state) => state.loading);
+  const candidatesError = useCleanupStore((state) => state.error);
+  const scrollTop = useCleanupStore((state) => state.scrollTop);
+
   const [emptyDirs, setEmptyDirs] = useState<NodeRow[]>([]);
   const [emptyPage, setEmptyPage] = useState<TreePage | null>(null);
   const [selectedDirs, setSelectedDirs] = useState<ReadonlySet<number>>(new Set());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<UiError | null>(null);
+  const [emptyLoading, setEmptyLoading] = useState(false);
+  const [emptyError, setEmptyError] = useState<UiError | null>(null);
   const operation = useOperation();
 
   const loadCandidates = useCallback(async () => {
+    if (generation !== null) await useCleanupStore.getState().load(api, generation);
+  }, [generation]);
+
+  // A new generation invalidates the cache; an unchanged one keeps it. The
+  // `loading` guard makes the load idempotent under StrictMode double effects.
+  useEffect(() => {
     if (generation === null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.cleanupCandidates(generation, olderThan, filter);
-      setCandidates(result);
-      setSelectedCandidates(new Set());
-    } catch (cause) {
-      setError(normalizeError(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, generation, olderThan]);
+    const current = useCleanupStore.getState();
+    if (current.generation !== generation) current.reset(generation);
+    const next = useCleanupStore.getState();
+    if (!next.loaded && !next.loading) void next.load(api, generation);
+  }, [generation]);
+
+  // Reason chips live in the shared filter row. A debounced change reloads the
+  // recommendations so the list reflects the AND of the selected categories.
+  useEffect(() => {
+    if (generation === null) return;
+    const current = useCleanupStore.getState();
+    if (!current.loaded || current.loading) return;
+    if (current.appliedFilter === appliedFilter) return;
+    void current.load(api, generation, appliedFilter);
+  }, [generation, appliedFilter]);
+
+  useEffect(() => {
+    setEmptyDirs([]);
+    setEmptyPage(null);
+    setSelectedDirs(new Set());
+    setEmptyError(null);
+  }, [generation]);
 
   const loadEmptyDirs = useCallback(
     async (cursor?: string | null) => {
       if (generation === null) return;
-      setLoading(true);
-      setError(null);
+      setEmptyLoading(true);
+      setEmptyError(null);
       try {
         const result = await api.cleanupEmptyDirsPage(generation, {
           cursor: cursor ?? null,
@@ -92,22 +116,13 @@ export function CleanupCandidates() {
         );
         setEmptyPage(result);
       } catch (cause) {
-        setError(normalizeError(cause));
+        setEmptyError(normalizeError(cause));
       } finally {
-        setLoading(false);
+        setEmptyLoading(false);
       }
     },
     [generation],
   );
-
-  useEffect(() => {
-    if (generation === null) return;
-    setCandidates([]);
-    setEmptyDirs([]);
-    setEmptyPage(null);
-    setSelectedDirs(new Set());
-    void loadCandidates();
-  }, [generation, loadCandidates]);
 
   const candidatePaths = useMemo(
     () =>
@@ -138,26 +153,6 @@ export function CleanupCandidates() {
         .reduce((sum, row) => sum + row.on_disk_size, 0),
     [emptyDirs, selectedDirs],
   );
-  const categories = useMemo<CategorySummary[]>(() => {
-    const groups = new Map<string, CategorySummary>();
-    for (const candidate of candidates) {
-      const entry = groups.get(candidate.category) ?? {
-        category: candidate.category,
-        count: 0,
-        bytes: 0,
-        ids: [],
-      };
-      entry.count += 1;
-      entry.bytes += candidate.reclaimable_bytes;
-      entry.ids.push(candidate.node_id);
-      groups.set(candidate.category, entry);
-    }
-
-    return [...groups.values()].sort((left, right) => right.bytes - left.bytes);
-  }, [candidates]);
-
-  const selectedCount = candidatePaths.length + dirPaths.length;
-  const selectedBytes = totalReclaimable + emptyDirBytes;
 
   const setSelection = (
     setter: (value: (current: ReadonlySet<number>) => ReadonlySet<number>) => void,
@@ -172,17 +167,6 @@ export function CleanupCandidates() {
     });
   };
 
-  const setCandidatesSelected = (ids: readonly number[], checked: boolean) => {
-    setSelectedCandidates((current) => {
-      const next = new Set(current);
-      for (const id of ids) {
-        if (checked) next.add(id);
-        else next.delete(id);
-      }
-      return next;
-    });
-  };
-
   const previewDelete = (targets: string[]) => {
     if (targets.length === 0) return;
     void operation.prepare({
@@ -192,6 +176,149 @@ export function CleanupCandidates() {
       reason: 'cleanup',
     });
   };
+
+  const allCandidatesSelected =
+    candidates.length > 0 && candidates.every((item) => selectedCandidates.has(item.node_id));
+  const someCandidatesSelected = candidates.some((item) => selectedCandidates.has(item.node_id));
+  const allDirsSelected =
+    emptyDirs.length > 0 && emptyDirs.every((row) => selectedDirs.has(row.id));
+  const someDirsSelected = emptyDirs.some((row) => selectedDirs.has(row.id));
+
+  const candidateColumns = useMemo<Column<CleanupCandidateView>[]>(
+    () => [
+      {
+        id: 'select',
+        header: '',
+        width: '40px',
+        headerCheckbox: {
+          checked: allCandidatesSelected,
+          indeterminate: someCandidatesSelected && !allCandidatesSelected,
+          disabled: candidates.length === 0,
+          label: t('cleanup.select_all_filtered'),
+          onChange: (checked) =>
+            useCleanupStore
+              .getState()
+              .selectIds(
+                candidates.map((item) => item.node_id),
+                checked,
+              ),
+        },
+        render: (row) => (
+          <input
+            type="checkbox"
+            aria-label={`${t('tree.selected')}: ${row.name}`}
+            checked={selectedCandidates.has(row.node_id)}
+            onChange={(event) =>
+              useCleanupStore.getState().toggle(row.node_id, event.target.checked)
+            }
+          />
+        ),
+      },
+      {
+        id: 'path',
+        header: t('top.path'),
+        width: 'minmax(220px, 1fr)',
+        render: (row) => (
+          <span className={styles.path} title={row.path}>
+            {row.path}
+          </span>
+        ),
+      },
+      {
+        id: 'risk',
+        header: t('cleanup.risk_label'),
+        width: '90px',
+        render: (row) => {
+          const known = RISK_CLASS[row.risk] !== undefined;
+
+          return (
+            <span className={RISK_CLASS[row.risk] ?? styles.riskUnknown ?? ''}>
+              {known ? t(`cleanup.risk.${row.risk}`) : t('cleanup.panels.risk_unknown')}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'reason',
+        header: t('cleanup.reason_label'),
+        width: '100px',
+        render: (row) => t(row.reason_key),
+      },
+      {
+        id: 'size',
+        header: t('top.size'),
+        width: '100px',
+        align: 'end',
+        render: (row) => formatBytes(row.reclaimable_bytes, units),
+      },
+      {
+        id: 'open',
+        header: '',
+        width: '54px',
+        render: (row) => (
+          <IconButton
+            label={t('treemap.open_tree')}
+            onClick={() => openInTree(row.node_id)}
+          >
+            <Folder size={15} strokeWidth={1.7} aria-hidden="true" />
+          </IconButton>
+        ),
+      },
+    ],
+    [allCandidatesSelected, candidates, selectedCandidates, someCandidatesSelected, units],
+  );
+
+  const emptyDirColumns = useMemo<Column<NodeRow>[]>(
+    () => [
+      {
+        id: 'select',
+        header: '',
+        width: '40px',
+        headerCheckbox: {
+          checked: allDirsSelected,
+          indeterminate: someDirsSelected && !allDirsSelected,
+          disabled: emptyDirs.length === 0,
+          label: t('cleanup.select_all_filtered'),
+          onChange: (checked) =>
+            setSelectedDirs(
+              checked ? new Set(emptyDirs.map((row) => row.id)) : new Set<number>(),
+            ),
+        },
+        render: (row) => (
+          <input
+            type="checkbox"
+            aria-label={`${t('tree.selected')}: ${row.name}`}
+            checked={selectedDirs.has(row.id)}
+            onChange={(event) => setSelection(setSelectedDirs, row.id, event.target.checked)}
+          />
+        ),
+      },
+      {
+        id: 'path',
+        header: t('top.path'),
+        width: 'minmax(220px, 1fr)',
+        render: (row) => (
+          <span className={styles.path} title={row.path}>
+            {row.path}
+          </span>
+        ),
+      },
+      {
+        id: 'open',
+        header: '',
+        width: '54px',
+        render: (row) => (
+          <IconButton label={t('treemap.open_tree')} onClick={() => openInTree(row.id)}>
+            <Folder size={15} strokeWidth={1.7} aria-hidden="true" />
+          </IconButton>
+        ),
+      },
+    ],
+    [allDirsSelected, emptyDirs, selectedDirs, someDirsSelected],
+  );
+
+  const selectedCount = candidatePaths.length + dirPaths.length;
+  const selectedBytes = totalReclaimable + emptyDirBytes;
 
   if (generation === null) {
     return (
@@ -223,14 +350,24 @@ export function CleanupCandidates() {
               min={0}
               max={3650}
               value={olderThan}
-              onChange={(event) => setOlderThan(Math.max(0, Number(event.target.value)))}
+              onChange={(event) =>
+                useCleanupStore.getState().setOlderThan(Math.max(0, Number(event.target.value)))
+              }
             />
           </Field>
           <div className={styles.buttonGroup}>
-            <Button variant="secondary" loading={loading} onClick={() => void loadCandidates()}>
+            <Button
+              variant="secondary"
+              loading={candidatesLoading}
+              onClick={() => void loadCandidates()}
+            >
               {t('cleanup.analyze')}
             </Button>
-            <Button variant="secondary" loading={loading} onClick={() => void loadEmptyDirs()}>
+            <Button
+              variant="secondary"
+              loading={emptyLoading}
+              onClick={() => void loadEmptyDirs()}
+            >
               {t('cleanup.find_empty')}
             </Button>
           </div>
@@ -264,55 +401,18 @@ export function CleanupCandidates() {
         />
       </StatRow>
 
-      {categories.length > 0 ? (
-        <Panel
-          title={t('cleanup.panels.categories')}
-          hint={t('cleanup.panels.categories_hint')}
-          actions={
-            <>
-              <Button
-                variant="ghost"
-                disabled={candidates.length === 0}
-                onClick={() => setCandidatesSelected(candidates.map((item) => item.node_id), true)}
-              >
-                {t('cleanup.panels.select_all')}
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={selectedCandidates.size === 0}
-                onClick={() => setCandidatesSelected([...selectedCandidates], false)}
-              >
-                {t('cleanup.panels.clear_selection')}
-              </Button>
-            </>
-          }
-        >
-          <div className={styles.categories}>
-            {categories.map((entry) => {
-              const all = entry.ids.every((id) => selectedCandidates.has(id));
-
-              return (
-                <Chip
-                  key={entry.category}
-                  selected={all}
-                  onClick={() => setCandidatesSelected(entry.ids, !all)}
-                >
-                  {`${t(`cleanup.reason.${entry.category}`)} · ${formatNumber(entry.count, language)} · ${formatBytes(entry.bytes, units)}`}
-                </Chip>
-              );
-            })}
-          </div>
-        </Panel>
-      ) : null}
-
       <Panel title={t('cleanup.recommendations')} hint={t('cleanup.panels.risk_hint')}>
-        <FilterBar screen="cleanup" filter={filter} onChange={setFilter} />
+        <FilterBar
+          filter={filter}
+          onChange={(next) => useCleanupStore.getState().setFilter(next)}
+          extraCategories={CLEANUP_REASON_FILTERS}
+        />
 
-        {error !== null ? (
+        {candidatesError !== null ? (
           <ErrorState
-            title={t(error.message_key)}
-            code={error.code}
-            details={error.details ?? undefined}
+            title={t(candidatesError.message_key)}
+            code={candidatesError.code}
+            details={candidatesError.details ?? undefined}
             actions={
               <Button variant="primary" onClick={() => void loadCandidates()}>
                 {t('error.retry')}
@@ -321,90 +421,23 @@ export function CleanupCandidates() {
           />
         ) : null}
 
-        {loading && candidates.length === 0 ? (
-          <Loading label={t('common.loading')} rows={3} />
-        ) : candidates.length === 0 ? (
-          <EmptyState title={t('cleanup.none')} description={t('cleanup.intro')} />
-        ) : (
-          <>
-            <p className={styles.hint}>{t('duplicates.kept_hint')}</p>
-            <div className={styles.tableWrap}>
-              <table
-                className={`${styles.table} ${styles.tableFixed}`}
-                aria-label={t('cleanup.recommendations')}
-              >
-                <thead>
-                  <tr>
-                    <th scope="col" className={styles.colSelect}>
-                      <span className={styles.visuallyHidden}>{t('duplicates.delete')}</span>
-                    </th>
-                    <th scope="col">{t('top.path')}</th>
-                    <th scope="col" className={styles.colRisk}>
-                      {t('cleanup.risk_label')}
-                    </th>
-                    <th scope="col" className={styles.colReason}>
-                      {t('cleanup.reason_label')}
-                    </th>
-                    <th scope="col" className={`${styles.numeric} ${styles.colSize}`}>
-                      {t('top.size')}
-                    </th>
-                    <th scope="col" className={styles.colAction}>
-                      {t('details.items')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidates.map((candidate) => {
-                    const risk = RISK[candidate.risk] ?? RISK_FALLBACK;
-                    const Icon = risk.icon;
-                    const known = RISK[candidate.risk] !== undefined;
-
-                    return (
-                      <tr key={candidate.node_id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`${t('tree.selected')}: ${candidate.name}`}
-                            checked={selectedCandidates.has(candidate.node_id)}
-                            onChange={(event) =>
-                              setSelection(
-                                setSelectedCandidates,
-                                candidate.node_id,
-                                event.target.checked,
-                              )
-                            }
-                          />
-                        </td>
-                        <td className={styles.path} title={candidate.path}>
-                          {candidate.path}
-                        </td>
-                        <td>
-                          <Badge tone={risk.tone}>
-                            <span className={styles.risk}>
-                              <Icon size={12} strokeWidth={2} aria-hidden="true" />
-                              {known
-                                ? t(`cleanup.risk.${candidate.risk}`)
-                                : t('cleanup.panels.risk_unknown')}
-                            </span>
-                          </Badge>
-                        </td>
-                        <td>{t(candidate.reason_key)}</td>
-                        <td className={styles.numeric}>
-                          {formatBytes(candidate.reclaimable_bytes, units)}
-                        </td>
-                        <td>
-                          <Button variant="ghost" onClick={() => openInTree(candidate.node_id)}>
-                            {t('treemap.open_tree')}
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        <DataTable
+          label={t('cleanup.recommendations')}
+          rows={candidates}
+          columns={candidateColumns}
+          rowKey={(row) => row.node_id}
+          loading={candidatesLoading}
+          height={360}
+          initialScrollTop={scrollTop}
+          onScrollTopChange={(value) => useCleanupStore.getState().setScrollTop(value)}
+          empty={
+            candidatesLoading ? (
+              <Loading label={t('common.loading')} rows={3} />
+            ) : (
+              <EmptyState title={t('cleanup.none')} description={t('cleanup.intro')} />
+            )
+          }
+        />
       </Panel>
 
       {emptyPage !== null || emptyDirs.length > 0 ? (
@@ -420,6 +453,18 @@ export function CleanupCandidates() {
             </Button>
           }
         >
+          {emptyError !== null ? (
+            <ErrorState
+              title={t(emptyError.message_key)}
+              code={emptyError.code}
+              details={emptyError.details ?? undefined}
+              actions={
+                <Button variant="primary" onClick={() => void loadEmptyDirs()}>
+                  {t('error.retry')}
+                </Button>
+              }
+            />
+          ) : null}
           {emptyDirs.length === 0 ? (
             <EmptyState title={t('cleanup.none')} />
           ) : (
@@ -430,53 +475,20 @@ export function CleanupCandidates() {
               {emptyPage?.stale_cursor === true ? (
                 <Banner tone="warning">{t('error.stale_cursor')}</Banner>
               ) : null}
-              <div className={styles.tableWrap}>
-                <table
-                  className={`${styles.table} ${styles.tableFixed}`}
-                  aria-label={t('cleanup.empty_dirs')}
-                >
-                  <thead>
-                    <tr>
-                      <th scope="col" className={styles.colSelect}>
-                        <span className={styles.visuallyHidden}>{t('duplicates.delete')}</span>
-                      </th>
-                      <th scope="col">{t('top.path')}</th>
-                      <th scope="col" className={styles.colAction}>
-                        {t('details.items')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {emptyDirs.map((row) => (
-                      <tr key={row.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`${t('tree.selected')}: ${row.name}`}
-                            checked={selectedDirs.has(row.id)}
-                            onChange={(event) =>
-                              setSelection(setSelectedDirs, row.id, event.target.checked)
-                            }
-                          />
-                        </td>
-                        <td className={styles.path} title={row.path}>
-                          {row.path}
-                        </td>
-                        <td>
-                          <Button variant="ghost" onClick={() => openInTree(row.id)}>
-                            {t('treemap.open_tree')}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                label={t('cleanup.empty_dirs')}
+                rows={emptyDirs}
+                columns={emptyDirColumns}
+                rowKey={(row) => row.id}
+                loading={emptyLoading}
+                height={280}
+                empty={<EmptyState title={t('cleanup.none')} />}
+              />
             </>
           )}
           {emptyPage?.next_cursor !== null && emptyPage?.next_cursor !== undefined ? (
             <div className={styles.panelFoot}>
-              <Button variant="secondary" onClick={() => void loadEmptyDirs(emptyPage.next_cursor)}>
+              <Button variant="secondary" loading={emptyLoading} onClick={() => void loadEmptyDirs(emptyPage.next_cursor)}>
                 {t('tree.load_more')}
               </Button>
             </div>
@@ -526,4 +538,22 @@ export function Cleanup() {
       {(id) => (id === 'candidates' ? <CleanupCandidates /> : <Snapshots />)}
     </ScreenFrameTabs>
   );
+}
+
+/** Debounces a filter and keeps object identity when only a new scan reset it. */
+function useDebounced(filter: FilterSet): [FilterSet] {
+  const [value, setValue] = useState(filter);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setValue((current) =>
+        JSON.stringify(current) === JSON.stringify(filter) ? current : filter,
+      );
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [filter]);
+
+  return [value];
 }

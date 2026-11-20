@@ -462,15 +462,10 @@ impl ExportService {
         let totals = snapshot_totals(&job.snapshot);
         let roots: Vec<String> = job
             .snapshot
-            .session()
-            .map(|session| {
-                session
-                    .roots
-                    .iter()
-                    .map(|root| paths::display(root))
-                    .collect()
-            })
-            .unwrap_or_else(|| vec![paths::display(&job.snapshot.volume().mount_point)]);
+            .root_paths()
+            .iter()
+            .map(|root| paths::display(root))
+            .collect();
         let session_id = job
             .snapshot
             .session()
@@ -846,17 +841,19 @@ mod tests {
         std::fs::write(directory.path().join("nested").join("note.txt"), b"hi").expect("note");
         let outcome = run_scan(
             &ScanRequest {
-                path: directory.path().to_string_lossy().into_owned(),
+                paths: vec![directory.path().to_string_lossy().into_owned()],
                 method: ScanMethodChoice::Walk,
                 incremental: false,
                 exclusions: Vec::new(),
                 include_ads: false,
                 metric: Metric::OnDisk,
+                merge: false,
             },
             &mut NoopObserver,
         )
         .expect("scan");
-        let snapshot = TreeSnapshot::new(outcome.tree, 21, outcome.volume, Some(outcome.session));
+        let (tree, volumes, sessions) = outcome.into_snapshot_parts();
+        let snapshot = TreeSnapshot::new_multi(tree, 21, volumes, sessions);
         let output = tempfile::tempdir().expect("output");
 
         (directory, output, Arc::new(snapshot))

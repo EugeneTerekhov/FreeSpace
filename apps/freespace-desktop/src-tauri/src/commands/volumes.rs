@@ -35,3 +35,14 @@ pub fn volumes_current(state: State<'_, AppState>) -> Result<VolumeSummary, UiEr
 
     Ok(volumes::summary(snapshot.volume()))
 }
+
+/// Returns every volume of a snapshot generation, in root order.
+#[tauri::command(rename_all = "snake_case")]
+pub fn snapshot_volumes(
+    state: State<'_, AppState>,
+    generation: u64,
+) -> Result<Vec<VolumeSummary>, UiError> {
+    let snapshot = state.snapshot_for(generation)?;
+
+    Ok(snapshot.volumes().iter().map(volumes::summary).collect())
+}

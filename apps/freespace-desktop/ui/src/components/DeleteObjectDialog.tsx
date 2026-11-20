@@ -38,7 +38,6 @@ export function DeleteObjectDialog({
   onCancel,
   onConfirm,
 }: DeleteObjectDialogProps) {
-  const language = useSettingsStore((state) => state.settings?.language ?? 'ru');
   const units = useSettingsStore((state) => state.settings?.units ?? 'binary');
 
   if (target === null) return null;
@@ -88,7 +87,7 @@ export function DeleteObjectDialog({
           </div>
           <div>
             <dt>{t('details.modified')}</dt>
-            <dd>{formatDateTimeCompact(target.modified_at, language)}</dd>
+            <dd>{formatDateTimeCompact(target.modified_at)}</dd>
           </div>
           <div>
             <dt>{t('confirm.mode')}</dt>

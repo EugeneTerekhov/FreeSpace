@@ -28,7 +28,7 @@ export const SCREEN_GROUPS = [
 export type UiLanguage = 'ru' | 'en';
 
 const LABELS = {
-  analyze: { ru: 'Анализировать этот том', en: 'Analyze this volume' },
+  analyzeSelected: { ru: 'Анализировать', en: 'Analyze' },
   scanCompleted: { ru: 'Сканирование завершено', en: 'Scan completed' },
   openTree: { ru: 'Открыть дерево', en: 'Open tree' },
 } as const;
@@ -49,8 +49,14 @@ export class ScreensPage {
   /** Runs the mock scan from the overview and waits for the completed banner. */
   async runScan(language: UiLanguage = 'ru'): Promise<void> {
     await this.open('overview');
+    // A volume is selected by clicking its block; the selection bar then starts
+    // the analysis.
     await this.page
-      .getByRole('button', { name: LABELS.analyze[language] })
+      .getByRole('button', { name: /^C\b/ })
+      .first()
+      .click();
+    await this.page
+      .getByRole('button', { name: LABELS.analyzeSelected[language] })
       .first()
       .click();
     await expect(this.page.getByText(LABELS.scanCompleted[language])).toBeVisible({

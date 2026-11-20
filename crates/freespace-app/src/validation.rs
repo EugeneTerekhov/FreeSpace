@@ -27,6 +27,8 @@ pub const MAX_EXCLUSIONS: usize = 64;
 pub const MAX_SAVED_FILTERS: usize = 20;
 /// Maximum length of a saved filter name.
 pub const MAX_FILTER_NAME_CHARS: usize = 64;
+/// Maximum number of roots in one scan.
+pub const MAX_SCAN_ROOTS: usize = freespace_scan::MAX_SCAN_ROOTS;
 /// Maximum window width or height.
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 /// Smallest supported UI schema version.
@@ -204,7 +206,39 @@ pub fn validate_sort(sort: SortSpec) -> Result<SortSpec, UiError> {
 /// # Errors
 /// Returns [`UiErrorCode::Validation`](crate::error::UiErrorCode::Validation).
 pub fn validate_scan_request(request: &ScanRequest) -> Result<(), UiError> {
-    validate_path(&request.path)?;
+    if request.paths.is_empty() {
+        return Err(UiError::validation("at least one scan path is required"));
+    }
+    if request.paths.len() > MAX_SCAN_ROOTS {
+        return Err(UiError::validation(format!(
+            "at most {MAX_SCAN_ROOTS} scan paths are supported"
+        )));
+    }
+
+    let mut keys = Vec::with_capacity(request.paths.len());
+    for text in &request.paths {
+        let path = validate_path(text)?;
+        let key = freespace_platform::paths::equivalent_key(&path);
+        let key = PathBuf::from(key);
+        if keys.iter().any(|existing| existing == &key) {
+            return Err(UiError::validation(format!(
+                "scan path `{text}` is listed more than once"
+            )));
+        }
+        keys.push(key);
+    }
+
+    for (index, path) in keys.iter().enumerate() {
+        for other in &keys[index + 1..] {
+            if path.starts_with(other) || other.starts_with(path) {
+                return Err(UiError::validation(format!(
+                    "scan paths `{}` and `{}` overlap",
+                    path.display(),
+                    other.display()
+                )));
+            }
+        }
+    }
 
     if request.exclusions.len() > MAX_EXCLUSIONS {
         return Err(UiError::validation(format!(
@@ -309,8 +343,8 @@ pub fn validate_window_state(state: &WindowState) -> Result<(), UiError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_CURSOR_CHARS, MAX_EXCLUSIONS, MAX_PAGE_SIZE, validate_cursor, validate_filter,
-        validate_filter_text, validate_name, validate_page_size, validate_path,
+        MAX_CURSOR_CHARS, MAX_EXCLUSIONS, MAX_PAGE_SIZE, MAX_SCAN_ROOTS, validate_cursor,
+        validate_filter, validate_filter_text, validate_name, validate_page_size, validate_path,
         validate_scan_request, validate_ui_settings, validate_window_state,
     };
     use crate::dto::{ColumnState, FilterSet, ScanRequest, ScreenId, UiSettings, WindowState};
@@ -400,20 +434,48 @@ mod tests {
     #[test]
     fn validates_scan_requests() {
         let request = ScanRequest {
-            path: std::env::temp_dir().to_string_lossy().into_owned(),
+            paths: vec![std::env::temp_dir().to_string_lossy().into_owned()],
             method: crate::dto::ScanMethodChoice::Auto,
             incremental: false,
             exclusions: vec!["**/node_modules".to_owned()],
             include_ads: false,
             metric: crate::dto::Metric::OnDisk,
+            merge: false,
         };
         assert!(validate_scan_request(&request).is_ok());
 
         let too_many = ScanRequest {
             exclusions: vec!["x".to_owned(); MAX_EXCLUSIONS + 1],
-            ..request
+            ..request.clone()
         };
         assert!(validate_scan_request(&too_many).is_err());
+
+        let empty = ScanRequest {
+            paths: Vec::new(),
+            ..request.clone()
+        };
+        assert!(validate_scan_request(&empty).is_err());
+
+        let root = if cfg!(windows) { r"C:\" } else { "/" };
+        let duplicate = ScanRequest {
+            paths: vec![root.to_owned(), root.to_owned()],
+            ..request.clone()
+        };
+        assert!(validate_scan_request(&duplicate).is_err());
+
+        let overlapping = ScanRequest {
+            paths: vec![root.to_owned(), format!("{root}nested")],
+            ..request.clone()
+        };
+        assert!(validate_scan_request(&overlapping).is_err());
+
+        let too_many_roots = ScanRequest {
+            paths: (0..=MAX_SCAN_ROOTS)
+                .map(|index| format!("{root}nested-{index}"))
+                .collect(),
+            ..request
+        };
+        assert!(validate_scan_request(&too_many_roots).is_err());
     }
 
     #[test]

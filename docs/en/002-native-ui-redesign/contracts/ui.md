@@ -178,10 +178,10 @@ absorbed screens remain tabs/sections and parity matrix rows.
 | `tree` | analysis | Size hierarchy + size details | `tree_root/children/search`, `size_details` | Expand, filter, sort, select | `tree`, `filter` |
 | `analysis` | analysis | Largest files, types, owners | `top_files_page`, `types_summary`, `owners_page` | N, filter, tabs | `top`, `types`, `owners` |
 | `duplicates` | analysis | Duplicate groups | `duplicates_*` | Search, rule, select copies | `duplicates` |
-| `cleanup` | cleanup | Cleanup recommendations and snapshots | `cleanup_candidates`, `snapshots_*` | Select category, tabs, preview | `cleanup suggest`, `cleanup empty-dirs`, `snapshot create/diff` |
+| `cleanup` | cleanup | Cleanup recommendations and snapshots | `cleanup_candidates`, `snapshots_*` | Filter by reason (AND), tabs, preview | `cleanup suggest`, `cleanup empty-dirs`, `snapshot create/diff` |
 | `journal` | operations | Operation history | `journal_page` | Open, undo, restore | `delete`/`shred`/`rename`/`acl` (records) |
 | `shred` | operations | Irreversible destruction | `shred_preview/start/status` | Method, passes, confirmation | `shred` |
-| `monitor` | operations | Write monitoring | `monitor_*`, `monitor-tick` | Start/stop, threshold, filter | `monitor` |
+| `monitor` | operations | Write monitoring | `monitor_*`, `monitor-tick` | Start/stop, threshold, filter, sorting, open file/executable folder | `monitor` |
 | `inspect` | tools | Metadata, archives, unlock, long paths | `metadata_get`, `archives_entries_page`, `unlock_locks`, `long_paths_page` | Tabs, filter, release lock | `filter --metadata`, `archives`, `unlock`, `rename`, `delete` |
 | `fileops` | tools | Rename and permissions | `rename_preview/apply`, `permissions_get/preview/apply` | Tabs, preview, apply | `rename`, `acl`, `attrs` |
 | `settings` | system | Settings, elevation, about | `settings_get/set`, `elevation_status/request`, `about_info` | Theme, language, units, elevation, version | `config get/set`, `--version` |

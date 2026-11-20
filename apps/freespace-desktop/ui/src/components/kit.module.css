@@ -368,35 +368,7 @@
   font-size: var(--fs-text-sm);
 }
 
-.checkRow input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--fs-accent);
-}
-
-.checkRow input:not(:checked) {
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid var(--fs-line);
-  border-radius: 4px;
-  background-color: var(--fs-surface);
-  box-shadow: var(--fs-ring-faint);
-}
-
-.checkRow input:not(:checked):hover:not(:disabled) {
-  border-color: var(--fs-line);
-}
-
-.checkRow input:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--fs-accent-ring);
-}
-
-.checkRow input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* The checkbox itself is styled globally so bare inputs match the kit one. */
 
 .segmented {
   display: flex;

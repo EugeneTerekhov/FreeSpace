@@ -3,11 +3,12 @@ import { expect, test } from '@playwright/test';
 import { SCREEN_IDS, screens } from './pages/screens';
 
 /**
- * The analyze button is the only control that starts the embedded scan from a
- * volume card. The accessible name is matched loosely so the spec does not
+ * A volume block is the selection control; the selection bar starts the
+ * embedded scan. The accessible names are matched loosely so the spec does not
  * depend on the exact wording of the dashboard copy.
  */
-const ANALYZE = /анализировать/i;
+const SELECT = /^C\b/;
+const ANALYZE = /^анализировать$/i;
 
 test.describe('core screens', () => {
   test('overview lists volumes and shows the embedded scan progress', async ({ page }) => {
@@ -18,10 +19,11 @@ test.describe('core screens', () => {
     const volumes = page.getByRole('region', { name: 'Тома' });
     await expect(volumes).toBeVisible();
     await expect(volumes.getByRole('heading', { level: 2 }).first()).toBeVisible();
-    await expect(volumes.getByText('C:\\', { exact: true }).first()).toBeVisible();
-    await expect(volumes.getByRole('button', { name: ANALYZE }).first()).toBeEnabled();
+    await expect(volumes.getByText('C', { exact: true }).first()).toBeVisible();
+    await expect(volumes.getByRole('button', { name: SELECT }).first()).toBeEnabled();
 
-    await volumes.getByRole('button', { name: ANALYZE }).first().click();
+    await volumes.getByRole('button', { name: SELECT }).first().click();
+    await page.getByRole('button', { name: ANALYZE }).first().click();
 
     // The scan no longer has a screen of its own: progress, the current path
     // and the completed banner live inside the overview.
@@ -31,6 +33,25 @@ test.describe('core screens', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Текущий анализ' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Открыть дерево' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: 'Обзор' })).toBeVisible();
+  });
+
+  test('keeps the previous volume when volumes are scanned one by one', async ({ page }) => {
+    await page.goto('/');
+    const app = screens(page);
+    await app.runScan();
+
+    // Select the second volume on its own: the current snapshot still holds C:.
+    await page.getByRole('button', { name: 'Снять выбор' }).click();
+    await page.getByRole('button', { name: /^D\b/ }).click();
+    await page.getByRole('button', { name: ANALYZE }).click();
+    await expect(page.getByText('Сканирование завершено')).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page.getByRole('button', { name: 'Открыть дерево' }).click();
+    await expect(page.getByRole('treegrid', { name: 'Дерево' })).toBeVisible();
+    await expect(page.getByRole('row', { name: /C:\\/ }).first()).toBeVisible();
+    await expect(page.getByRole('row', { name: /D:\\/ }).first()).toBeVisible();
   });
 
   test('the embedded scan opens the tree', async ({ page }) => {
@@ -64,16 +85,6 @@ test.describe('core screens', () => {
     await expect(details).toBeVisible();
     await expect(details.getByText('Размер на диске', { exact: true })).toBeVisible();
     await expect(details.getByText('Каталог')).toBeVisible();
-  });
-
-  test('tree search finds a nested object', async ({ page }) => {
-    await page.goto('/');
-    const app = screens(page);
-    await app.withSnapshot();
-
-    await page.getByRole('searchbox', { name: 'Найти' }).fill('explorer');
-    await page.getByRole('button', { name: 'Найти' }).click();
-    await expect(page.getByRole('row', { name: /explorer.exe/ })).toBeVisible();
   });
 
   test('every screen is reachable from the sidebar', async ({ page }) => {

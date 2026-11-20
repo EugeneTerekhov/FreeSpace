@@ -59,7 +59,7 @@ export function About() {
     {
       id: 'component',
       header: t('about.component'),
-      width: 'minmax(180px, 1fr)',
+      width: '180px',
       render: (row) => row.name,
     },
     {

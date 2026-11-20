@@ -10,12 +10,23 @@ import {
 import { cx } from '../lib/cx';
 import styles from './DataTable.module.css';
 
+/** Optional select-all control rendered in a column header. */
+export interface HeaderCheckbox {
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}
+
 export interface Column<T> {
   id: string;
   header: string;
   width?: string;
   align?: 'start' | 'end';
   sortable?: boolean;
+  /** Renders a tri-state checkbox in the header, for row selection columns. */
+  headerCheckbox?: HeaderCheckbox;
   render: (row: T) => ReactNode;
 }
 
@@ -79,6 +90,10 @@ export interface DataTableProps<T> {
    * context-menu key. The anchor is the pointer or the row itself.
    */
   onRowContextMenu?: (row: T, anchor: RowAnchor) => void;
+  /** Restores the vertical offset when the table remounts on a screen return. */
+  initialScrollTop?: number;
+  /** Reports the vertical offset so the caller can persist the scroll anchor. */
+  onScrollTopChange?: (top: number) => void;
 }
 
 /** Focus that came from the keyboard, not from a pointer click. */
@@ -89,6 +104,32 @@ function isKeyboardFocus(element: HTMLElement): boolean {
   } catch {
     return false;
   }
+}
+
+/** Tri-state header checkbox; the DOM property carries the partial state. */
+function HeaderCheckboxControl({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  label,
+  onChange,
+}: HeaderCheckbox) {
+  const reference = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (reference.current !== null) reference.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={reference}
+      type="checkbox"
+      className={styles.headerCheckbox}
+      aria-label={label}
+      checked={checked}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.checked)}
+    />
+  );
 }
 
 /** Virtualised grid with roving tabindex, keyboard activation and sortable headers. */
@@ -113,8 +154,11 @@ export function DataTable<T>({
   onRowHoverStart,
   onRowHoverEnd,
   onRowContextMenu,
+  initialScrollTop = 0,
+  onScrollTopChange,
 }: DataTableProps<T>) {
   const parent = useRef<HTMLDivElement>(null);
+  const scrollTopRef = useRef(initialScrollTop);
   const virtual = rows.length > 50;
   const virtualizer = useVirtualizer({
     count: virtual ? rows.length : 0,
@@ -126,6 +170,12 @@ export function DataTable<T>({
     .map((column) => column.width ?? 'minmax(80px, 1fr)')
     .join(' ');
   const pageSize = Math.max(1, Math.floor(height / ROW_HEIGHT) - 1);
+
+  // Restore the anchor once the grid remounts. At this point rows are already
+  // in the DOM (the caller reuses a cached result), so the scroll range exists.
+  useEffect(() => {
+    if (parent.current !== null) parent.current.scrollTop = scrollTopRef.current;
+  }, []);
 
   const rowKeyRef = useRef(rowKey);
   rowKeyRef.current = rowKey;
@@ -306,7 +356,7 @@ export function DataTable<T>({
             style={
               tree !== undefined && columnIndex === 0
                 ? {
-                    paddingLeft: `calc(var(--fs-space-3) + ${(level - 1) * 16}px)`,
+                    paddingLeft: `calc(var(--fs-table-gap) / 2 + ${(level - 1) * 16}px)`,
                   }
                 : undefined
             }
@@ -354,7 +404,8 @@ export function DataTable<T>({
           hadFocus.current = false;
         }
       }}
-      onScroll={() => {
+      onScroll={(event) => {
+        onScrollTopChange?.(event.currentTarget.scrollTop);
         if (!virtual) return;
         const items = virtualizer.getVirtualItems();
         const first = items[0];
@@ -366,7 +417,7 @@ export function DataTable<T>({
         }
       }}
     >
-      <div role="rowgroup">
+      <div role="rowgroup" className={styles.headerGroup}>
         <div
           role="row"
           className={styles.header}
@@ -391,7 +442,9 @@ export function DataTable<T>({
                   column.align === 'end' && styles.alignEnd,
                 )}
               >
-                {column.sortable === true && onSortChange !== undefined ? (
+                {column.headerCheckbox !== undefined ? (
+                  <HeaderCheckboxControl {...column.headerCheckbox} />
+                ) : column.sortable === true && onSortChange !== undefined ? (
                   <button
                     type="button"
                     className={cx(

@@ -44,11 +44,8 @@ describe('screen registry', () => {
     ]);
   });
 
-  it('restores the last screen only when it is known', () => {
-    expect(resolveInitialScreen('tree', true)).toBe('tree');
-    expect(resolveInitialScreen('unknown', true)).toBe('overview');
-    expect(resolveInitialScreen(null, true)).toBe('overview');
-    expect(resolveInitialScreen('tree', false)).toBe('overview');
+  it('always starts on the overview regardless of the stored screen', () => {
+    expect(resolveInitialScreen()).toBe('overview');
   });
 
   it('maps screens removed by the recomposition to their new owner', () => {

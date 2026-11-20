@@ -20,7 +20,7 @@ import { OperationPreviewDialog } from '../components/OperationPreviewDialog';
 import { OperationProgressView } from '../components/OperationProgress';
 import { emptyFilter } from '../lib/filters';
 import { t } from '../i18n';
-import { formatBytes, formatDate, formatNumber } from '../i18n/format';
+import { formatBytes, formatDateTimeShort, formatNumber } from '../i18n/format';
 import { useOperation } from '../operations/useOperation';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useShellStore } from '../stores/shellStore';
@@ -317,7 +317,7 @@ export function Duplicates() {
         <p className={styles.ruleHint}>{t('duplicates_ui.rule_hint')}</p>
       </Panel>
 
-      <FilterBar screen="duplicates" filter={filter} onChange={setFilter} />
+      <FilterBar filter={filter} onChange={setFilter} />
 
       {error !== null ? (
         <ErrorState
@@ -461,7 +461,7 @@ export function Duplicates() {
                           <span className={styles.pathCell}>{member.path}</span>
                         </span>
                       </td>
-                      <td>{formatDate(member.modified_at, language)}</td>
+                      <td>{formatDateTimeShort(member.modified_at)}</td>
                       <td className={styles.sizeCell}>{formatBytes(member.size, units)}</td>
                       <td className={styles.stateCell}>
                         {dropped ? (

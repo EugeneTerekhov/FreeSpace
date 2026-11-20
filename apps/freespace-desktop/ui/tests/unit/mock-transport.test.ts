@@ -18,7 +18,7 @@ describe('MockTransport', () => {
     const root = await transport.invoke<{ rows: { name: string }[] }>('tree_root', {
       generation: 1,
     });
-    expect(root.rows[0]?.name).toBe('C:\\');
+    expect(root.rows.map((row) => row.name)).toEqual(['C:\\']);
 
     const children = await transport.invoke<{ rows: { name: string }[] }>('tree_children', {
       generation: 1,
@@ -48,6 +48,27 @@ describe('MockTransport', () => {
     expect(completed).toHaveLength(1);
     expect(completed[0]?.payload.generation).toBe(started.generation);
     expect(transport.generation).toBe(started.generation);
+  });
+
+  it('records every volume of a multi-path scan for snapshot_volumes', async () => {
+    const transport = createMockTransport();
+
+    await transport.invoke<ScanStarted>('scan_start', {
+      request: { paths: ['C:\\', 'D:\\'] },
+    });
+    const volumes = await transport.invoke<{ mount_point: string }[]>(
+      'snapshot_volumes',
+      { generation: 2 },
+    );
+
+    expect(volumes.map((volume) => volume.mount_point)).toEqual(['C:\\', 'D:\\']);
+
+    const root = await transport.invoke<{ rows: { name: string }[] }>('tree_root', {
+      generation: 2,
+    });
+    expect(root.rows.map((row) => row.name)).toEqual(
+      expect.arrayContaining(['C:\\', 'D:\\']),
+    );
   });
 
   it('cancels a running scan', async () => {

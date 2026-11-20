@@ -2,8 +2,8 @@
 //!
 //! `scan_start` returns immediately with a task id; the worker runs the blocking
 //! scanner on a dedicated thread, throttles progress to 20 Hz and emits
-//! `scan-progress` / `scan-completed`. One scan per volume is enforced by the
-//! task registry.
+//! `scan-progress` / `scan-completed`. The task registry reserves every volume
+//! of a multi-root scan and allows at most one scan per volume.
 
 use std::{
     sync::{
@@ -18,11 +18,10 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use freespace_app::{
     dto::{ScanRequest, ScanSessionSummary, ScanStarted, Task, TaskState},
     error::UiError,
-    scan::run_scan,
+    scan::{ScanOutcome, run_scan},
     validation::{validate_path, validate_scan_request},
 };
-use freespace_core::model::ScanIssue;
-use freespace_core::model::ScanSession;
+use freespace_core::model::{ScanIssue, ScanSession};
 use freespace_scan::session::{ScanObserver, ScanPhase, ScanProgress};
 
 use crate::{
@@ -42,20 +41,74 @@ pub fn scan_start(
     request: ScanRequest,
 ) -> Result<ScanStarted, UiError> {
     validate_scan_request(&request)?;
-    let path = validate_path(&request.path)?;
-    security::canonicalize(&path)?;
 
-    let volume_id = freespace_platform::volumes::describe_volume(&path)?
-        .into_volume()
-        .id
-        .to_string();
+    let mut paths = Vec::with_capacity(request.paths.len());
+    let mut volume_ids = Vec::new();
+    let mut first_error: Option<UiError> = None;
+    for text in &request.paths {
+        let path = validate_path(text)?;
+        let resolved = security::canonicalize(&path).and_then(|canonical| {
+            let volume_id = freespace_platform::volumes::describe_volume(&canonical)
+                .map_err(UiError::from)?
+                .into_volume()
+                .id
+                .to_string();
+            Ok((canonical, volume_id))
+        });
+        match resolved {
+            Ok((canonical, volume_id)) => {
+                if !volume_ids.contains(&volume_id) {
+                    volume_ids.push(volume_id);
+                }
+                paths.push(freespace_platform::paths::display(&canonical));
+            }
+            Err(error) => {
+                // Keep the original path so the worker can report this root and
+                // scan the remaining ones (FR-010).
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+                paths.push(text.clone());
+            }
+        }
+    }
+    if volume_ids.is_empty() {
+        return Err(first_error
+            .unwrap_or_else(|| UiError::validation("no scan path could be resolved to a volume")));
+    }
+
+    let request = ScanRequest { paths, ..request };
+    // Canonicalisation can reveal duplicates or overlaps that the lexical
+    // validation could not see (for example through a junction).
+    validate_scan_request(&request)?;
+
+    // A merged scan may refresh an existing root or add a new one, but a root
+    // nested inside the current snapshot would be counted twice.
+    if request.merge {
+        if let Ok(snapshot) = state.snapshot() {
+            for text in &request.paths {
+                let path = freespace_platform::paths::normalize(std::path::Path::new(text))?;
+                for root in snapshot.root_paths() {
+                    let root = freespace_platform::paths::normalize(&root)?;
+                    if path != root && path.starts_with(&root) {
+                        return Err(UiError::validation(format!(
+                            "`{}` is already inside the scanned root `{}`",
+                            freespace_platform::paths::display(&path),
+                            freespace_platform::paths::display(&root)
+                        )));
+                    }
+                }
+            }
+        }
+    }
+
     let generation = state.next_generation()?;
     let task_id = uuid::Uuid::new_v4().to_string();
     let cancel = Arc::new(AtomicBool::new(false));
-    state.reserve_scan(&task_id, &volume_id, Arc::clone(&cancel))?;
+    state.reserve_scans(&task_id, &volume_ids, Arc::clone(&cancel))?;
 
     let worker_task_id = task_id.clone();
-    let worker_volume_id = volume_id.clone();
+    let worker_volume_ids = volume_ids.clone();
     let worker_app = app.clone();
     std::thread::Builder::new()
         .name(format!("freespace-scan-{task_id}"))
@@ -63,14 +116,14 @@ pub fn scan_start(
             run_worker(
                 worker_app,
                 worker_task_id,
-                worker_volume_id,
+                worker_volume_ids,
                 generation,
                 request,
                 cancel,
             );
         })
         .map_err(|error| {
-            state.release_scan(&volume_id);
+            state.release_scans(&volume_ids);
             UiError::new(freespace_app::error::UiErrorCode::Internal)
                 .with_details(error.to_string())
         })?;
@@ -164,7 +217,7 @@ impl ScanObserver for ScanWorkerObserver {
 fn run_worker(
     app: AppHandle,
     task_id: String,
-    volume_id: String,
+    volume_ids: Vec<String>,
     generation: u64,
     request: ScanRequest,
     cancel: Arc<AtomicBool>,
@@ -187,11 +240,10 @@ fn run_worker(
 
     match result {
         Ok(outcome) => {
-            let freespace_app::scan::ScanOutcome {
+            let ScanOutcome {
                 tree,
-                session,
-                method,
-                volume,
+                roots,
+                failures,
                 warnings,
                 issues,
                 cancelled,
@@ -200,41 +252,76 @@ fn run_worker(
 
             let task_state = if cancelled {
                 TaskState::Cancelled
-            } else if issues.is_empty() {
+            } else if failures.is_empty() && issues.is_empty() {
                 TaskState::Completed
             } else {
                 TaskState::Partial
             };
-            let summary = ScanSummary {
-                nodes_count: session.nodes_count,
-                method: method.as_str().to_owned(),
-                roots: session
-                    .roots
-                    .iter()
-                    .map(|root| freespace_platform::paths::display(root))
-                    .collect(),
-                warnings,
-                issues_count: u64::try_from(issues.len()).unwrap_or(u64::MAX),
-                elapsed_ms,
-            };
-            let session_summary = session_summary(&session);
 
-            state.install_snapshot(
-                Arc::new(freespace_app::tree::TreeSnapshot::new(
-                    tree,
-                    generation,
-                    volume,
-                    Some(session),
-                )),
-                Some(session_summary),
-            );
-            state.finish_task(&task_id, task_state, None);
+            let summary = if roots.is_empty() {
+                None
+            } else {
+                let methods: Vec<String> = roots
+                    .iter()
+                    .map(|root| root.method.as_str().to_owned())
+                    .collect();
+                let mut volumes: Vec<String> = Vec::new();
+                for root in &roots {
+                    let mount = freespace_platform::paths::display(&root.volume.mount_point);
+                    if !volumes.contains(&mount) {
+                        volumes.push(mount);
+                    }
+                }
+                Some(ScanSummary {
+                    nodes_count: roots
+                        .iter()
+                        .map(|root| root.session.nodes_count)
+                        .fold(0, u64::saturating_add),
+                    method: summary_method(&methods),
+                    methods,
+                    roots: roots
+                        .iter()
+                        .flat_map(|root| root.session.roots.iter())
+                        .map(|root| freespace_platform::paths::display(root))
+                        .collect(),
+                    volumes,
+                    warnings,
+                    issues_count: u64::try_from(issues.len()).unwrap_or(u64::MAX),
+                    elapsed_ms,
+                })
+            };
+
+            if roots.is_empty() {
+                // Cancelled before the first root: there is nothing to install.
+                state.finish_task(&task_id, task_state, None);
+            } else {
+                let sessions: Vec<ScanSessionSummary> = roots
+                    .iter()
+                    .map(|root| session_summary(&root.session))
+                    .collect();
+                let volumes = roots.iter().map(|root| root.volume.clone()).collect();
+                let scan_sessions = roots.iter().map(|root| root.session.clone()).collect();
+                if request.merge {
+                    state.merge_snapshot(generation, tree, volumes, scan_sessions, sessions);
+                } else {
+                    state.install_snapshot(
+                        Arc::new(freespace_app::tree::TreeSnapshot::new_multi(
+                            tree,
+                            generation,
+                            volumes,
+                            scan_sessions,
+                        )),
+                        sessions,
+                    );
+                }
+                state.finish_task(&task_id, task_state, None);
+            }
 
             let event = ScanCompletedEvent {
                 task_id: task_id.clone(),
                 state: task_state,
                 generation,
-                summary: Some(summary),
+                summary,
                 error: None,
             };
             emit_completed(&app, &mut observer, event);
@@ -252,7 +339,7 @@ fn run_worker(
         }
     }
 
-    state.release_scan(&volume_id);
+    state.release_scans(&volume_ids);
     let tasks = TaskQueueEvent {
         tasks: app.state::<AppState>().tasks(),
     };
@@ -265,6 +352,16 @@ fn run_worker(
             tasks,
         ),
     );
+}
+
+/// Returns the shared method name or `mixed` when the roots differ.
+fn summary_method(methods: &[String]) -> String {
+    let first = methods.first().cloned().unwrap_or_default();
+    if methods.iter().all(|method| method == &first) {
+        first
+    } else {
+        "mixed".to_owned()
+    }
 }
 
 fn emit_completed(app: &AppHandle, observer: &mut ScanWorkerObserver, event: ScanCompletedEvent) {

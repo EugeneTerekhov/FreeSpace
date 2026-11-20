@@ -28,7 +28,11 @@ use freespace_app::{
     tree::TreeSnapshot,
     window_state::{MonitorBounds, load_window_state, save_window_state, window_state_path},
 };
-use freespace_core::time::Timestamp;
+use freespace_core::{
+    model::{ScanSession, Volume},
+    time::Timestamp,
+    tree::FsTree,
+};
 use freespace_ops::store::Store;
 
 use crate::{boot::BootState, security};
@@ -250,18 +254,43 @@ impl AppState {
         Ok(inner.generation)
     }
 
-    /// Installs a finished snapshot and its session summary.
-    pub fn install_snapshot(
-        &self,
-        snapshot: Arc<TreeSnapshot>,
-        session: Option<ScanSessionSummary>,
-    ) {
+    /// Installs a finished snapshot and its per-root session summaries.
+    pub fn install_snapshot(&self, snapshot: Arc<TreeSnapshot>, sessions: Vec<ScanSessionSummary>) {
         let mut inner = self.lock();
         inner.generation = inner.generation.max(snapshot.generation());
         inner.snapshot = Some(snapshot);
-        if let Some(session) = session {
-            inner.sessions.push(session);
-        }
+        inner.sessions.extend(sessions);
+    }
+
+    /// Merges a finished scan into the current snapshot.
+    ///
+    /// The previous tree is reused in place when no command holds it; otherwise
+    /// it is cloned before the append. The new snapshot keeps every root that
+    /// the scan did not re-analyse.
+    pub fn merge_snapshot(
+        &self,
+        generation: u64,
+        tree: FsTree,
+        volumes: Vec<Volume>,
+        sessions: Vec<ScanSession>,
+        summaries: Vec<ScanSessionSummary>,
+    ) -> Arc<TreeSnapshot> {
+        let mut inner = self.lock();
+        let merged = match inner.snapshot.take() {
+            Some(previous) => match Arc::try_unwrap(previous) {
+                Ok(snapshot) => snapshot.merge_owned(generation, tree, volumes, sessions),
+                Err(previous) => (*previous)
+                    .clone()
+                    .merge_owned(generation, tree, volumes, sessions),
+            },
+            None => TreeSnapshot::new_multi(tree, generation, volumes, sessions),
+        };
+        let merged = Arc::new(merged);
+        inner.generation = inner.generation.max(generation);
+        inner.snapshot = Some(Arc::clone(&merged));
+        inner.sessions.extend(summaries);
+
+        merged
     }
 
     /// Returns the current snapshot, or `E_NOT_FOUND` when no scan has finished.
@@ -348,6 +377,7 @@ impl AppState {
                     kind: TaskKind::Monitor,
                     state: TaskState::Running,
                     volume_id: None,
+                    volume_ids: Vec::new(),
                     progress: None,
                     started_at: Timestamp::now().as_millis(),
                     finished_at: None,
@@ -382,7 +412,8 @@ impl AppState {
                     task_id: task_id.to_owned(),
                     kind: TaskKind::Duplicates,
                     state: TaskState::Running,
-                    volume_id,
+                    volume_id: volume_id.clone(),
+                    volume_ids: volume_id.into_iter().collect(),
                     progress: None,
                     started_at: Timestamp::now().as_millis(),
                     finished_at: None,
@@ -430,24 +461,37 @@ impl AppState {
         duplicates::deletion_targets(&search, selected)
     }
 
-    /// Registers a scan task and reserves its volume.    ///
+    /// Registers a scan task and reserves its volumes.
+    ///
+    /// Every volume is reserved atomically: if any of them already has a
+    /// running scan, nothing is reserved and `E_BUSY` is returned.
+    ///
     /// # Errors
-    /// Returns `E_BUSY` when the volume already has a running scan.
-    pub fn reserve_scan(
+    /// Returns `E_BUSY` when a volume already has a running scan and
+    /// `E_VALIDATION` for an empty volume list.
+    pub fn reserve_scans(
         &self,
         task_id: &str,
-        volume_id: &str,
+        volume_ids: &[String],
         cancel: Arc<AtomicBool>,
     ) -> Result<(), UiError> {
-        let mut inner = self.lock();
-        if let Some(active) = inner.active_scans.get(volume_id) {
-            return Err(UiError::new(UiErrorCode::Busy)
-                .with_details(format!("volume already has the scan task `{active}`")));
+        if volume_ids.is_empty() {
+            return Err(UiError::validation("a scan needs at least one volume"));
         }
 
-        inner
-            .active_scans
-            .insert(volume_id.to_owned(), task_id.to_owned());
+        let mut inner = self.lock();
+        for volume_id in volume_ids {
+            if let Some(active) = inner.active_scans.get(volume_id) {
+                return Err(UiError::new(UiErrorCode::Busy)
+                    .with_details(format!("volume already has the scan task `{active}`")));
+            }
+        }
+
+        for volume_id in volume_ids {
+            inner
+                .active_scans
+                .insert(volume_id.clone(), task_id.to_owned());
+        }
         inner.tasks.insert(
             task_id.to_owned(),
             TaskRecord {
@@ -455,7 +499,8 @@ impl AppState {
                     task_id: task_id.to_owned(),
                     kind: TaskKind::Scan,
                     state: TaskState::Running,
-                    volume_id: Some(volume_id.to_owned()),
+                    volume_id: volume_ids.first().cloned(),
+                    volume_ids: volume_ids.to_vec(),
                     progress: None,
                     started_at: Timestamp::now().as_millis(),
                     finished_at: None,
@@ -469,9 +514,30 @@ impl AppState {
         Ok(())
     }
 
+    /// Registers a scan task and reserves its volume.
+    ///
+    /// # Errors
+    /// Returns `E_BUSY` when the volume already has a running scan.
+    pub fn reserve_scan(
+        &self,
+        task_id: &str,
+        volume_id: &str,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<(), UiError> {
+        self.reserve_scans(task_id, &[volume_id.to_owned()], cancel)
+    }
+
+    /// Releases the volume reservations of a finished scan.
+    pub fn release_scans(&self, volume_ids: &[String]) {
+        let mut inner = self.lock();
+        for volume_id in volume_ids {
+            inner.active_scans.remove(volume_id);
+        }
+    }
+
     /// Releases the volume reservation of a finished scan.
     pub fn release_scan(&self, volume_id: &str) {
-        self.lock().active_scans.remove(volume_id);
+        self.release_scans(&[volume_id.to_owned()]);
     }
 
     /// Updates progress of a task.
@@ -584,8 +650,8 @@ mod tests {
         window_state::MonitorBounds,
     };
     use freespace_core::{
-        model::{FileSystem, Volume, VolumeStatus},
-        tree::FsTree,
+        model::{FileSystem, ScanMethod, ScanSession, Volume, VolumeStatus},
+        tree::{FsTree, NodeKind, NodeSpec},
     };
 
     use super::AppState;
@@ -667,18 +733,103 @@ mod tests {
     }
 
     #[test]
+    fn reserves_all_volumes_atomically() {
+        let (_directory, state) = state();
+        let cancel = Arc::new(AtomicBool::new(false));
+        state
+            .reserve_scans(
+                "task-1",
+                &["volume-1".to_owned(), "volume-2".to_owned()],
+                Arc::clone(&cancel),
+            )
+            .expect("first");
+
+        let task = state.task("task-1").expect("task");
+        assert_eq!(task.volume_ids, ["volume-1", "volume-2"]);
+        assert_eq!(task.volume_id.as_deref(), Some("volume-1"));
+
+        let error = state
+            .reserve_scans(
+                "task-2",
+                &["volume-2".to_owned(), "volume-3".to_owned()],
+                Arc::new(AtomicBool::new(false)),
+            )
+            .expect_err("busy");
+        assert_eq!(error.code, freespace_app::error::UiErrorCode::Busy);
+        assert!(state.task("task-2").is_err(), "no partial reservation");
+        assert_eq!(
+            state.task("task-1").expect("task").state,
+            TaskState::Running
+        );
+
+        state.release_scans(&["volume-1".to_owned(), "volume-2".to_owned()]);
+        state
+            .reserve_scans(
+                "task-3",
+                &["volume-2".to_owned()],
+                Arc::new(AtomicBool::new(false)),
+            )
+            .expect("released");
+    }
+
+    #[test]
     fn generations_are_monotonic_and_snapshots_are_bound_to_them() {
         let (_directory, state) = state();
         assert_eq!(state.next_generation().expect("generation"), 1);
         assert_eq!(state.next_generation().expect("generation"), 2);
         assert!(state.snapshot().is_err());
 
-        state.install_snapshot(snapshot(), None);
+        state.install_snapshot(snapshot(), Vec::new());
         assert_eq!(state.snapshot_for(3).expect("snapshot").generation(), 3);
         assert_eq!(
             state.snapshot_for(2).expect_err("stale").code,
             freespace_app::error::UiErrorCode::StaleCursor
         );
+    }
+
+    #[test]
+    fn merges_a_finished_scan_into_the_current_snapshot() {
+        let (_directory, state) = state();
+        state.install_snapshot(snapshot(), Vec::new());
+        assert_eq!(state.snapshot().expect("snapshot").volumes().len(), 1);
+
+        let volume = Volume {
+            id: Volume::id_for_mount_point(std::path::Path::new(r"D:\")),
+            mount_point: r"D:\".into(),
+            label: "Data".to_owned(),
+            file_system: FileSystem::Ntfs,
+            total_bytes: 2_000,
+            free_bytes: 500,
+            cluster_size: None,
+            scan_method: Some(ScanMethod::DirectoryWalk),
+            is_elevated: false,
+            is_removable: false,
+            status: VolumeStatus::Available,
+        };
+        let mut tree = FsTree::new();
+        tree.add_node(
+            None,
+            NodeSpec {
+                name: r"D:\".to_owned(),
+                kind: NodeKind::Directory,
+                ..NodeSpec::default()
+            },
+        )
+        .expect("root");
+        tree.recompute_totals();
+        let session = ScanSession::new(
+            volume.id,
+            vec![r"D:\".into()],
+            ScanMethod::DirectoryWalk,
+            Vec::new(),
+        );
+
+        state.merge_snapshot(4, tree, vec![volume], vec![session], Vec::new());
+
+        let merged = state.snapshot_for(4).expect("merged");
+        assert_eq!(merged.generation(), 4);
+        assert_eq!(merged.volumes().len(), 2);
+        assert_eq!(merged.tree().roots().count(), 1);
     }
 
     #[test]
@@ -738,9 +889,15 @@ mod tests {
         let (_directory, state) = state();
         let bootstrap = state.bootstrap("1.1.0", "windows", None, &[]);
 
-        assert_eq!(bootstrap.ipc_version, 1);
+        assert_eq!(bootstrap.ipc_version, 2);
         assert_eq!(bootstrap.app_version, "1.1.0");
         assert!(!bootstrap.capabilities.commands.is_empty());
+        assert!(
+            bootstrap
+                .capabilities
+                .commands
+                .contains(&"snapshot_volumes".to_owned())
+        );
         assert!(
             bootstrap
                 .capabilities

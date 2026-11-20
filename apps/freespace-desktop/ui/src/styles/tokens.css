@@ -54,6 +54,10 @@
   --fs-space-8: 32px;
   --fs-space-10: 40px;
 
+  /* Visual gap between table columns. Applied as half-padding on each cell
+   * so grid tables and plain <table>s share the same spacing. */
+  --fs-table-gap: var(--fs-space-4);
+
   /* Radius */
   --fs-radius-sm: 4px;
   --fs-radius-md: 6px;

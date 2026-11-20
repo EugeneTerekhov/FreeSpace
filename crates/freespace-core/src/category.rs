@@ -31,6 +31,8 @@ pub enum FileCategory {
     Database,
     /// Fonts.
     Font,
+    /// Directories (volume roots are not directories in the type report).
+    Folder,
     /// Anything else.
     #[default]
     Other,
@@ -50,6 +52,7 @@ impl FileCategory {
             Self::Executable => "executable",
             Self::Database => "database",
             Self::Font => "font",
+            Self::Folder => "folder",
             Self::Other => "other",
         }
     }
@@ -67,12 +70,13 @@ impl FileCategory {
             Self::Executable => "treemap.category.executable",
             Self::Database => "treemap.category.database",
             Self::Font => "treemap.category.font",
+            Self::Folder => "treemap.category.folder",
             Self::Other => "treemap.category.other",
         }
     }
 
     /// Every category in legend order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Video,
         Self::Audio,
         Self::Image,
@@ -82,6 +86,7 @@ impl FileCategory {
         Self::Executable,
         Self::Database,
         Self::Font,
+        Self::Folder,
         Self::Other,
     ];
 }

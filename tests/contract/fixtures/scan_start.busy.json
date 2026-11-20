@@ -2,7 +2,9 @@
   "command": "scan_start",
   "input": {
     "request": {
-      "path": "C:\\"
+      "paths": [
+        "C:\\"
+      ]
     }
   },
   "result": null,

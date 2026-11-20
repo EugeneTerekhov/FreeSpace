@@ -57,6 +57,16 @@ export function monitorEventsPage(
   });
 }
 
+/** Opens Explorer in the folder of a file reported by a monitor event. */
+export function monitorRevealFile(path: string): Promise<void> {
+  return api.transport.invoke<void>('monitor_reveal_file', { path });
+}
+
+/** Opens Explorer in the folder of a monitored process executable. */
+export function monitorRevealExecutable(processId: number): Promise<void> {
+  return api.transport.invoke<void>('monitor_reveal_executable', { process_id: processId });
+}
+
 /** Updates the exclusion masks of a running monitor. */
 export function monitorSetExclusions(exclusions: string[]): Promise<void> {
   return api.transport.invoke<void>('monitor_set_exclusions', { exclusions });

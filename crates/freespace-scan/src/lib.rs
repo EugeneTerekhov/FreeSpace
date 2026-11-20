@@ -28,7 +28,8 @@ pub use empty_dirs::{EmptyDir, find_empty_dirs};
 #[cfg(windows)]
 pub use session::update_incremental;
 pub use session::{
-    MethodChoice, NoopObserver, ScanObserver, ScanPhase, ScanProgress, ScanRequest, ScanResult,
-    is_volume_root, scan,
+    MAX_SCAN_ROOTS, MethodChoice, NoopObserver, RootScanOutcome, ScanFailure, ScanManyResult,
+    ScanObserver, ScanPhase, ScanProgress, ScanRequest, ScanResult, is_volume_root, scan,
+    scan_into, scan_many,
 };
 pub use walk::Exclusions;

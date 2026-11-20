@@ -51,6 +51,12 @@ describe('UI kit, part 1', () => {
       <SearchField label="Search" value="report" onValueChange={onChange} />,
     );
 
+    // A text input with the searchbox role keeps the browser from painting its
+    // own clear button next to ours.
+    const search = screen.getByRole('searchbox');
+    expect(search).toHaveAttribute('type', 'text');
+    expect(screen.getAllByRole('button', { name: 'Очистить' })).toHaveLength(1);
+
     await user.click(screen.getByRole('button', { name: 'Очистить' }));
     expect(onChange).toHaveBeenCalledWith('');
 
